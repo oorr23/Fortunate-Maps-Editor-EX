@@ -1,8 +1,13 @@
 {
-  "name": "tagpro-map-editor",
-  "version": "0.1.1",
+  "name": "tagpro-mobile-editor",
+  "version": "0.2.0",
+  "description": "Mobile-friendly TagPro map editor (web UI)",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "start": "node main.js"
+  },
   "dependencies": {
-    "express": "~3.4.8",
-    "form-data": "~0.1.2"
+    "express": "^4.21.2",
+    "form-data": "^4.0.2"
   }
 }

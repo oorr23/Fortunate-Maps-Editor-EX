@@ -1,0 +1,512 @@
+/* Mobile is the default layout. Desktop is an explicit exception
+   via html.layout-desktop (set by layout.js after size + pointer checks). */
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+#app {
+  height: 100%;
+}
+
+.dock-flip {
+  display: inline-block;
+  transform: scale(-1, 1);
+}
+
+.loupe {
+  display: none;
+  position: fixed;
+  width: 140px;
+  height: 140px;
+  margin-left: -70px;
+  margin-top: -70px;
+  border-radius: 50%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.95),
+    0 0 0 5px rgba(60, 60, 70, 0.45),
+    0 10px 28px rgba(0, 0, 0, 0.45);
+  background: #111;
+}
+
+.loupe.visible {
+  display: block;
+}
+
+.loupe-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #111;
+}
+
+.loupe-crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(255, 220, 50, 0.95);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.loupe-stem {
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  background: #fff;
+  transform: rotate(45deg);
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
+  z-index: 0;
+}
+
+.loupe-stem:after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: #111;
+}
+
+.layout-switcher .btn.active {
+  background-color: #2e6da4;
+  color: #fff;
+}
+
+/* ===== MOBILE (default) ===== */
+html.layout-mobile,
+html:not(.layout-desktop) {
+  overflow: hidden;
+}
+
+html.layout-mobile body,
+html:not(.layout-desktop) body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  background: #111;
+}
+
+html.layout-mobile #app,
+html:not(.layout-desktop) #app {
+  height: 100%;
+  height: 100dvh;
+}
+
+html.layout-mobile #map,
+html:not(.layout-desktop) #map {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  top: env(safe-area-inset-top, 0px);
+  bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  overflow: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  background: #111;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html.layout-mobile #sidebar,
+html:not(.layout-desktop) #sidebar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: #1a1d23;
+  color: #eee;
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  z-index: 3;
+  box-sizing: border-box;
+}
+
+html.layout-mobile #dock,
+html:not(.layout-desktop) #dock {
+  position: relative;
+  z-index: 5;
+  padding: 8px 8px 6px;
+  background: #1a1d23;
+}
+
+html.layout-mobile #palette,
+html:not(.layout-desktop) #palette {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  gap: 6px;
+  padding: 4px 2px 8px;
+  touch-action: pan-x;
+  scrollbar-width: thin;
+}
+
+html.layout-mobile #palette > div,
+html:not(.layout-desktop) #palette > div {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+html.layout-mobile #palette .tileBackground,
+html.layout-mobile #palette .tilePaletteOption,
+html:not(.layout-desktop) #palette .tileBackground,
+html:not(.layout-desktop) #palette .tilePaletteOption {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+html.layout-mobile #palette .tile,
+html.layout-mobile #palette .tileTypeSelectionIndicator,
+html:not(.layout-desktop) #palette .tile,
+html:not(.layout-desktop) #palette .tileTypeSelectionIndicator {
+  width: 44px;
+  height: 44px;
+}
+
+html.layout-mobile .dock-tools-wrap,
+html:not(.layout-desktop) .dock-tools-wrap {
+  margin: 0 0 6px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+html.layout-mobile #tools .btn-group-justified,
+html:not(.layout-desktop) #tools .btn-group-justified {
+  display: flex;
+  width: auto;
+  min-width: 100%;
+}
+
+html.layout-mobile #tools .btn-group-justified > .btn,
+html:not(.layout-desktop) #tools .btn-group-justified > .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  float: none;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 48px;
+  flex: 0 0 48px;
+}
+
+html.layout-mobile #tools .btn.active,
+html.layout-mobile a.selectedTool,
+html:not(.layout-desktop) #tools .btn.active,
+html:not(.layout-desktop) a.selectedTool {
+  background-color: #c0392b !important;
+  color: #fff;
+}
+
+html.layout-mobile #dockBar,
+html:not(.layout-desktop) #dockBar {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+html.layout-mobile .dock-btn,
+html:not(.layout-desktop) .dock-btn {
+  flex: 1 1 0;
+  min-width: 44px;
+  min-height: 48px;
+  border: 1px solid #3a3f4a;
+  border-radius: 10px;
+  background: #2a2f38;
+  color: #f2f2f2;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.layout-mobile .dock-btn:active,
+html.layout-mobile .dock-btn.active,
+html:not(.layout-desktop) .dock-btn:active,
+html:not(.layout-desktop) .dock-btn.active {
+  background: #3d4654;
+}
+
+html.layout-mobile #panMode.active,
+html:not(.layout-desktop) #panMode.active {
+  background: #2e6da4;
+  border-color: #4a90c8;
+}
+
+html.layout-mobile #moreToggle,
+html:not(.layout-desktop) #moreToggle {
+  flex: 1.4 1 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+html.layout-mobile .more-sheet-header,
+html:not(.layout-desktop) .more-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+html.layout-mobile #moreClose,
+html:not(.layout-desktop) #moreClose {
+  display: inline-block;
+  flex: 0 0 auto;
+  min-width: 72px;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+html.layout-mobile .more-backdrop,
+html:not(.layout-desktop) .more-backdrop {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 8;
+}
+
+html.layout-mobile .more-backdrop.open,
+html:not(.layout-desktop) .more-backdrop.open {
+  display: block;
+}
+
+html.layout-mobile #moreSheet,
+html:not(.layout-desktop) #moreSheet {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 9;
+  background: #f7f7f8;
+  color: #222;
+  padding: 12px 12px 16px;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.3);
+}
+
+html.layout-mobile #moreSheet.open,
+html:not(.layout-desktop) #moreSheet.open {
+  display: block;
+}
+
+html.layout-mobile #moreSheet .panel-undo-zoom,
+html:not(.layout-desktop) #moreSheet .panel-undo-zoom {
+  display: none;
+}
+
+html.layout-mobile #moreSheet .col-xs-4:last-child,
+html:not(.layout-desktop) #moreSheet .col-xs-4:last-child {
+  width: 100%;
+}
+
+html.layout-mobile #moreSheet .btn,
+html.layout-mobile #moreSheet .form-control,
+html.layout-mobile #moreSheet .input-group-addon,
+html.layout-mobile #moreSheet .input-group-btn .btn,
+html:not(.layout-desktop) #moreSheet .btn,
+html:not(.layout-desktop) #moreSheet .form-control,
+html:not(.layout-desktop) #moreSheet .input-group-addon,
+html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
+  min-height: 44px;
+}
+
+html.layout-mobile .modal-dialog,
+html:not(.layout-desktop) .modal-dialog {
+  margin: 12px;
+  width: auto !important;
+}
+
+html.layout-mobile .ui-dialog,
+html:not(.layout-desktop) .ui-dialog {
+  max-width: calc(100vw - 16px) !important;
+  left: 8px !important;
+  width: auto !important;
+}
+
+html.layout-mobile a.dropArea,
+html:not(.layout-desktop) a.dropArea {
+  min-height: 88px;
+  line-height: 88px;
+  font-size: 18px;
+}
+
+html.layout-mobile .source-link,
+html:not(.layout-desktop) .source-link {
+  margin: 12px 0 0;
+}
+
+@media (orientation: landscape) {
+  html.layout-mobile #map,
+  html:not(.layout-desktop) #map {
+    bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.layout-mobile #palette,
+  html:not(.layout-desktop) #palette {
+    padding-bottom: 4px;
+  }
+
+  html.layout-mobile #tools .btn-group-justified > .btn,
+  html.layout-mobile .dock-btn,
+  html:not(.layout-desktop) #tools .btn-group-justified > .btn,
+  html:not(.layout-desktop) .dock-btn {
+    min-height: 40px;
+    height: 40px;
+  }
+
+  html.layout-mobile #moreSheet,
+  html:not(.layout-desktop) #moreSheet {
+    bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+    max-height: 70vh;
+  }
+}
+
+/* ===== DESKTOP (exception) ===== */
+html.layout-desktop,
+html.layout-desktop body {
+  overflow: auto;
+  position: static;
+  width: auto;
+  height: 100%;
+  background: #fff;
+  touch-action: auto;
+}
+
+html.layout-desktop #app {
+  height: 100%;
+}
+
+html.layout-desktop #sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  background: #fff;
+  color: inherit;
+  box-shadow: none;
+  z-index: 3;
+  box-sizing: border-box;
+}
+
+html.layout-desktop #map {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 300px;
+  overflow: scroll;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  background: #111;
+  touch-action: auto;
+  user-select: auto;
+}
+
+html.layout-desktop #dockBar,
+html.layout-desktop #moreBackdrop,
+html.layout-desktop #moreClose,
+html.layout-desktop .more-sheet-header {
+  display: none !important;
+}
+
+html.layout-desktop #moreSheet {
+  display: block;
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  max-height: none;
+  overflow: visible;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html.layout-desktop #moreSheet .panel-undo-zoom {
+  display: block;
+}
+
+html.layout-desktop #moreSheet .col-xs-4:last-child {
+  width: 33.33333333%;
+}
+
+html.layout-desktop #dock {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  padding: 0;
+  background: transparent;
+}
+
+html.layout-desktop .dock-tools-wrap { order: 0; }
+html.layout-desktop #palette { order: 1; }
+
+html.layout-desktop #palette {
+  display: block;
+  overflow: visible;
+}
+
+html.layout-desktop #tools .btn-group-justified {
+  display: table;
+  width: 100%;
+}
+
+html.layout-desktop #tools .btn-group-justified > .btn {
+  display: table-cell;
+  width: 1%;
+  height: auto;
+  min-width: 0;
+  float: none;
+  flex: none;
+}

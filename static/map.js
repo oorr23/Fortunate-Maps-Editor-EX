@@ -1134,6 +1134,19 @@ $(function() {
     });
 
 
+  $(document).on('mouseup', function(e) {
+    if (e.which==1 && mouseDown) {
+      mouseDown = false;
+      if (selectedTool && selectedTool.up) selectedTool.up(0,0);
+      savePoint();
+      cleanDirtyWalls();
+    }
+  });
+
+  $map.on('contextmenu', function(e) {
+    e.preventDefault();
+  });
+
   var wall = String.fromCharCode(120)+String.fromCharCode(120)+String.fromCharCode(120)+String.fromCharCode(255);
   var open = String.fromCharCode(212)+String.fromCharCode(212)+String.fromCharCode(212)+String.fromCharCode(255);
   function createPng() {
@@ -1368,6 +1381,34 @@ $(function() {
 
     return false;
   };
+  function handleImportFile(file) {
+    var reader = new FileReader();
+    if (file.name.match(/json$/i) || file.type === 'application/json') {
+      reader.onload = function (event) {
+        importJson = event.target.result;
+        $(jsonDropArea).addClass('hasImportable');
+      };
+      reader.readAsText(file);
+    } else if (file.name.match(/png$/i) || file.type === 'image/png') {
+      reader.onload = function (event) {
+        importPng = event.target.result;
+        $(pngDropArea).addClass('hasImportable');
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert('Expected a PNG or a JSON, but got ' + file.name);
+    }
+  }
+
+  $('#pngFileInput').on('change', function() {
+    if (this.files[0]) handleImportFile(this.files[0]);
+    this.value = '';
+  });
+  $('#jsonFileInput').on('change', function() {
+    if (this.files[0]) handleImportFile(this.files[0]);
+    this.value = '';
+  });
+
   function restoreFromPngAndJson(pngBase64, jsonString, optResizeParams, doHistoryClear) {
     var optWidth = optResizeParams && optResizeParams.width;
     var optHeight = optResizeParams && optResizeParams.height;
@@ -1464,7 +1505,7 @@ $(function() {
         importPng,
         importJson, undefined, true);
     } else {
-      alert('Please drag and drop a PNG and a JSON to import onto their receptacles.')
+      alert('Please add a PNG and a JSON (tap the squares on a phone, or drag and drop on desktop) before importing.')
     }
   });
 
