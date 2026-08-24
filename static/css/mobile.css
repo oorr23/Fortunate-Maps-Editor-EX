@@ -18,11 +18,11 @@ html, body {
 .loupe {
   display: none;
   position: fixed;
-  width: 140px;
-  height: 140px;
-  margin-left: -70px;
-  margin-top: -70px;
-  border-radius: 50%;
+  width: 264px;
+  height: 264px;
+  margin-left: -132px;
+  margin-top: -132px;
+  border-radius: 12px;
   overflow: visible;
   pointer-events: none;
   z-index: 10000;
@@ -35,26 +35,64 @@ html, body {
 
 .loupe.visible {
   display: block;
+  pointer-events: auto;
 }
 
 .loupe-inner {
   position: absolute;
   left: 0;
   top: 0;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
+  width: 264px;
+  height: 264px;
+  border-radius: 10px;
   overflow: hidden;
   background: #111;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.loupe-grid {
+  width: 440px;
+  height: 440px;
+  font-size: 0;
+  line-height: 0;
+  white-space: nowrap;
+  transform: scale(0.6);
+  transform-origin: 0 0;
+}
+
+.loupe-row {
+  height: 40px;
+  font-size: 0;
+  line-height: 0;
+  white-space: nowrap;
+}
+
+.loupe-grid .tileBackground,
+.loupe-grid .tile {
+  width: 40px !important;
+  height: 40px !important;
+  margin: 0;
+  pointer-events: none;
+}
+
+.loupe-grid .tileQuadrant {
+  width: 20px;
+  height: 20px;
+}
+
+.loupe-grid .selectionIndicator,
+.loupe-grid .potentialHighlight {
+  display: none !important;
 }
 
 .loupe-crosshair {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 18px;
-  height: 18px;
-  margin: -9px 0 0 -9px;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
   border: 2px solid rgba(255, 220, 50, 0.95);
   box-sizing: border-box;
   pointer-events: none;
@@ -64,14 +102,15 @@ html, body {
 .loupe-stem {
   position: absolute;
   left: 50%;
-  bottom: -14px;
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
+  bottom: -10px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
   background: #fff;
   transform: rotate(45deg);
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
   z-index: 0;
+  pointer-events: none;
 }
 
 .loupe-stem:after {
@@ -106,20 +145,27 @@ html:not(.layout-desktop) body {
 
 html.layout-mobile #app,
 html:not(.layout-desktop) #app {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   height: 100dvh;
 }
 
 html.layout-mobile #map,
 html:not(.layout-desktop) #map {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  top: env(safe-area-inset-top, 0px);
-  bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  position: relative;
+  order: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
   overflow: auto;
   white-space: nowrap;
+  font-size: 0;
+  line-height: 0;
   -webkit-overflow-scrolling: touch;
   background: #111;
   touch-action: none;
@@ -130,11 +176,13 @@ html:not(.layout-desktop) #map {
 
 html.layout-mobile #sidebar,
 html:not(.layout-desktop) #sidebar {
-  position: fixed;
-  left: 0;
-  right: 0;
+  position: relative;
+  order: 2;
+  flex: 0 0 auto;
+  left: auto;
+  right: auto;
   top: auto;
-  bottom: 0;
+  bottom: auto;
   width: 100%;
   height: auto;
   max-height: none;
@@ -163,50 +211,76 @@ html:not(.layout-desktop) #palette {
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  gap: 6px;
-  padding: 4px 2px 8px;
+  gap: 0;
+  padding: 16px 8px 18px;
   touch-action: pan-x;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
-html.layout-mobile #palette > div,
-html:not(.layout-desktop) #palette > div {
+html.layout-mobile #palette::-webkit-scrollbar,
+html:not(.layout-desktop) #palette::-webkit-scrollbar {
+  display: none;
+}
+
+html.layout-mobile #palette .palette-track,
+html:not(.layout-desktop) #palette .palette-track {
   display: flex;
   flex-shrink: 0;
-  gap: 4px;
+  align-items: center;
+  gap: 8.4px;
+  padding: 0 4px;
 }
 
 html.layout-mobile #palette .tileBackground,
 html.layout-mobile #palette .tilePaletteOption,
 html:not(.layout-desktop) #palette .tileBackground,
 html:not(.layout-desktop) #palette .tilePaletteOption {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
+  background-size: 640px 440px;
+  transform: scale(1);
+  transform-origin: center center;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 1;
+}
+
+html.layout-mobile #palette .tilePaletteOption.palette-selected,
+html:not(.layout-desktop) #palette .tilePaletteOption.palette-selected {
+  transform: scale(1.4);
+  z-index: 2;
 }
 
 html.layout-mobile #palette .tile,
 html.layout-mobile #palette .tileTypeSelectionIndicator,
 html:not(.layout-desktop) #palette .tile,
 html:not(.layout-desktop) #palette .tileTypeSelectionIndicator {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
 }
 
 html.layout-mobile .dock-tools-wrap,
 html:not(.layout-desktop) .dock-tools-wrap {
   margin: 0 0 6px !important;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
+  overflow: visible;
+}
+
+html.layout-mobile #tools,
+html:not(.layout-desktop) #tools {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 html.layout-mobile #tools .btn-group-justified,
 html:not(.layout-desktop) #tools .btn-group-justified {
   display: flex;
-  width: auto;
-  min-width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 4px;
 }
 
 html.layout-mobile #tools .btn-group-justified > .btn,
@@ -215,13 +289,26 @@ html:not(.layout-desktop) #tools .btn-group-justified > .btn {
   align-items: center;
   justify-content: center;
   float: none;
-  width: 48px;
-  min-width: 48px;
-  height: 48px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
   padding: 0;
+  margin: 0;
   font-size: 18px;
-  line-height: 48px;
-  flex: 0 0 48px;
+  line-height: 1;
+  flex: 0 0 44px;
+  text-align: center;
+}
+
+html.layout-mobile #tools .btn > .glyphicon,
+html:not(.layout-desktop) #tools .btn > .glyphicon {
+  display: block;
+  position: static;
+  top: 0;
+  width: 100%;
+  margin: 0;
+  line-height: 1;
+  text-align: center;
 }
 
 html.layout-mobile #tools .btn.active,
@@ -263,9 +350,20 @@ html:not(.layout-desktop) .dock-btn.active {
 }
 
 html.layout-mobile #panMode.active,
-html:not(.layout-desktop) #panMode.active {
+html:not(.layout-desktop) #panMode.active,
+html.pan-mode #panMode {
   background: #2e6da4;
   border-color: #4a90c8;
+}
+
+html.pan-mode #map {
+  cursor: grab;
+}
+
+html.pan-mode #map .tile,
+html.pan-mode #map .tileBackground,
+html.pan-mode #map .tileQuadrant {
+  pointer-events: none;
 }
 
 html.layout-mobile #moreToggle,
@@ -314,16 +412,16 @@ html:not(.layout-desktop) .more-backdrop.open {
 html.layout-mobile #moreSheet,
 html:not(.layout-desktop) #moreSheet {
   display: none;
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  bottom: 100%;
   max-height: min(52vh, 420px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   z-index: 9;
-  background: #f7f7f8;
-  color: #222;
+  background: #1e2229;
+  color: #eee;
   padding: 12px 12px 16px;
   border-radius: 14px 14px 0 0;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.3);
@@ -380,12 +478,14 @@ html:not(.layout-desktop) .source-link {
   margin: 12px 0 0;
 }
 
-@media (orientation: landscape) {
-  html.layout-mobile #map,
-  html:not(.layout-desktop) #map {
-    bottom: calc(112px + env(safe-area-inset-bottom, 0px));
-  }
+#textureUrlImport {
+  margin-top: 8px;
+}
+#textureUrlImport textarea {
+  margin-bottom: 8px;
+}
 
+@media (orientation: landscape) {
   html.layout-mobile #palette,
   html:not(.layout-desktop) #palette {
     padding-bottom: 4px;
@@ -401,7 +501,6 @@ html:not(.layout-desktop) .source-link {
 
   html.layout-mobile #moreSheet,
   html:not(.layout-desktop) #moreSheet {
-    bottom: calc(112px + env(safe-area-inset-bottom, 0px));
     max-height: 70vh;
   }
 }
@@ -442,9 +541,11 @@ html.layout-desktop #map {
   top: 0;
   bottom: 0;
   right: 0;
-  left: 300px;
-  overflow: scroll;
+  left: 320px;
+  overflow: auto;
   white-space: nowrap;
+  font-size: 0;
+  line-height: 0;
   -webkit-overflow-scrolling: touch;
   background: #111;
   touch-action: auto;
@@ -494,19 +595,93 @@ html.layout-desktop #palette { order: 1; }
 
 html.layout-desktop #palette {
   display: block;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+html.layout-desktop #palette .palette-track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8.4px;
 }
 
 html.layout-desktop #tools .btn-group-justified {
-  display: table;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   width: 100%;
 }
 
 html.layout-desktop #tools .btn-group-justified > .btn {
-  display: table-cell;
-  width: 1%;
-  height: auto;
-  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   float: none;
-  flex: none;
+  flex: 0 0 36px;
+  padding: 0;
+  line-height: 1;
+}
+
+html.theme-dark #moreSheet .btn,
+html.theme-dark #moreSheet .form-control,
+html.theme-dark #moreSheet .input-group-addon,
+html.theme-dark #moreSheet select,
+html.theme-dark #importExport .modal-content,
+html.theme-dark #importExport .form-control {
+  background-color: #2a2f38;
+  border-color: #3a3f4a;
+  color: #f2f2f2;
+}
+
+html.theme-dark #moreSheet .help-block,
+html.theme-dark #moreSheet .source-link,
+html.theme-dark #moreSheet .source-link a,
+html.theme-dark #moreSheet .help-block a,
+html.theme-dark #importExport {
+  color: #c8c8c8;
+}
+
+html.theme-dark #importExport .modal-content {
+  background: #1e2229;
+  color: #eee;
+}
+
+html.theme-dark #importExport .modal-header,
+html.theme-dark #importExport .modal-footer {
+  border-color: #3a3f4a;
+}
+
+html.theme-dark #importExport .close {
+  color: #fff;
+  opacity: 0.8;
+}
+
+html.theme-dark a.dropArea {
+  background: #2a2f38;
+  border-color: #888;
+  color: #eee;
+}
+
+html.theme-light #moreSheet {
+  background: #f7f7f8;
+  color: #222;
+}
+
+html.theme-light.layout-mobile body,
+html.theme-light:not(.layout-desktop) body {
+  background: #ddd;
+}
+
+html.theme-dark.layout-desktop,
+html.theme-dark.layout-desktop body {
+  background: #1a1d23;
+  color: #eee;
+}
+
+html.layout-mobile .modal-dialog,
+html:not(.layout-desktop) .modal-dialog {
+  margin: 48px 12px 12px;
 }

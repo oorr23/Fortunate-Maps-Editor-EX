@@ -2,9 +2,9 @@ $(function() {
   var importJson;
   var importPng;
 
-  var maxZoom = 3;
-  var zoom = maxZoom;
-  var tileSize = 40;
+  var maxZoom = 8;
+  var zoom = 0;
+  var tileSize = 8;
   var tileSheetWidth = 16;
   var tileSheetHeight = 11;
   
@@ -34,9 +34,18 @@ $(function() {
   TileType.prototype.positionCss = function() {
     return positionCss(this.sheetX, this.sheetY)
   }
+  function textureSrcFor(type) {
+    if (window.TagproTextures && TagproTextures.urlFor) return TagproTextures.urlFor(type);
+    return (type.image || 'default-skin-v2') + '.png';
+  }
+  function bustDrawCache($elem) {
+    if (!$elem || !$elem.length) return;
+    $elem.styleUrl = $elem.styleBackgroundSize = $elem.styleBgColor = undefined;
+  }
   TileType.prototype.drawOn = function($elem, tile) {
     var styleBgColor = '';
-    var styleUrl = 'url("' + (this.image || 'default-skin-v2') + '.png")';
+    var src = this.name == 'empty' ? '' : textureSrcFor(this);
+    var styleUrl = src ? 'url("' + src + '")' : '';
     var styleBackgroundSize = this.image ? (this.imageTileWidth*tileSize+'px ' + this.imageTileHeight*tileSize + 'px') : (tileSheetWidth*tileSize + 'px ' + tileSheetHeight*tileSize + 'px');
     if (this.name == 'empty') {
       styleBgColor = 'black';
@@ -553,6 +562,9 @@ $(function() {
     var destTile = changes.destination || source.destination;
     this.destination = destTile && new Point(destTile);
     this.cooldown = 'cooldown' in changes ? changes.cooldown : source.cooldown;
+    this.timer = 'timer' in changes ? changes.timer : source.timer;
+    this.radius = 'radius' in changes ? changes.radius : source.radius;
+    this.weight = 'weight' in changes ? changes.weight : source.weight;
   }
   TileState.prototype.equals = function(other) {
     if (this.x!=other.x
@@ -560,7 +572,10 @@ $(function() {
       || this.type!=other.type
       || Point.cmp(this.destination, other.destination)
       || this.affected.length != other.affected.length
-      || (''+this.cooldown) != (''+other.cooldown)) return false;
+      || (''+this.cooldown) != (''+other.cooldown)
+      || (''+this.timer) != (''+other.timer)
+      || (''+this.radius) != (''+other.radius)
+      || (''+this.weight) != (''+other.weight)) return false;
     for (var i=0; i<this.affected.length; i++) {
       if (Point.cmp(this.affected[i], other.affected[i])) return false;
     }
@@ -575,6 +590,9 @@ $(function() {
     }
     tile.destination = this.destination && tiles[this.destination.x][this.destination.y];
     tile.cooldown = this.cooldown;
+    tile.timer = this.timer;
+    tile.radius = this.radius;
+    tile.weight = this.weight;
     mayHaveChanged(tile);
   }
 
@@ -624,6 +642,7 @@ $(function() {
       undoSteps.push(step);
       redoSteps = [];
       enableUndoRedoButtons();
+      persistMap();
     }
   }
   
@@ -651,6 +670,8 @@ $(function() {
     }
     cleanDirtyWalls();
     if (selectedTool) selectedTool.stateChange();
+    persistMap();
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
   function moveChange(fromSteps, toSteps) {
@@ -714,15 +735,33 @@ $(function() {
         toggles.push({pos: {x: affectedTile.x, y: affectedTile.y}});
       }
     }
-    logic.switches[tile.x + ',' + tile.y] = {toggle: toggles};
+    logic.switches[tile.x + ',' + tile.y] = {
+      toggle: toggles,
+      timer: (tile.timer != undefined) ? tile.timer : defaultButtonTimer
+    };
   }
   function exportPortal(logic, tile) {
     var dest = tile.destination || tile;
     logic.portals[tile.x + ',' + tile.y] = {
       destination: {x: dest.x, y: dest.y},
-      cooldown: tile.cooldown
+      cooldown: (tile.cooldown != undefined) ? tile.cooldown : defaultPortalCooldown
     };
   }
+  function exportSpawn(logic, tile) {
+    var color = (tile.type == redSpawnType) ? 'red' : 'blue';
+    if (!logic.spawnPoints[color]) logic.spawnPoints[color] = [];
+    logic.spawnPoints[color].push({
+      x: tile.x,
+      y: tile.y,
+      radius: (tile.radius != undefined) ? tile.radius : defaultSpawnRadius,
+      weight: (tile.weight != undefined) ? tile.weight : defaultSpawnWeight
+    });
+  }
+
+  var defaultPortalCooldown = 0;
+  var defaultButtonTimer = 0;
+  var defaultSpawnRadius = 5;
+  var defaultSpawnWeight = 1;
 
   var floorType, emptyType, 
     wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType,
@@ -755,12 +794,12 @@ $(function() {
     portalType = new TileType('portal', 0,0, 202, 192,0, "Portal - Link two portals using the wire tool.", {image: 'portal', logicFn: exportPortal}),
     redFlagType = new TileType('redFlag', 14,1, 255,0,0, "Red Flag"),
     blueFlagType = new TileType('blueFlag', 15,1, 0,0,255, "Blue Flag"),
-    redSpawnType = new TileType('redSpawn', 14,0, 155,0,0, "Red Spawn Tile - Red balls will spawn within a certain radius of this tile."),
-    blueSpawnType = new TileType('blueSpawn', 15,0, 0,0,155, "Blue Spawn Tile - Blue balls will spawn within a certain radius of this tile."),
+    redSpawnType = new TileType('redSpawn', 14,0, 155,0,0, "Red Spawn Tile - Red balls will spawn within a certain radius of this tile.", {logicFn: exportSpawn}),
+    blueSpawnType = new TileType('blueSpawn', 15,0, 0,0,155, "Blue Spawn Tile - Blue balls will spawn within a certain radius of this tile.", {logicFn: exportSpawn}),
     yellowFlagType = new TileType('yellowFlag', 13,1, 128,128,0, "Yellow Flag - Bring this neutral flag to your zone to score."),
     redEndzoneType = new TileType('redEndzone', 14,5, 185,0,0, "Red Endzone - Bring a neutral (yellow) flag to this zone to score."),
     blueEndzoneType = new TileType('blueEndzone', 15,5, 25,0,148, "Blue Endzone - Bring a neutral (yellow) flag to this zone to score."),
-    gravityWellType = new TileType('gravityWell', 0, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat.", {image: 'gravitywell', imageTileWidth: 1, imageTileHeight: 1})
+    gravityWellType = new TileType('gravityWell', 13, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat.")
   ];
 
   function areOpposites(t1, t2) {
@@ -906,7 +945,14 @@ $(function() {
 
     $('#resizeWidth').val(width);
     $('#resizeHeight').val(height);
+    $('#mapSize').val(width + 'x' + height);
+    zoom = 0;
     showZoom();
+    enableZoomButtons();
+    requestAnimationFrame(function() {
+      showZoom();
+      enableZoomButtons();
+    });
   }
 
   function clearMap() {
@@ -1034,7 +1080,65 @@ $(function() {
     controlDown = false;
   })
 
-  var lineAnchor = null;
+  function tileHasSettings(x, y) {
+    var tile = tiles && tiles[x] && tiles[x][y];
+    if (!tile || !tile.type) return false;
+    var t = tile.type;
+    return t === portalType || t === switchType || t === redSpawnType || t === blueSpawnType;
+  }
+
+  function openTileSettings(x, y) {
+    var tile = tiles && tiles[x] && tiles[x][y];
+    if (!tile || !tile.type) return false;
+    var t = tile.type;
+    if (t === portalType) {
+      var cooldown = (tile.cooldown != undefined) ? tile.cooldown : defaultPortalCooldown;
+      $('#portalCooldown').val('').attr('placeholder', cooldown);
+      $('#portalOptions').modal('show');
+      $('#portalSubmit').off('click').on('click', function() {
+        var value = parseFloat($('#portalCooldown').val());
+        if (!(value >= 0)) value = cooldown;
+        applyStep(new UndoStep([new TileState(tile, { cooldown: value })]));
+        savePoint();
+        $('#portalOptions').modal('hide');
+      });
+      return true;
+    }
+    if (t === switchType) {
+      var timer = (tile.timer != undefined) ? tile.timer : defaultButtonTimer;
+      $('#switchTimer').val('').attr('placeholder', timer);
+      $('#switchOptions').modal('show');
+      $('#switchSubmit').off('click').on('click', function() {
+        var value = parseFloat($('#switchTimer').val());
+        if (isNaN(value)) value = timer;
+        applyStep(new UndoStep([new TileState(tile, { timer: value })]));
+        savePoint();
+        $('#switchOptions').modal('hide');
+      });
+      return true;
+    }
+    if (t === redSpawnType || t === blueSpawnType) {
+      var radius = (tile.radius != undefined) ? tile.radius : defaultSpawnRadius;
+      var weight = (tile.weight != undefined) ? tile.weight : defaultSpawnWeight;
+      $('#spawnRadius').val('').attr('placeholder', radius);
+      $('#spawnWeight').val('').attr('placeholder', weight);
+      $('#spawnOptions').modal('show');
+      $('#spawnSubmit').off('click').on('click', function() {
+        var nextRadius = parseFloat($('#spawnRadius').val());
+        var nextWeight = parseFloat($('#spawnWeight').val());
+        var changes = {};
+        if (nextRadius >= 0) changes.radius = nextRadius;
+        else changes.radius = radius;
+        if (nextWeight >= 1) changes.weight = nextWeight;
+        else changes.weight = weight;
+        applyStep(new UndoStep([new TileState(tile, changes)]));
+        savePoint();
+        $('#spawnOptions').modal('hide');
+      });
+      return true;
+    }
+    return false;
+  }
 
   var mouseDown = false;
   $map.on('mouseenter', '.tile', function(e) {
@@ -1065,6 +1169,10 @@ $(function() {
         var x = $(this).data('x');
         var y = $(this).data('y');
         if (!controlDown) {
+          if (e.shiftKey && openTileSettings(x, y)) {
+            e.preventDefault();
+            return;
+          }
           mouseDown = true;
 
           selectedTool.down(x,y)
@@ -1167,7 +1275,8 @@ $(function() {
       },
       switches: {},
       fields: {},
-      portals: {}
+      portals: {},
+      spawnPoints: { red: [], blue: [] }
     };
 
     for (var x=0; x<width; x++) {
@@ -1227,8 +1336,8 @@ $(function() {
   });
 
   $('#save').click(function() {
-    localStorage.setItem('png', getPngBase64Url());
-    localStorage.setItem('json', makeLogicString());
+    persistReady = true;
+    persistMapNow();
   });
 
   function isValidMapStr() {
@@ -1270,48 +1379,73 @@ $(function() {
   });
   
   function setBrushTileType(type) {
+    brushTileType = type;
+    $('.tilePaletteOption').removeClass('palette-selected');
     $('.tileTypeSelectionIndicator').css('display', 'none');
     $('.tilePaletteOption').each(function(idx, el) {
       if ($(el).data('tileType') == type) {
-        brushTileType = type;
+        $(el).addClass('palette-selected');
         $(el).find('.tileTypeSelectionIndicator').css('display', 'inline-block');
       }
-    })
+    });
+    if (window.TagproPalette && TagproPalette.centerOnSelected) {
+      TagproPalette.centerOnSelected();
+    } else if (window.TagproPalette && TagproPalette.refreshScale) {
+      TagproPalette.refreshScale();
+    }
   }
 
-  var paletteRows = [
-    [wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType, floorType, emptyType], 
-    [spikeType, powerupType, portalType, gravityWellType],
-    [redFlagType, blueFlagType, redSpawnType, blueSpawnType, redEndzoneType, blueEndzoneType, yellowFlagType, ],
-    [speedpadType, redSpeedPadType, blueSpeedpadType, '', '', redFloorType, blueFloorType],
-    [switchType, offFieldType, onFieldType, redFieldType, blueFieldType, '', bombType]
-  ]
+  var persistReady = false;
+  var persistTimer = null;
+  function persistMapNow() {
+    if (!persistReady || !tiles || !tiles.length) return;
+    try {
+      localStorage.setItem('png', getPngBase64Url());
+      localStorage.setItem('json', makeLogicString());
+    } catch (err) {}
+  }
+  function persistMap() {
+    if (!persistReady) return;
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(persistMapNow, 350);
+  }
 
-  var brushTileType = paletteRows[0][0];
-  
+  var paletteOrder = [
+    bombType, emptyType,
+    wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType, floorType,
+    spikeType, powerupType, portalType, gravityWellType,
+    redFlagType, blueFlagType, redSpawnType, blueSpawnType, redEndzoneType, blueEndzoneType, yellowFlagType,
+    speedpadType, redSpeedPadType, blueSpeedpadType, redFloorType, blueFloorType,
+    switchType, offFieldType, onFieldType, redFieldType, blueFieldType
+  ];
 
-  $.each(paletteRows, function(rowIdx, row) {
-    var $rowDiv = $("<div></div>");
-    $.each(row, function(cellIdx, type) {
-      if (!type) {
-        $rowDiv.append($("<div style='width:40px;display:inline-block;'></div>"));
-        return;
+  var brushTileType = floorType;
+
+  function makePaletteButton(type) {
+    var $button = $("<div class='tileBackground tilePaletteOption' title = '" + type.toolTipText + "'><div class='tile'><div class='tileTypeSelectionIndicator'></div></div></div>");
+    $button.data('tileType', type);
+    var savedTileSize = tileSize;
+    tileSize = 40;
+    floorType.drawOn($button);
+    type.drawOn($button.find('.tile'));
+    tileSize = savedTileSize;
+    $button.on('click', function() {
+      if (selectedTool == wire) {
+        $('#toolPencil').trigger('click');
       }
-      var $button = $("<div class='tileBackground tilePaletteOption' title = '" + type.toolTipText + "'><div class='tile'><div class='tileTypeSelectionIndicator'></div></div></div>");
-      $button.data('tileType', type);
-      type.drawOn($button.find('.tile'));
-      $button.click('click', function() {
-        if (selectedTool == wire) {
-          $('#toolPencil').trigger('click');
-        }
-        setBrushTileType(type);
-      });
-      $rowDiv.append($button);
+      setBrushTileType(type);
     });
-    $palette.append($rowDiv);
-  })
+    return $button;
+  }
 
-  $('.tileTypeSelectionIndicator:first').css('display', 'inline-block');
+  var $track = $("<div class='palette-track'></div>");
+  for (var copy = 0; copy < 3; copy++) {
+    for (var i = 0; i < paletteOrder.length; i++) {
+      $track.append(makePaletteButton(paletteOrder[i]));
+    }
+  }
+  $palette.append($track);
+  setBrushTileType(floorType);
 
   $('#toolPencil').data('tool', pencil);
   $('#toolBrush').data('tool', brush);
@@ -1485,11 +1619,24 @@ $(function() {
             var affectedTile = (tiles[pos.x]||[])[pos.y];
             if (affectedTile) tile.affected[pos.x + ',' + pos.y] = (affectedTile);
           });
+          if (switches[key].timer != undefined) tile.timer = switches[key].timer;
         }
       }
 
+      var spawnPoints = json.spawnPoints || {};
+      ['red', 'blue'].forEach(function(color) {
+        (spawnPoints[color] || []).forEach(function(pt) {
+          var tile = (tiles[pt.x] || [])[pt.y];
+          if (!tile) return;
+          if (pt.radius != undefined) tile.radius = pt.radius;
+          if (pt.weight != undefined) tile.weight = pt.weight;
+        });
+      });
+
       savePoint();
       if (doHistoryClear) clearHistory();
+      persistReady = true;
+      persistMapNow();
     }
     img.src = pngBase64;//'https://mdn.mozillademos.org/files/5397/rhino.jpg';
   }
@@ -1520,70 +1667,77 @@ $(function() {
     restoreFromPngAndJson(png, json, {width: width, height: height, deltaX: deltaX, deltaY: deltaY});
   }
 
-  var $resizeWidthTo = $('#resizeWidthTo');
-  var $resizeHeightTo = $('#resizeHeightTo');
-  var $resizeAnchorLeft = $('#resizeAnchorLeft');
-  var $resizeAnchorRight = $('#resizeAnchorRight');
-  var $resizeAnchorTop = $('#resizeAnchorTop');
-  var $resizeAnchorBottom = $('#resizeAnchorBottom');
-  
+  function parseMapSize() {
+    var combined = ($('#mapSize').val() || '').trim();
+    var match = combined.match(/^(\d+)\s*[x×,\s]\s*(\d+)$/i);
+    if (match) {
+      return { width: parseInt(match[1], 10), height: parseInt(match[2], 10) };
+    }
+    return {
+      width: parseInt($('#resizeWidth').val(), 10),
+      height: parseInt($('#resizeHeight').val(), 10)
+    };
+  }
+
   $('#resize').click(function(e) {
-    $resizeWidthTo.val(tiles.length);
-    $resizeHeightTo.val(tiles[0].length);
-    
-    $( "#resizeDialog" ).dialog({
-      height: 300,
-      modal: true,
-      buttons: {
-        "Resize": function() {
-          var oldWidth = tiles.length;
-          var oldHeight = tiles[0].length;
-          
-          var width = parseInt($resizeWidthTo.val(),10);
-          var height = parseInt($resizeHeightTo.val(),10);
-          
-          function getDelta(oldSize, newSize, anchorMin, anchorMax) {
-            if (anchorMin < anchorMax) {
-              return 0;
-            } else if (anchorMin > anchorMax) {
-              return newSize-oldSize;
-            } else {
-              return Math.round((newSize-oldSize)/2);
-            }
-          }
-          var deltaX = getDelta(oldWidth, width, $resizeAnchorLeft.is(":checked"), $resizeAnchorRight.is(":checked"))
-          var deltaY = getDelta(oldHeight, height, $resizeAnchorTop.is(":checked"), $resizeAnchorBottom.is(":checked"))
-          if (width * height > 3600) {
-            if (!confirm('It\'s currently not possible to test maps larger than 3600 tiles.\nVery large maps can (will) lag your browser as well.\nAre you sure you want to resize?')) {
-              $('#resizeWidth').val(tiles.length);
-              $('#resizeHeight').val(tiles[0].length);
-              e.preventDefault();
-              return;
-            }
-          } else if ( width < 1 || height < 1) {
-            alert('Min width/height is 1.');
-            width = Math.max(1, width);
-            height = Math.max(1, height);
-          }
-          resizeTo(width, height, deltaX,deltaY);
-          console.log('resizing to',width,height)
-          $( this ).dialog( "close" );
-        }
-      }
-    });
-    
     e.preventDefault();
+    var oldWidth = tiles.length;
+    var oldHeight = tiles[0].length;
+    var size = parseMapSize();
+    var nextWidth = size.width;
+    var nextHeight = size.height;
+
+    if (!(nextWidth >= 1) || !(nextHeight >= 1)) {
+      alert('Enter a size like 56x24.');
+      $('#mapSize').val(oldWidth + 'x' + oldHeight);
+      return;
+    }
+    if (nextWidth * nextHeight > 3600) {
+      if (!confirm('Maps larger than 3600 tiles cannot be tested and may lag the browser.\nResize anyway?')) {
+        $('#mapSize').val(oldWidth + 'x' + oldHeight);
+        return;
+      }
+    }
+
+    var deltaX = Math.round((nextWidth - oldWidth) / 2);
+    var deltaY = Math.round((nextHeight - oldHeight) / 2);
+    resizeTo(nextWidth, nextHeight, deltaX, deltaY);
   });
-  
-  function showZoom() {
-    tileSize = [10,20,30,40][zoom];
+
+  function mapViewportSize() {
+    var el = document.getElementById('map');
+    var w = el && el.clientWidth;
+    var h = el && el.clientHeight;
+    if (!w || !h) {
+      w = window.innerWidth || 320;
+      h = Math.max(120, (window.innerHeight || 480) - 180);
+    }
+    return { w: w, h: h };
+  }
+
+  function computeFitTileSize() {
+    if (!width || !height) return 8;
+    var vp = mapViewportSize();
+    var ts = Math.floor(Math.min((vp.w - 1) / width, (vp.h - 1) / height));
+    while (ts > 2 && (width * ts > vp.w || height * ts > vp.h)) ts--;
+    return Math.max(2, ts);
+  }
+
+  function tileSizeForZoom() {
+    var fit = computeFitTileSize();
+    if (zoom <= 0) return fit;
+    return Math.max(fit, Math.round(fit * Math.pow(1.4, zoom)));
+  }
+
+  function applyTilePixelSize(size) {
+    tileSize = size;
     var sizeCss = tileSize + 'px';
-    var quadrantSizeCss = tileSize/2 + 'px';
+    var quadrantSizeCss = (tileSize / 2) + 'px';
     var singleTileBackgroundSize = sizeCss + ' ' + sizeCss;
-    var tileSheetBackgroundSize = (tileSize*tileSheetWidth) + 'px ' + (tileSize*tileSheetHeight) + 'px';
-    
+    var tileSheetBackgroundSize = (tileSize * tileSheetWidth) + 'px ' + (tileSize * tileSheetHeight) + 'px';
+
     function applySize(e) {
-      e.style.width = e.style.height = sizeCss;
+      if (e) e.style.width = e.style.height = sizeCss;
     }
     function applyQuadrantSize(e, isLeft, isBottom) {
       e.style.width = e.style.height = quadrantSizeCss;
@@ -1591,29 +1745,62 @@ $(function() {
       e.style.top = isBottom ? quadrantSizeCss : '0';
       e.style.backgroundSize = tileSheetBackgroundSize;
     }
-    
-    for (var x=0; x<tiles.length; x++) {
-      for (var y=0; y<tiles[0].length; y++) {
+
+    for (var x = 0; x < tiles.length; x++) {
+      for (var y = 0; y < tiles[0].length; y++) {
         var tile = tiles[x][y];
         var typeIndicator = tile.elem[0];
         var bg = typeIndicator.parentNode;
-        if (x==0) {
-          var row = bg.parentNode;
-          row.style.height = sizeCss;
+        if (x == 0) {
+          bg.parentNode.style.height = sizeCss;
         }
         applySize(tile.affectedIndicator);
         applySize(tile.selectionIndicator);
         tile.selectionIndicator.style.backgroundSize = singleTileBackgroundSize;
         applySize(tile.elem[0]);
         applySize(tile.background[0]);
-        for (var q=0;q<4; q++) {
-          applyQuadrantSize(tile.quadrantElems[q], q&2, (q+1)&2)
+        for (var q = 0; q < 4; q++) {
+          applyQuadrantSize(tile.quadrantElems[q], q & 2, (q + 1) & 2);
         }
-        
         tile.type.drawOn(tile.elem, tile);
         floorType.drawOn(tile.background, null);
       }
     }
+  }
+
+  function mapOverflows() {
+    var el = document.getElementById('map');
+    if (!el) return false;
+    return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+  }
+
+  function showZoom(opts) {
+    opts = opts || {};
+    var next = tileSizeForZoom();
+    if (opts.shrinkOnly) next = Math.min(tileSize, computeFitTileSize());
+    applyTilePixelSize(next);
+    if (zoom <= 0) {
+      var guard = 0;
+      while (guard++ < 12 && tileSize > 2 && mapOverflows()) {
+        applyTilePixelSize(tileSize - 1);
+      }
+    }
+  }
+
+  function zoomIn() {
+    zoom = Math.min(maxZoom, zoom + 1);
+    showZoom();
+    enableZoomButtons();
+  }
+
+  function zoomOut() {
+    if (zoom > 0) {
+      zoom = zoom - 1;
+      showZoom();
+    } else {
+      showZoom({ shrinkOnly: true });
+    }
+    enableZoomButtons();
   }
   
   $('#clear').click(function() {
@@ -1623,20 +1810,28 @@ $(function() {
   });
   
   function enableZoomButtons() {
-    enable($('#zoomIn'), zoom<maxZoom);
-    enable($('#zoomOut'), zoom>0);
+    enable($('#zoomIn, #dockZoomIn'), zoom < maxZoom);
+    enable($('#zoomOut, #dockZoomOut'), zoom > 0 || mapOverflows());
   }
-  $('#zoomIn').click(function() {
-    zoom = Math.min(maxZoom, zoom+1);
-    showZoom();
-    enableZoomButtons();
+  $('#zoomIn').click(function(e) {
+    e.preventDefault();
+    if ($(this).attr('disabled')) return;
+    zoomIn();
   });
-  $('#zoomOut').click(function() {
-    zoom = Math.max(0, zoom-1);
-    showZoom();
-    enableZoomButtons();
+  $('#zoomOut').click(function(e) {
+    e.preventDefault();
+    if ($(this).attr('disabled')) return;
+    zoomOut();
   });
   enableZoomButtons();
+  $(window).on('resize orientationchange', function() {
+    requestAnimationFrame(function() {
+      if (tiles && tiles.length) {
+        showZoom();
+        enableZoomButtons();
+      }
+    });
+  });
   
   $('#dropHelp').click(function() {
     alert("Importing Map:\n" +
@@ -1647,7 +1842,16 @@ $(function() {
   
   var savedPng = localStorage.getItem('png')
   var savedJson = localStorage.getItem('json')
-  restoreFromPngAndJson(savedPng, savedJson, undefined, true);
+  if (savedPng && savedJson) {
+    restoreFromPngAndJson(savedPng, savedJson, undefined, true);
+  } else {
+    persistReady = true;
+    persistMapNow();
+  }
+  $(window).on('pagehide beforeunload', function() {
+    persistReady = true;
+    persistMapNow();
+  });
   
   var quadrantCoords = {
     "132": [10.5, 7.5],
@@ -1882,5 +2086,158 @@ $(function() {
     "200d": [6, 8.5],
     "300d": [6, 10],
     "000d": [5.5, 10]
+  };
+
+  function parseFortunateMapsId(input) {
+    var s = String(input || '').trim();
+    if (!s) return null;
+    var query = s.match(/[?&]mapid=(\d+)/i);
+    if (query) return query[1];
+    var path = s.match(/\/(?:map|png|json|preview|show|editor)\/(\d+)/i);
+    if (path) return path[1];
+    var digits = s.match(/^(\d+)$/);
+    if (digits) return digits[1];
+    return null;
+  }
+
+  function importFromFortunateMaps(idOrUrl) {
+    var id = parseFortunateMapsId(idOrUrl);
+    if (!id) {
+      alert('Enter a FortunateMaps map ID or URL (example: 77011).');
+      return;
+    }
+    $('#fmImport').addClass('disabled').text('Importing…');
+    $.getJSON('/fm/map/' + id)
+      .done(function(data) {
+        if (!data || !data.png || !data.json) {
+          alert('FortunateMaps did not return a PNG and JSON for that map.');
+          return;
+        }
+        var jsonString = typeof data.json === 'string' ? data.json : JSON.stringify(data.json);
+        restoreFromPngAndJson(data.png, jsonString, undefined, true);
+        $('#importExport').modal('hide');
+      })
+      .fail(function(xhr) {
+        var msg = (xhr.responseJSON && xhr.responseJSON.err) || 'Could not import that FortunateMaps map.';
+        alert(msg);
+      })
+      .always(function() {
+        $('#fmImport').removeClass('disabled').text('Import from FM');
+      });
+  }
+
+  $('#fmImport').on('click', function(e) {
+    e.preventDefault();
+    importFromFortunateMaps($('#fmMapId').val());
+  });
+  $('#fmMapId').on('keydown', function(e) {
+    if (e.which === 13) {
+      e.preventDefault();
+      importFromFortunateMaps($('#fmMapId').val());
+    }
+  });
+  $('#fmExport').on('click', function(e) {
+    e.preventDefault();
+    $('#export').trigger('click');
+    window.open('https://fortunatemaps.herokuapp.com/editor', '_blank');
+    alert('PNG and JSON are ready in this dialog. Sign in on FortunateMaps, then upload those two files.');
+  });
+
+  function redrawTextures() {
+    var tilesUrl = (window.TagproTextures && TagproTextures.tilesUrl)
+      ? TagproTextures.tilesUrl()
+      : 'default-skin-v2.png';
+    var sheet = document.getElementById('texturePackSheet');
+    if (!sheet) {
+      sheet = document.createElement('style');
+      sheet.id = 'texturePackSheet';
+      document.head.appendChild(sheet);
+    }
+    sheet.textContent = 'div.tileQuadrant{background-image:url("' + String(tilesUrl).replace(/"/g, '\\"') + '") !important;}';
+    if (tiles && tiles.length) {
+      for (var x = 0; x < tiles.length; x++) {
+        for (var y = 0; y < tiles[0].length; y++) {
+          bustDrawCache(tiles[x][y].elem);
+          bustDrawCache(tiles[x][y].background);
+        }
+      }
+    }
+    var savedTileSize = tileSize;
+    tileSize = 40;
+    $('.tilePaletteOption').each(function() {
+      var $btn = $(this);
+      var type = $btn.data('tileType');
+      bustDrawCache($btn);
+      bustDrawCache($btn.find('.tile'));
+      if (type) {
+        floorType.drawOn($btn);
+        type.drawOn($btn.find('.tile'));
+      }
+    });
+    tileSize = savedTileSize;
+    if (tiles && tiles.length) showZoom();
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
+    if (window.TagproPalette && TagproPalette.refreshScale) TagproPalette.refreshScale();
+  }
+
+  function paintLoupeCell(x, y, bgEl, cellPx) {
+    if (!bgEl) return;
+    cellPx = 40;
+    var tileEl = bgEl.querySelector('.tile') || bgEl;
+    var $bg = $(bgEl);
+    var $tile = $(tileEl);
+    var size = cellPx + 'px';
+    var half = (cellPx / 2) + 'px';
+    var sheetSize = (tileSheetWidth * cellPx) + 'px ' + (tileSheetHeight * cellPx) + 'px';
+    bgEl.style.width = bgEl.style.height = size;
+    bgEl.style.display = 'inline-block';
+    bgEl.style.position = 'relative';
+    tileEl.style.width = tileEl.style.height = size;
+    var kids = tileEl.children || [];
+    for (var q = 0; q < 4; q++) {
+      if (!kids[q]) continue;
+      kids[q].style.width = kids[q].style.height = half;
+      kids[q].style.left = (q & 2) ? '0' : half;
+      kids[q].style.top = ((q + 1) & 2) ? half : '0';
+      kids[q].style.position = 'absolute';
+      kids[q].style.backgroundSize = sheetSize;
+    }
+    if (kids[4]) kids[4].style.display = 'none';
+    if (kids[5]) kids[5].style.display = 'none';
+    bustDrawCache($bg);
+    bustDrawCache($tile);
+    var saved = tileSize;
+    tileSize = cellPx;
+    var src = tiles && tiles[x] && tiles[x][y];
+    if (!src) {
+      emptyType.drawOn($bg, null);
+      emptyType.drawOn($tile, {
+        x: x,
+        y: y,
+        quadrantElems: [kids[0], kids[1], kids[2], kids[3]]
+      });
+    } else {
+      var fake = {
+        x: x,
+        y: y,
+        quadrantElems: [kids[0], kids[1], kids[2], kids[3]]
+      };
+      floorType.drawOn($bg, null);
+      src.type.drawOn($tile, fake);
+    }
+    tileSize = saved;
+  }
+
+  window.TagproMap = {
+    restoreFromPngAndJson: restoreFromPngAndJson,
+    importFromFortunateMaps: importFromFortunateMaps,
+    getSize: function() { return { width: width, height: height, tileSize: tileSize, zoom: zoom }; },
+    fitView: function() { zoom = 0; showZoom(); enableZoomButtons(); },
+    zoomIn: zoomIn,
+    zoomOut: zoomOut,
+    redrawTextures: redrawTextures,
+    paintLoupeCell: paintLoupeCell,
+    tileHasSettings: tileHasSettings,
+    openTileSettings: openTileSettings
   };
 });
