@@ -3,6 +3,7 @@ var FormData = require('form-data');
 var fs = require('fs');
 var path = require('path');
 var express = require('express');
+var WebSocket = require('ws');
 
 var app = express();
 var PORT = process.env.PORT || 8060;
@@ -168,6 +169,10 @@ app.get('/tp/image', function(req, res) {
   });
 });
 
+app.get('/collab/:id', function(req, res) {
+  res.sendFile(path.join(__dirname, 'static', 'index.html'));
+});
+
 app.post('/test', function(req, res) {
     var logic = JSON.parse(req.body.logic);
     var layout = toBuffer(req.body.layout, 'base64');
@@ -195,7 +200,112 @@ app.post('/test', function(req, res) {
     });
 });
 
-app.listen(PORT, '0.0.0.0', function() {
+var ROOM_ID_RE = /^[A-Za-z0-9]{12,16}$/;
+var MAX_COLLAB_BYTES = 5 * 1024 * 1024;
+var collabRooms = Object.create(null);
+
+function sendJson(ws, obj) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+function leaveCollabRoom(ws) {
+  var id = ws.collabRoom;
+  if (!id) return;
+  ws.collabRoom = null;
+  var room = collabRooms[id];
+  if (!room) return;
+  room.clients.delete(ws);
+  if (room.clients.size === 0) {
+    delete collabRooms[id];
+    return;
+  }
+  room.clients.forEach(function(peer) {
+    sendJson(peer, { type: 'state', peers: room.clients.size });
+  });
+}
+
+function joinCollabRoom(ws, roomId) {
+  if (!ROOM_ID_RE.test(roomId)) {
+    sendJson(ws, { type: 'error', error: 'invalid-room' });
+    return;
+  }
+  if (ws.collabRoom === roomId) {
+    var same = collabRooms[roomId];
+    if (same) {
+      sendJson(ws, {
+        type: 'state',
+        png: same.png,
+        json: same.json,
+        peers: same.clients.size
+      });
+    }
+    return;
+  }
+  leaveCollabRoom(ws);
+  var room = collabRooms[roomId];
+  if (!room) {
+    room = collabRooms[roomId] = { clients: new Set(), png: null, json: null };
+  }
+  room.clients.add(ws);
+  ws.collabRoom = roomId;
+  sendJson(ws, {
+    type: 'state',
+    png: room.png,
+    json: room.json,
+    peers: room.clients.size
+  });
+  room.clients.forEach(function(peer) {
+    if (peer !== ws) sendJson(peer, { type: 'state', peers: room.clients.size });
+  });
+}
+
+function applyCollabState(ws, msg) {
+  var id = ws.collabRoom;
+  if (!id) return;
+  var room = collabRooms[id];
+  if (!room) return;
+  if (typeof msg.png !== 'string' || typeof msg.json !== 'string') return;
+  if (msg.png.length + msg.json.length > MAX_COLLAB_BYTES) return;
+  room.png = msg.png;
+  room.json = msg.json;
+  room.clients.forEach(function(peer) {
+    if (peer === ws) return;
+    sendJson(peer, {
+      type: 'state',
+      png: room.png,
+      json: room.json,
+      peers: room.clients.size
+    });
+  });
+}
+
+var server = http.createServer(app);
+var wss = new WebSocket.Server({ server: server, maxPayload: MAX_COLLAB_BYTES });
+
+wss.on('connection', function(ws) {
+  ws.collabRoom = null;
+  ws.on('message', function(data) {
+    var msg;
+    try {
+      msg = JSON.parse(data.toString());
+    } catch (err) {
+      return;
+    }
+    if (!msg || typeof msg.type !== 'string') return;
+    if (msg.type === 'join') {
+      joinCollabRoom(ws, String(msg.room || ''));
+    } else if (msg.type === 'state') {
+      applyCollabState(ws, msg);
+    }
+  });
+  ws.on('close', function() {
+    leaveCollabRoom(ws);
+  });
+});
+
+server.listen(PORT, '0.0.0.0', function() {
   console.log('TagPro Map Editor running at http://localhost:' + PORT);
   console.log('On your phone, use this computer LAN IP on port ' + PORT);
 });

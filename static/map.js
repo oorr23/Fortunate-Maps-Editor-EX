@@ -1705,15 +1705,20 @@ $(function() {
 
   var persistReady = false;
   var persistTimer = null;
+  var applyingRemote = false;
+  var restoreSerial = 0;
   function persistMapNow() {
     if (!persistReady || !tiles || !tiles.length) return;
     try {
       localStorage.setItem('png', getPngBase64Url());
       localStorage.setItem('json', makeLogicString());
     } catch (err) {}
+    if (!applyingRemote && window.TagproCollab && typeof window.TagproCollab.onPersist === 'function') {
+      try { window.TagproCollab.onPersist(); } catch (err) {}
+    }
   }
   function persistMap() {
-    if (!persistReady) return;
+    if (!persistReady || applyingRemote) return;
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(persistMapNow, 350);
   }
@@ -1965,15 +1970,27 @@ $(function() {
   });
 
   function restoreFromPngAndJson(pngBase64, jsonString, optResizeParams, doHistoryClear) {
+    var serial = ++restoreSerial;
     var optWidth = optResizeParams && optResizeParams.width;
     var optHeight = optResizeParams && optResizeParams.height;
     var deltaX = (optResizeParams && optResizeParams.deltaX) || 0;
     var deltaY = (optResizeParams && optResizeParams.deltaY) || 0;
     var canvas = document.getElementById('importCanvas');
     var ctx = canvas.getContext('2d');
-    var json = JSON.parse(jsonString);
+    var json;
+    try {
+      json = JSON.parse(jsonString);
+    } catch (err) {
+      if (serial === restoreSerial) applyingRemote = false;
+      return;
+    }
+    if (applyingRemote && persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
     var img = new Image();
     img.onload = function() {
+      if (serial !== restoreSerial) return;
       var w = img.width;
       var h = img.height;
       optWidth = optWidth || w;
@@ -2075,7 +2092,11 @@ $(function() {
       if (doHistoryClear) clearHistory();
       persistReady = true;
       persistMapNow();
-    }
+      applyingRemote = false;
+    };
+    img.onerror = function() {
+      if (serial === restoreSerial) applyingRemote = false;
+    };
     img.src = pngBase64;//'https://mdn.mozillademos.org/files/5397/rhino.jpg';
   }
   
@@ -2328,9 +2349,20 @@ $(function() {
       "Hit Export. The .png and .json files can then be dragged or clicked from their respective squares.")
   })
   
+  function collabRoomFromUrl() {
+    var search = window.location.search || '';
+    var q = search.match(/[?&]room=([A-Za-z0-9]{12,16})(?:&|$)/);
+    if (q) return q[1];
+    var pathname = window.location.pathname || '';
+    var m = pathname.match(/^\/collab\/([A-Za-z0-9]{12,16})\/?$/);
+    return m ? m[1] : null;
+  }
+
   var savedPng = localStorage.getItem('png')
   var savedJson = localStorage.getItem('json')
-  if (savedPng && savedJson) {
+  if (collabRoomFromUrl()) {
+    persistReady = false;
+  } else if (savedPng && savedJson) {
     restoreFromPngAndJson(savedPng, savedJson, undefined, true);
   } else {
     persistReady = true;
@@ -2708,6 +2740,12 @@ $(function() {
   window.TagproMap = {
     restoreFromPngAndJson: restoreFromPngAndJson,
     importFromFortunateMaps: importFromFortunateMaps,
+    getPngBase64Url: getPngBase64Url,
+    makeLogicString: makeLogicString,
+    setApplyingRemote: function(v) { applyingRemote = !!v; },
+    isApplyingRemote: function() { return applyingRemote; },
+    enablePersist: function() { persistReady = true; },
+    persistNow: persistMapNow,
     getSize: function() { return { width: width, height: height, tileSize: tileSize, zoom: zoom }; },
     fitView: function() { zoom = 0; showZoom(); enableZoomButtons(); },
     zoomIn: zoomIn,
