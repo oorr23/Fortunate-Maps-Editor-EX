@@ -3,6 +3,13 @@ div.tileRow {
     font-size: 0;
     line-height: 0;
 }
+.map-canvas {
+    width: max-content;
+    margin: auto;
+    font-size: 0;
+    line-height: 0;
+    white-space: nowrap;
+}
 .hasImportable {
     background-color:#9f9;
 }

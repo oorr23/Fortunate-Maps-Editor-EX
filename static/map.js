@@ -26,6 +26,8 @@ $(function() {
     this.opposite = this; // What it switches to when mirrored
     this.verticalMirror = this;
     this.horizontalMirror = this;
+    this.plusNinetyRotator = this;
+    this.minusNinetyRotator = this;
     this.toolTipText = toolTipText;
   }
   TileType.prototype.isWall = function() {
@@ -170,6 +172,7 @@ $(function() {
     this.stateChange = fns.stateChange || function() {}; // arbitrary state change happened -- redraw tool state if necessary
     this.getState = fns.getState || function() {};
     this.setState = fns.setState || function() {};
+    this.previewOnly = !!fns.previewOnly;
   }
   var pencil = new Tool({
     speculateDrag: function(x,y) {
@@ -527,6 +530,101 @@ $(function() {
     $map.find('.selectionIndicator').css('display', 'none');
   }
 
+  function pairType(ty, axis) {
+    var mirrored = axis === 'h' ? ty.horizontalMirror : ty.verticalMirror;
+    if (mirrored && mirrored !== ty) return mirrored;
+    return ty.opposite || ty;
+  }
+
+  function mirrorDirFromClick(x, y) {
+    var dl = x;
+    var dr = width - 1 - x;
+    var dt = y;
+    var db = height - 1 - y;
+    var nearest = Math.min(dl, dr, dt, db);
+    if (nearest === dl) return 'right';
+    if (nearest === dr) return 'left';
+    if (nearest === dt) return 'down';
+    return 'up';
+  }
+
+  var addWidth = new Tool({
+    previewOnly: true,
+    down: function(x) {
+      this.downX = x;
+      this.lastX = x;
+    },
+    speculateDrag: function(x) {
+      this.lastX = x;
+      if (this.downX === undefined) this.downX = x;
+      var start = Math.min(x, this.downX);
+      var end = Math.max(x, this.downX);
+      var calculated = [];
+      for (var ix = start; ix <= end; ix++) {
+        for (var iy = 0; iy < height; iy++) {
+          calculated.push(new TileState(tiles[ix][iy]));
+        }
+      }
+      return new UndoStep(calculated);
+    },
+    up: function() {
+      if (this.downX === undefined || this.lastX === undefined) return;
+      var extra = Math.abs(this.lastX - this.downX) + 1;
+      var start = Math.min(this.lastX, this.downX);
+      this.downX = this.lastX = undefined;
+      insertColumns(start, extra);
+      reselectDrawingTool();
+    }
+  });
+
+  var addHeight = new Tool({
+    previewOnly: true,
+    down: function(x, y) {
+      this.downY = y;
+      this.lastY = y;
+    },
+    speculateDrag: function(x, y) {
+      this.lastY = y;
+      if (this.downY === undefined) this.downY = y;
+      var start = Math.min(y, this.downY);
+      var end = Math.max(y, this.downY);
+      var calculated = [];
+      for (var iy = start; iy <= end; iy++) {
+        for (var ix = 0; ix < width; ix++) {
+          calculated.push(new TileState(tiles[ix][iy]));
+        }
+      }
+      return new UndoStep(calculated);
+    },
+    up: function() {
+      if (this.downY === undefined || this.lastY === undefined) return;
+      var extra = Math.abs(this.lastY - this.downY) + 1;
+      var start = Math.min(this.lastY, this.downY);
+      this.downY = this.lastY = undefined;
+      insertRows(start, extra);
+      reselectDrawingTool();
+    }
+  });
+
+  var mirrorTool = new Tool({
+    previewOnly: true,
+    speculateUp: function(x, y) {
+      var calculated = [];
+      for (var ix = 0; ix < width; ix++) {
+        for (var iy = 0; iy < height; iy++) {
+          calculated.push(new TileState(tiles[ix][iy]));
+        }
+      }
+      return new UndoStep(calculated);
+    },
+    up: function(x, y) {
+      if (x === undefined || y === undefined) return;
+      if (x === 0 && y === 0 && width > 1 && height > 1) return;
+      mirrorMap(mirrorDirFromClick(x, y));
+      reselectDrawingTool();
+    }
+  });
+
   function ensureUnique(placedX, placedY) {
     for (var x=0; x<width; x++) {
       for (var y=0; y<height; y++) {
@@ -820,6 +918,12 @@ $(function() {
     t1.horizontalMirror = t2;
     t2.horizontalMirror = t1;
   }
+  function isPlusNinetyRotator(t1, t2) {
+    t1.plusNinetyRotator = t2;
+  }
+  function isMinusNinetyRotator(t1, t2) {
+    t1.minusNinetyRotator = t2;
+  }
   areOpposites(redSpeedPadType, blueSpeedpadType);
   areOpposites(redFloorType, blueFloorType);
   areOpposites(redFieldType, blueFieldType);
@@ -830,6 +934,14 @@ $(function() {
   areHorizontalMirrors(wallTopLeftType, wallTopRightType);
   areVerticalMirrors(wallBottomLeftType, wallTopLeftType);
   areVerticalMirrors(wallBottomRightType, wallTopRightType);
+  isPlusNinetyRotator(wallBottomLeftType, wallTopLeftType);
+  isPlusNinetyRotator(wallTopLeftType, wallTopRightType);
+  isPlusNinetyRotator(wallTopRightType, wallBottomRightType);
+  isPlusNinetyRotator(wallBottomRightType, wallBottomLeftType);
+  isMinusNinetyRotator(wallTopLeftType, wallBottomLeftType);
+  isMinusNinetyRotator(wallTopRightType, wallTopLeftType);
+  isMinusNinetyRotator(wallBottomRightType, wallTopRightType);
+  isMinusNinetyRotator(wallBottomLeftType, wallBottomRightType);
   
 
   function Tile(options, elem) {
@@ -941,7 +1053,7 @@ $(function() {
     for (var y=0; y<height; y++) {
       html += row;
     }
-    $map.html( html );
+    $map.html('<div class="map-canvas">' + html + '</div>');
 
     $tiles = $map.find('.tile');
     tiles = [];
@@ -966,6 +1078,180 @@ $(function() {
       showZoom();
       enableZoomButtons();
     });
+  }
+
+  function confirmLargeMap(nextW, nextH) {
+    if (nextW * nextH <= 3600) return true;
+    return confirm('Maps larger than 3600 tiles cannot be tested and may lag the browser.\nContinue anyway?');
+  }
+
+  function snapshotTiles() {
+    var snap = [];
+    for (var x = 0; x < width; x++) {
+      snap[x] = [];
+      for (var y = 0; y < height; y++) {
+        var t = tiles[x][y];
+        var affected = [];
+        for (var key in t.affected || {}) {
+          var a = t.affected[key];
+          if (a) affected.push({ x: a.x, y: a.y });
+        }
+        snap[x][y] = {
+          type: t.type,
+          cooldown: t.cooldown,
+          timer: t.timer,
+          radius: t.radius,
+          weight: t.weight,
+          dest: t.destination ? { x: t.destination.x, y: t.destination.y } : null,
+          affected: affected
+        };
+      }
+    }
+    return snap;
+  }
+
+  function applyMappedProps(snap, oldW, oldH, destOf) {
+    for (var x = 0; x < oldW; x++) {
+      for (var y = 0; y < oldH; y++) {
+        var d = destOf(x, y);
+        if (!d || !tiles[d.x] || !tiles[d.x][d.y]) continue;
+        var tile = tiles[d.x][d.y];
+        var s = snap[x][y];
+        tile.cooldown = s.cooldown;
+        tile.timer = s.timer;
+        tile.radius = s.radius;
+        tile.weight = s.weight;
+        if (s.dest) {
+          var nd = destOf(s.dest.x, s.dest.y);
+          if (nd && tiles[nd.x]) tile.destination = tiles[nd.x][nd.y];
+        }
+        if (s.affected.length) {
+          tile.affected = {};
+          for (var i = 0; i < s.affected.length; i++) {
+            var na = destOf(s.affected[i].x, s.affected[i].y);
+            if (na && tiles[na.x] && tiles[na.x][na.y]) {
+              tile.affected[na.x + ',' + na.y] = tiles[na.x][na.y];
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function rebuildMapped(newW, newH, destOf, opts) {
+    opts = opts || {};
+    if (!confirmLargeMap(newW, newH)) return false;
+    var oldW = width;
+    var oldH = height;
+    var snap = snapshotTiles();
+    var types = [];
+    var x, y, d;
+    for (x = 0; x < newW; x++) {
+      types[x] = [];
+      for (y = 0; y < newH; y++) types[x][y] = emptyType;
+    }
+    var mapType = opts.mapType || function(ty) { return ty; };
+    for (x = 0; x < oldW; x++) {
+      for (y = 0; y < oldH; y++) {
+        d = destOf(x, y);
+        if (!d || d.x < 0 || d.y < 0 || d.x >= newW || d.y >= newH) continue;
+        types[d.x][d.y] = mapType(snap[x][y].type);
+      }
+    }
+    if (opts.copyOf) {
+      var copyType = opts.copyType || function(ty) { return ty; };
+      for (x = 0; x < oldW; x++) {
+        for (y = 0; y < oldH; y++) {
+          d = opts.copyOf(x, y);
+          if (!d || d.x < 0 || d.y < 0 || d.x >= newW || d.y >= newH) continue;
+          types[d.x][d.y] = copyType(snap[x][y].type);
+        }
+      }
+    }
+    buildTilesWith(types);
+    applyMappedProps(snap, oldW, oldH, destOf);
+    if (opts.copyOf) applyMappedProps(snap, oldW, oldH, opts.copyOf);
+    cleanDirtyWalls();
+    savePoint();
+    persistMap();
+    return true;
+  }
+
+  function insertColumns(start, extra) {
+    var oldW = width;
+    rebuildMapped(oldW + extra, height, function(x, y) {
+      return { x: x < start ? x : x + extra, y: y };
+    });
+  }
+
+  function insertRows(start, extra) {
+    var oldH = height;
+    rebuildMapped(width, oldH + extra, function(x, y) {
+      return { x: x, y: y < start ? y : y + extra };
+    });
+  }
+
+  function rotateMap(degrees) {
+    var oldW = width;
+    var oldH = height;
+    if (degrees === 90) {
+      rebuildMapped(oldH, oldW, function(x, y) {
+        return { x: oldH - 1 - y, y: x };
+      }, { mapType: function(ty) { return ty.plusNinetyRotator || ty; } });
+    } else {
+      rebuildMapped(oldH, oldW, function(x, y) {
+        return { x: y, y: oldW - 1 - x };
+      }, { mapType: function(ty) { return ty.minusNinetyRotator || ty; } });
+    }
+  }
+
+  function flipMap(axis) {
+    var oldW = width;
+    var oldH = height;
+    if (axis === 'h') {
+      rebuildMapped(oldW, oldH, function(x, y) {
+        return { x: oldW - 1 - x, y: y };
+      }, { mapType: function(ty) { return ty.horizontalMirror || ty; } });
+    } else {
+      rebuildMapped(oldW, oldH, function(x, y) {
+        return { x: x, y: oldH - 1 - y };
+      }, { mapType: function(ty) { return ty.verticalMirror || ty; } });
+    }
+  }
+
+  function mirrorMap(dir) {
+    var oldW = width;
+    var oldH = height;
+    if (dir === 'right') {
+      rebuildMapped(oldW * 2, oldH, function(x, y) { return { x: x, y: y }; }, {
+        copyOf: function(x, y) { return { x: oldW * 2 - 1 - x, y: y }; },
+        copyType: function(ty) { return pairType(ty, 'h'); }
+      });
+    } else if (dir === 'left') {
+      rebuildMapped(oldW * 2, oldH, function(x, y) { return { x: x + oldW, y: y }; }, {
+        copyOf: function(x, y) { return { x: oldW - 1 - x, y: y }; },
+        copyType: function(ty) { return pairType(ty, 'h'); }
+      });
+    } else if (dir === 'down') {
+      rebuildMapped(oldW, oldH * 2, function(x, y) { return { x: x, y: y }; }, {
+        copyOf: function(x, y) { return { x: x, y: oldH * 2 - 1 - y }; },
+        copyType: function(ty) { return pairType(ty, 'v'); }
+      });
+    } else {
+      rebuildMapped(oldW, oldH * 2, function(x, y) { return { x: x, y: y + oldH }; }, {
+        copyOf: function(x, y) { return { x: x, y: oldH - 1 - y }; },
+        copyType: function(ty) { return pairType(ty, 'v'); }
+      });
+    }
+  }
+
+  var lastDrawingToolId = 'toolPencil';
+  function reselectDrawingTool() {
+    setTimeout(function() {
+      var $btn = $('#' + lastDrawingToolId);
+      if ($btn.length) $btn.trigger('click');
+      else $('#toolPencil').trigger('click');
+    }, 0);
   }
 
   function clearMap() {
@@ -1191,7 +1477,7 @@ $(function() {
 
           selectedTool.down(x,y)
           var change = selectedTool.speculateDrag(x,y);
-          if (change) {
+          if (change && !selectedTool.previewOnly) {
             applySymmetry(change);
             applyStep(change);
             selectedTool.stateChange();
@@ -1249,7 +1535,7 @@ $(function() {
           setBrushTileType(eyeDropBrushType);
         } else {
           var change = selectedTool.speculateUp(x,y);
-          if (change) {
+          if (change && !selectedTool.previewOnly) {
             applySymmetry(change);
             applyStep(change);
             selectedTool.stateChange();
@@ -1572,13 +1858,32 @@ $(function() {
   $('#toolCircleOutline').data('tool', circleOutline);
   $('#toolFill').data('tool', fill);
   $('#toolWire').data('tool', wire);
-  $('#tools .btn').click(function() {
+  $('#toolAddCol').data('tool', addWidth);
+  $('#toolAddRow').data('tool', addHeight);
+  $('#toolMirror').data('tool', mirrorTool);
+  $('#tools').on('click', '.btn', function(e) {
+    var $btn = $(this);
+    var action = $btn.attr('data-action');
+    if (action) {
+      e.preventDefault();
+      if (action === 'rotateCw') rotateMap(90);
+      else if (action === 'rotateCcw') rotateMap(-90);
+      else if (action === 'flipH') flipMap('h');
+      else if (action === 'flipV') flipMap('v');
+      return;
+    }
+    var tool = $btn.data('tool');
+    if (!tool) return;
     selectedTool.unselect.call(selectedTool);
     $('#tools .btn').removeClass('active');
-    $(this).toggleClass('active');
-    selectedTool = $(this).data('tool');
+    $btn.addClass('active');
+    selectedTool = tool;
     selectedTool.select.call(selectedTool);
-  })
+    if ($btn.attr('id') && !$btn.is('#toolAddCol, #toolAddRow, #toolMirror')) {
+      lastDrawingToolId = $btn.attr('id');
+    }
+    if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(true);
+  });
 
   var selectedTool = pencil;
   $('#toolPencil').toggleClass("active");
@@ -1841,11 +2146,16 @@ $(function() {
     var el = document.getElementById('map');
     var w = el && el.clientWidth;
     var h = el && el.clientHeight;
+    if (el) {
+      var cs = window.getComputedStyle(el);
+      w -= (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+      h -= (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    }
     if (!w || !h) {
       w = window.innerWidth || 320;
       h = Math.max(120, (window.innerHeight || 480) - 180);
     }
-    return { w: w, h: h };
+    return { w: Math.max(1, w), h: Math.max(1, h) };
   }
 
   function computeFitTileSize() {
@@ -1907,8 +2217,52 @@ $(function() {
     return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
   }
 
+  function mapScrollSnapshot() {
+    var el = document.getElementById('map');
+    if (!el) return null;
+    return {
+      sl: el.scrollLeft,
+      st: el.scrollTop,
+      cw: el.clientWidth,
+      ch: el.clientHeight,
+      sw: el.scrollWidth,
+      sh: el.scrollHeight
+    };
+  }
+
+  function pinMapCanvas() {
+    var el = document.getElementById('map');
+    var canvas = el && el.querySelector('.map-canvas');
+    if (!el || !canvas) return;
+    var cs = window.getComputedStyle(el);
+    var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    var extraX = Math.max(0, el.clientWidth - padX - canvas.offsetWidth);
+    var extraY = Math.max(0, el.clientHeight - padY - canvas.offsetHeight);
+    canvas.style.marginLeft = (extraX / 2) + 'px';
+    canvas.style.marginRight = (extraX / 2) + 'px';
+    canvas.style.marginTop = (extraY / 2) + 'px';
+    canvas.style.marginBottom = (extraY / 2) + 'px';
+  }
+
+  function restoreMapCenter(prev) {
+    var el = document.getElementById('map');
+    if (!el) return;
+    pinMapCanvas();
+    var sw = el.scrollWidth;
+    var sh = el.scrollHeight;
+    if (prev && prev.sw > 0 && prev.sh > 0) {
+      el.scrollLeft = (prev.sl + prev.cw / 2) / prev.sw * sw - el.clientWidth / 2;
+      el.scrollTop = (prev.st + prev.ch / 2) / prev.sh * sh - el.clientHeight / 2;
+    } else {
+      el.scrollLeft = Math.max(0, (sw - el.clientWidth) / 2);
+      el.scrollTop = Math.max(0, (sh - el.clientHeight) / 2);
+    }
+  }
+
   function showZoom(opts) {
     opts = opts || {};
+    var prev = mapScrollSnapshot();
     var next = tileSizeForZoom();
     if (opts.shrinkOnly) next = Math.min(tileSize, computeFitTileSize());
     applyTilePixelSize(next);
@@ -1918,6 +2272,7 @@ $(function() {
         applyTilePixelSize(tileSize - 1);
       }
     }
+    restoreMapCenter(zoom <= 0 ? null : prev);
   }
 
   function zoomIn() {
@@ -2360,6 +2715,10 @@ $(function() {
     redrawTextures: redrawTextures,
     paintLoupeCell: paintLoupeCell,
     tileHasSettings: tileHasSettings,
-    openTileSettings: openTileSettings
+    openTileSettings: openTileSettings,
+    rotateCw: function() { rotateMap(90); },
+    rotateCcw: function() { rotateMap(-90); },
+    flipH: function() { flipMap('h'); },
+    flipV: function() { flipMap('v'); }
   };
 });

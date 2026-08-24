@@ -91,7 +91,26 @@ $(function() {
     applyTheme('light');
   });
 
+  function chromeChanged() {
+    if (!window.TagproMap || !TagproMap.getSize || !TagproMap.fitView) return;
+    if (TagproMap.getSize().zoom === 0) TagproMap.fitView();
+  }
+
+  function setMorePanel(name) {
+    var current = $moreSheet.attr('data-open') || '';
+    if (name && name === current) name = '';
+    $moreSheet.attr('data-open', name);
+    $('.more-nav-btn').removeClass('active').attr('aria-expanded', 'false');
+    $('.more-panel').attr('hidden', true);
+    if (name) {
+      $('.more-nav-btn[data-panel="' + name + '"]').addClass('active').attr('aria-expanded', 'true');
+      $('.more-panel[data-panel="' + name + '"]').removeAttr('hidden');
+    }
+    chromeChanged();
+  }
+
   function closeMore() {
+    setMorePanel('');
     $moreSheet.removeClass('open');
     $moreBackdrop.removeClass('open').attr('hidden', true);
   }
@@ -99,6 +118,7 @@ $(function() {
   function openMore() {
     $moreSheet.addClass('open');
     $moreBackdrop.addClass('open').removeAttr('hidden');
+    if (!$moreSheet.attr('data-open')) setMorePanel('file');
   }
 
   $('#moreToggle').on('click', function() {
@@ -106,6 +126,9 @@ $(function() {
     else openMore();
   });
   $('#moreClose, #moreBackdrop').on('click', closeMore);
+  $('.more-nav-btn').on('click', function() {
+    setMorePanel($(this).attr('data-panel'));
+  });
 
   function setPanMode(on) {
     panMode = !!on;
@@ -930,8 +953,15 @@ $(function() {
     var animating = false;
     var scrollAnimFrame = null;
 
+    function axis() {
+      var vertical = window.getComputedStyle(track).flexDirection.indexOf('column') === 0;
+      return vertical
+        ? { size: function() { return track.scrollHeight / 3; }, pos: 'scrollTop', client: 'clientHeight', offset: 'offsetTop', dim: 'offsetHeight' }
+        : { size: function() { return track.scrollWidth / 3; }, pos: 'scrollLeft', client: 'clientWidth', offset: 'offsetLeft', dim: 'offsetWidth' };
+    }
+
     function measure() {
-      setWidth = track.scrollWidth / 3;
+      setWidth = axis().size();
       return setWidth;
     }
 
@@ -947,8 +977,9 @@ $(function() {
       if (animating) return;
       if (!setWidth) measure();
       if (setWidth < 8) return;
-      if (el.scrollLeft <= 4) el.scrollLeft += setWidth;
-      else if (el.scrollLeft >= setWidth * 2 - 4) el.scrollLeft -= setWidth;
+      var a = axis();
+      if (el[a.pos] <= 4) el[a.pos] += setWidth;
+      else if (el[a.pos] >= setWidth * 2 - 4) el[a.pos] -= setWidth;
     }
 
     function finishCenter() {
@@ -967,14 +998,15 @@ $(function() {
 
     function animateScrollTo(to, duration) {
       if (scrollAnimFrame) cancelAnimationFrame(scrollAnimFrame);
-      var from = el.scrollLeft;
+      var a = axis();
+      var from = el[a.pos];
       var dist = to - from;
       var start = null;
       animating = true;
       function step(now) {
         if (start === null) start = now;
         var t = Math.min(1, (now - start) / duration);
-        el.scrollLeft = from + dist * easeInOutCubic(t);
+        el[a.pos] = from + dist * easeInOutCubic(t);
         if (t < 1) {
           scrollAnimFrame = requestAnimationFrame(step);
         } else {
@@ -992,25 +1024,26 @@ $(function() {
         refreshScale();
         return;
       }
-      var viewCenter = el.scrollLeft + el.clientWidth / 2;
+      var a = axis();
+      var viewCenter = el[a.pos] + el[a.client] / 2;
       var target = selected[0];
       var best = Infinity;
       for (var i = 0; i < selected.length; i++) {
-        var c = selected[i].offsetLeft + selected[i].offsetWidth / 2;
+        var c = selected[i][a.offset] + selected[i][a.dim] / 2;
         var d = Math.abs(c - viewCenter);
         if (d < best) {
           best = d;
           target = selected[i];
         }
       }
-      var left = target.offsetLeft - (el.clientWidth / 2) + (target.offsetWidth / 2);
+      var left = target[a.offset] - (el[a.client] / 2) + (target[a.dim] / 2);
       if (left < 0) left = 0;
-      if (Math.abs(el.scrollLeft - left) < 2) {
+      if (Math.abs(el[a.pos] - left) < 2) {
         refreshScale();
         return;
       }
       if (animate === false) {
-        el.scrollLeft = left;
+        el[a.pos] = left;
         jumpLoop();
         refreshScale();
         return;
@@ -1025,6 +1058,12 @@ $(function() {
     window.addEventListener('resize', function() {
       measure();
       centerOnSelected(false);
+    });
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() {
+        measure();
+        centerOnSelected(false);
+      }, 250);
     });
 
     requestAnimationFrame(function() {
@@ -1041,5 +1080,36 @@ $(function() {
         if (loupeVisible) renderLoupe();
       }
     };
+  })();
+
+  (function setupToolsCarousel() {
+    var el = document.getElementById('tools');
+    if (!el) return;
+
+    function centerOnActive(animate) {
+      var active = el.querySelector('.btn.active');
+      if (!active) return;
+      var left = active.offsetLeft - (el.clientWidth / 2) + (active.offsetWidth / 2);
+      if (left < 0) left = 0;
+      var max = Math.max(0, el.scrollWidth - el.clientWidth);
+      if (left > max) left = max;
+      if (animate === false) {
+        el.scrollLeft = left;
+        return;
+      }
+      if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ left: left, behavior: 'smooth' });
+      } else {
+        el.scrollLeft = left;
+      }
+    }
+
+    window.addEventListener('resize', function() { centerOnActive(false); });
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() { centerOnActive(false); }, 250);
+    });
+    requestAnimationFrame(function() { centerOnActive(false); });
+
+    window.TagproTools = { centerOnActive: centerOnActive };
   })();
 });
