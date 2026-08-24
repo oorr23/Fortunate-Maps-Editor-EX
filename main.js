@@ -202,7 +202,14 @@ app.post('/test', function(req, res) {
 
 var ROOM_ID_RE = /^[A-Za-z0-9]{12,16}$/;
 var MAX_COLLAB_BYTES = 5 * 1024 * 1024;
+var MAX_CURSOR_TILES = 512;
+var MAX_USERNAME = 32;
 var collabRooms = Object.create(null);
+var nextClientId = 1;
+
+var HIGHLIGHT_COLORS = ['green', 'blue', 'red', 'purple', 'orange', 'yellow', 'turquoise', 'pink', 'brown'];
+var HIGHLIGHT_COLOR_SET = {};
+HIGHLIGHT_COLORS.forEach(function(name) { HIGHLIGHT_COLOR_SET[name] = true; });
 
 function sendJson(ws, obj) {
   if (ws.readyState === WebSocket.OPEN) {
@@ -210,9 +217,76 @@ function sendJson(ws, obj) {
   }
 }
 
+function sanitizeUsername(raw, fallback) {
+  var s = String(raw == null ? '' : raw).replace(/[\x00-\x1f\x7f]/g, '').trim();
+  if (s.length > MAX_USERNAME) s = s.slice(0, MAX_USERNAME);
+  return s || fallback;
+}
+
+function publicUser(ws) {
+  return { id: ws.clientId, username: ws.username, color: ws.color };
+}
+
+function roomUsers(room) {
+  var list = [];
+  room.clients.forEach(function(client) {
+    list.push(publicUser(client));
+  });
+  return list;
+}
+
+function broadcastUsers(room) {
+  var payload = { type: 'users', users: roomUsers(room), peers: room.clients.size };
+  room.clients.forEach(function(peer) {
+    sendJson(peer, payload);
+  });
+}
+
+function pickNextColor(room, self) {
+  var used = {};
+  room.clients.forEach(function(client) {
+    if (client !== self && client.color) used[client.color] = true;
+  });
+  for (var i = 0; i < HIGHLIGHT_COLORS.length; i++) {
+    if (!used[HIGHLIGHT_COLORS[i]]) {
+      room.lastColorIndex = i;
+      return HIGHLIGHT_COLORS[i];
+    }
+  }
+  var next = ((room.lastColorIndex >= 0 ? room.lastColorIndex : -1) + 1) % HIGHLIGHT_COLORS.length;
+  room.lastColorIndex = next;
+  return HIGHLIGHT_COLORS[next];
+}
+
+function sendMapState(ws, room) {
+  sendJson(ws, {
+    type: 'state',
+    png: room.png,
+    json: room.json,
+    tiles: room.tiles,
+    peers: room.clients.size
+  });
+}
+
+function sendWelcome(ws, room) {
+  sendJson(ws, {
+    type: 'welcome',
+    id: ws.clientId,
+    color: ws.color,
+    username: ws.username,
+    users: roomUsers(room),
+    png: room.png,
+    json: room.json,
+    tiles: room.tiles,
+    peers: room.clients.size
+  });
+  sendMapState(ws, room);
+}
+
 function leaveCollabRoom(ws) {
   var id = ws.collabRoom;
   if (!id) return;
+  var leftId = ws.clientId;
   ws.collabRoom = null;
   var room = collabRooms[id];
   if (!room) return;
@@ -221,44 +295,55 @@ function leaveCollabRoom(ws) {
     delete collabRooms[id];
     return;
   }
+  broadcastUsers(room);
   room.clients.forEach(function(peer) {
+    if (leftId != null) sendJson(peer, { type: 'cursor-leave', id: leftId });
     sendJson(peer, { type: 'state', peers: room.clients.size });
   });
 }
 
-function joinCollabRoom(ws, roomId) {
+function joinCollabRoom(ws, roomId, msg) {
   if (!ROOM_ID_RE.test(roomId)) {
     sendJson(ws, { type: 'error', error: 'invalid-room' });
     return;
   }
   if (ws.collabRoom === roomId) {
     var same = collabRooms[roomId];
-    if (same) {
-      sendJson(ws, {
-        type: 'state',
-        png: same.png,
-        json: same.json,
-        peers: same.clients.size
-      });
-    }
+    if (same) sendWelcome(ws, same);
     return;
   }
   leaveCollabRoom(ws);
   var room = collabRooms[roomId];
   if (!room) {
-    room = collabRooms[roomId] = { clients: new Set(), png: null, json: null };
+    room = collabRooms[roomId] = {
+      clients: new Set(),
+      png: null,
+      json: null,
+      tiles: null,
+      lastColorIndex: -1,
+      nextBall: 1
+    };
   }
   room.clients.add(ws);
   ws.collabRoom = roomId;
-  sendJson(ws, {
-    type: 'state',
-    png: room.png,
-    json: room.json,
-    peers: room.clients.size
-  });
+  if (!ws.clientId) ws.clientId = nextClientId++;
+  ws.color = pickNextColor(room, ws);
+  ws.username = sanitizeUsername(msg && msg.username, 'Some Ball ' + (room.nextBall++));
+  sendWelcome(ws, room);
+  broadcastUsers(room);
   room.clients.forEach(function(peer) {
     if (peer !== ws) sendJson(peer, { type: 'state', peers: room.clients.size });
   });
+}
+
+function statePayloadSize(msg) {
+  var n = 0;
+  if (typeof msg.png === 'string') n += msg.png.length;
+  if (typeof msg.json === 'string') n += msg.json.length;
+  if (msg.tiles != null) {
+    try { n += JSON.stringify(msg.tiles).length; } catch (err) { return Infinity; }
+  }
+  return n;
 }
 
 function applyCollabState(ws, msg) {
@@ -267,17 +352,66 @@ function applyCollabState(ws, msg) {
   var room = collabRooms[id];
   if (!room) return;
   if (typeof msg.png !== 'string' || typeof msg.json !== 'string') return;
-  if (msg.png.length + msg.json.length > MAX_COLLAB_BYTES) return;
+  if (statePayloadSize(msg) > MAX_COLLAB_BYTES) return;
   room.png = msg.png;
   room.json = msg.json;
+  room.tiles = Array.isArray(msg.tiles) ? msg.tiles : null;
   room.clients.forEach(function(peer) {
     if (peer === ws) return;
-    sendJson(peer, {
-      type: 'state',
-      png: room.png,
-      json: room.json,
-      peers: room.clients.size
-    });
+    sendMapState(peer, room);
+  });
+}
+
+function applyDetails(ws, msg) {
+  var id = ws.collabRoom;
+  if (!id) return;
+  var room = collabRooms[id];
+  if (!room) return;
+  var fallback = ws.username || ('Some Ball ' + (room.nextBall++));
+  ws.username = sanitizeUsername(msg.username, fallback);
+  if (HIGHLIGHT_COLOR_SET[msg.color]) ws.color = msg.color;
+  broadcastUsers(room);
+}
+
+function sanitizeCursorTiles(msg) {
+  if (!msg) return null;
+  if (msg.clear) return [];
+  var tiles = msg.tiles;
+  if (!Array.isArray(tiles) && Number.isFinite(msg.x) && Number.isFinite(msg.y)) {
+    tiles = [{ x: msg.x, y: msg.y }];
+  }
+  if (!Array.isArray(tiles)) return null;
+  if (tiles.length > MAX_CURSOR_TILES) return null;
+  var out = [];
+  for (var i = 0; i < tiles.length; i++) {
+    var t = tiles[i];
+    if (!t || typeof t !== 'object') continue;
+    var x = t.x | 0;
+    var y = t.y | 0;
+    if (x < -1 || y < -1 || x > 512 || y > 512) continue;
+    out.push({ x: x, y: y });
+  }
+  return out;
+}
+
+function applyCursor(ws, msg) {
+  var id = ws.collabRoom;
+  if (!id || ws.clientId == null) return;
+  var room = collabRooms[id];
+  if (!room) return;
+  var tiles = sanitizeCursorTiles(msg);
+  if (!tiles) return;
+  ws.cursor = tiles;
+  var payload = {
+    type: 'cursor',
+    id: ws.clientId,
+    color: ws.color,
+    username: ws.username,
+    tiles: tiles
+  };
+  room.clients.forEach(function(peer) {
+    if (peer === ws) return;
+    sendJson(peer, payload);
   });
 }
 
@@ -286,6 +420,10 @@ var wss = new WebSocket.Server({ server: server, maxPayload: MAX_COLLAB_BYTES })
 
 wss.on('connection', function(ws) {
   ws.collabRoom = null;
+  ws.clientId = null;
+  ws.color = null;
+  ws.username = null;
+  ws.cursor = null;
   ws.on('message', function(data) {
     var msg;
     try {
@@ -295,9 +433,13 @@ wss.on('connection', function(ws) {
     }
     if (!msg || typeof msg.type !== 'string') return;
     if (msg.type === 'join') {
-      joinCollabRoom(ws, String(msg.room || ''));
+      joinCollabRoom(ws, String(msg.room || ''), msg);
     } else if (msg.type === 'state') {
       applyCollabState(ws, msg);
+    } else if (msg.type === 'details') {
+      applyDetails(ws, msg);
+    } else if (msg.type === 'cursor') {
+      applyCursor(ws, msg);
     }
   });
   ws.on('close', function() {

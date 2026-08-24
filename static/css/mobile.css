@@ -92,7 +92,8 @@ html, body {
 }
 
 .loupe-grid .selectionIndicator,
-.loupe-grid .potentialHighlight {
+.loupe-grid .potentialHighlight,
+.loupe-grid .potentialHighlightOther {
   display: none !important;
 }
 
@@ -1101,6 +1102,12 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
   html:not(.layout-desktop) #moreSheet .form-control {
     min-height: 36px;
   }
+
+  html.layout-mobile #collabUsername,
+  html:not(.layout-desktop) #collabUsername {
+    min-height: 28px;
+    height: 28px;
+  }
 }
 
 /* ===== DESKTOP (exception) ===== */
@@ -1276,6 +1283,11 @@ html.theme-dark #moreSheet .source-link a,
 html.theme-dark #moreSheet .help-block a,
 html.theme-dark #importExport {
   color: #c8c8c8;
+}
+
+html.theme-dark .highlight-color-active,
+html.theme-dark .highlight-color:hover {
+  border-color: #fff;
 }
 
 html.theme-dark #importExport .modal-content {

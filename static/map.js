@@ -1032,6 +1032,19 @@ $(function() {
   var width;
   var $tiles;
   var tiles;
+  var ownHighlightHex = '#99FF99';
+  var speculativeListener = null;
+  var tilesRebuiltListener = null;
+
+  function highlightClassId(id) {
+    return String(id == null ? '' : id).replace(/[^A-Za-z0-9_-]/g, '');
+  }
+
+  function notifySpeculativeTiles(coords) {
+    if (typeof speculativeListener === 'function') {
+      try { speculativeListener(coords || []); } catch (err) {}
+    }
+  }
 
   function buildTilesWith(types) {
     width = types.length;
@@ -1047,7 +1060,7 @@ $(function() {
         "<div class='tileQuadrant nestedSquareBR'></div>" +
         "<div class='tileQuadrant nestedSquareBL'></div>" +
         "<div class='tileQuadrant nestedSquareTL'></div>" +
-        "<div class='selectionIndicator nestedSquare'></div><div class='potentialHighlight nestedSquare'></div></div></div>";
+        "<div class='selectionIndicator nestedSquare'></div><div class='potentialHighlight nestedSquare'></div><div class='potentialHighlightOther nestedSquare'></div></div></div>";
     }
     row += "</div>"
     for (var y=0; y<height; y++) {
@@ -1078,6 +1091,10 @@ $(function() {
       showZoom();
       enableZoomButtons();
     });
+    $map.find('.potentialHighlight').css('background-color', ownHighlightHex);
+    if (typeof tilesRebuiltListener === 'function') {
+      try { tilesRebuiltListener(); } catch (err) {}
+    }
   }
 
   function confirmLargeMap(nextW, nextH) {
@@ -1343,14 +1360,61 @@ $(function() {
   }
   
   function setSpeculativeStep(step) {
+    if (!step || !step.states) return;
     applySymmetry(step);
+    var coords = [];
     $.each(step.states, function(idx, state) {
+      if (!tiles[state.x] || !tiles[state.x][state.y]) return;
+      tiles[state.x][state.y].elem.find('.potentialHighlight').css('background-color', ownHighlightHex);
       tiles[state.x][state.y].highlightWithPotential(true);
+      coords.push({ x: state.x, y: state.y });
     });
+    notifySpeculativeTiles(coords);
+  }
+
+  function setOwnHighlightColor(name, hex) {
+    if (hex) ownHighlightHex = hex;
+    $map.find('.potentialHighlight').css('background-color', ownHighlightHex);
+  }
+
+  function clearPeerHighlights(id) {
+    var sid = highlightClassId(id);
+    if (!sid) {
+      $map.find('.potentialHighlightOther').filter(function() {
+        return /(?:^|\s)potentialHighlightOther-\S+/.test(this.className);
+      }).remove();
+      $map.find('.potentialHighlightOther').css('display', 'none');
+      return;
+    }
+    $map.find('.potentialHighlightOther-' + sid).remove();
+  }
+
+  function showPeerHighlights(id, tileList, hex) {
+    var sid = highlightClassId(id);
+    if (!sid || !tiles) return;
+    clearPeerHighlights(sid);
+    if (!tileList || !tileList.length) return;
+    var color = hex || ownHighlightHex;
+    var sizeCss = tileSize + 'px';
+    for (var i = 0; i < tileList.length; i++) {
+      var pt = tileList[i];
+      if (!pt) continue;
+      var tile = tiles[pt.x] && tiles[pt.x][pt.y];
+      if (!tile) continue;
+      var $el = $("<div class='potentialHighlightOther nestedSquare potentialHighlightOther-" + sid + "'></div>");
+      $el.css({
+        display: 'inline-block',
+        backgroundColor: color,
+        width: sizeCss,
+        height: sizeCss
+      });
+      tile.elem.append($el);
+    }
   }
   
   $map.mouseleave(function(e) {
-    console.log('map left');
+    clearPotentialHighlights();
+    notifySpeculativeTiles([]);
   });
 
   var controlDown = false;
@@ -1454,7 +1518,8 @@ $(function() {
         change = selectedTool.speculateUp && selectedTool.speculateUp(x,y)
       }
       selectedTool.setState(st);
-      setSpeculativeStep(change);
+      if (change) setSpeculativeStep(change);
+      else notifySpeculativeTiles([{ x: x, y: y }]);
       return;
     }
     })
@@ -1626,6 +1691,116 @@ $(function() {
       }
     }
     return map;
+  }
+
+  function typeByNameMap() {
+    var byName = {};
+    tileTypes.forEach(function(type) {
+      byName[type.name] = type;
+    });
+    return byName;
+  }
+
+  function applyJsonMetadata(json) {
+    if (!json) return;
+    var info = json.info || {};
+    $('#mapName').val(info.name || '');
+    $('#author').val(info.author || '');
+
+    var portals = json.portals || {};
+    for (var key in portals) {
+      var xy = key.split(',');
+      var tile = (tiles[xy[0]] || [])[xy[1]];
+      if (tile && tile.type == portalType) {
+        var dest = portals[key].destination || {};
+        if (!tile.destination && dest) tile.destination = (tiles[dest.x] || [])[dest.y];
+        if (portals[key].cooldown != undefined) tile.cooldown = portals[key].cooldown;
+      }
+    }
+
+    var switches = json.switches || {};
+    for (var key in switches) {
+      var xy = key.split(',');
+      var tile = (tiles[xy[0]] || [])[xy[1]];
+      if (tile && tile.type == switchType) {
+        if (!tile.affected || !Object.keys(tile.affected).length) {
+          tile.affected = {};
+          (switches[key].toggle || []).forEach(function(affected) {
+            var pos = affected.pos || {};
+            var affectedTile = (tiles[pos.x] || [])[pos.y];
+            if (affectedTile) tile.affected[pos.x + ',' + pos.y] = affectedTile;
+          });
+        }
+        if (switches[key].timer != undefined) tile.timer = switches[key].timer;
+      }
+    }
+
+    var spawnPoints = json.spawnPoints || {};
+    function applySpawnMeta(color) {
+      (spawnPoints[color] || []).forEach(function(pt) {
+        var tile = (tiles[pt.x] || [])[pt.y];
+        if (!tile) return;
+        if (pt.radius != undefined) tile.radius = pt.radius;
+        if (pt.weight != undefined) tile.weight = pt.weight;
+      });
+    }
+    applySpawnMeta('red');
+    applySpawnMeta('blue');
+  }
+
+  function restoreFromExtractedMap(extracted, jsonString, doHistoryClear) {
+    var rows = Array.isArray(extracted) ? extracted : (extracted && extracted.tiles);
+    if (!rows || !rows.length || !rows[0] || !rows[0].length) return false;
+    var heightRows = rows.length;
+    var widthCols = rows[0].length;
+    var byName = typeByNameMap();
+    var cols = [];
+    var x, y, cell, name;
+    for (x = 0; x < widthCols; x++) {
+      cols[x] = [];
+      for (y = 0; y < heightRows; y++) {
+        cell = (rows[y] || [])[x];
+        name = (cell && typeof cell === 'object') ? cell.type : cell;
+        cols[x][y] = byName[name] || emptyType;
+      }
+    }
+    if (applyingRemote && persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    buildTilesWith(cols);
+
+    for (y = 0; y < heightRows; y++) {
+      for (x = 0; x < widthCols; x++) {
+        cell = (rows[y] || [])[x];
+        var tile = tiles[x] && tiles[x][y];
+        if (!tile || !cell || typeof cell !== 'object') continue;
+        if (cell.type === 'portal' && cell.destination) {
+          tile.destination = (tiles[cell.destination[0]] || [])[cell.destination[1]];
+        } else if (cell.type === 'switch' && cell.targets) {
+          tile.affected = {};
+          cell.targets.forEach(function(target) {
+            var affectedTile = (tiles[target[0]] || [])[target[1]];
+            if (affectedTile) tile.affected[target[0] + ',' + target[1]] = affectedTile;
+          });
+        }
+      }
+    }
+
+    var json = null;
+    if (typeof jsonString === 'string' && jsonString) {
+      try { json = JSON.parse(jsonString); } catch (err) { json = null; }
+    } else if (jsonString && typeof jsonString === 'object') {
+      json = jsonString;
+    }
+    applyJsonMetadata(json);
+
+    savePoint();
+    if (doHistoryClear) clearHistory();
+    persistReady = true;
+    persistMapNow();
+    applyingRemote = false;
+    return true;
   }
 
   function getPngBase64() {
@@ -2223,6 +2398,8 @@ $(function() {
         tile.selectionIndicator.style.backgroundSize = singleTileBackgroundSize;
         applySize(tile.elem[0]);
         applySize(tile.background[0]);
+        var others = typeIndicator.querySelectorAll('.potentialHighlightOther');
+        for (var oi = 0; oi < others.length; oi++) applySize(others[oi]);
         for (var q = 0; q < 4; q++) {
           applyQuadrantSize(tile.quadrantElems[q], q & 2, (q + 1) & 2);
         }
@@ -2713,6 +2890,7 @@ $(function() {
     }
     if (kids[4]) kids[4].style.display = 'none';
     if (kids[5]) kids[5].style.display = 'none';
+    if (kids[6]) kids[6].style.display = 'none';
     bustDrawCache($bg);
     bustDrawCache($tile);
     var saved = tileSize;
@@ -2739,6 +2917,8 @@ $(function() {
 
   window.TagproMap = {
     restoreFromPngAndJson: restoreFromPngAndJson,
+    restoreFromExtractedMap: restoreFromExtractedMap,
+    extractMap: extractMap,
     importFromFortunateMaps: importFromFortunateMaps,
     getPngBase64Url: getPngBase64Url,
     makeLogicString: makeLogicString,
@@ -2754,6 +2934,11 @@ $(function() {
     paintLoupeCell: paintLoupeCell,
     tileHasSettings: tileHasSettings,
     openTileSettings: openTileSettings,
+    setOwnHighlightColor: setOwnHighlightColor,
+    showPeerHighlights: showPeerHighlights,
+    clearPeerHighlights: clearPeerHighlights,
+    onSpeculativeHover: function(fn) { speculativeListener = fn; },
+    onTilesRebuilt: function(fn) { tilesRebuiltListener = fn; },
     rotateCw: function() { rotateMap(90); },
     rotateCcw: function() { rotateMap(-90); },
     flipH: function() { flipMap('h'); },
