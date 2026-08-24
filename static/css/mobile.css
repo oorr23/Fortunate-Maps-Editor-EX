@@ -1108,6 +1108,27 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
     min-height: 28px;
     height: 28px;
   }
+
+  html.layout-mobile .collab-identity,
+  html:not(.layout-desktop) .collab-identity {
+    flex: 1 1 100%;
+    width: 100%;
+    align-items: center;
+  }
+
+  html.layout-mobile .collab-identity #collabUsername,
+  html:not(.layout-desktop) .collab-identity #collabUsername {
+    width: auto;
+    flex: 1 1 0%;
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  html.layout-mobile .collab-identity .collab-colors,
+  html:not(.layout-desktop) .collab-identity .collab-colors {
+    margin-top: 0;
+    flex: 0 1 auto;
+  }
 }
 
 /* ===== DESKTOP (exception) ===== */
@@ -1271,7 +1292,9 @@ html.theme-dark #moreSheet .form-control,
 html.theme-dark #moreSheet .input-group-addon,
 html.theme-dark #moreSheet select,
 html.theme-dark #importExport .modal-content,
-html.theme-dark #importExport .form-control {
+html.theme-dark #importExport .form-control,
+html.theme-dark #instructionsModal .modal-content,
+html.theme-dark #instructionsModal .form-control {
   background-color: #2a2f38;
   border-color: #3a3f4a;
   color: #f2f2f2;
@@ -1281,7 +1304,8 @@ html.theme-dark #moreSheet .help-block,
 html.theme-dark #moreSheet .source-link,
 html.theme-dark #moreSheet .source-link a,
 html.theme-dark #moreSheet .help-block a,
-html.theme-dark #importExport {
+html.theme-dark #importExport,
+html.theme-dark #instructionsModal {
   color: #c8c8c8;
 }
 
@@ -1290,17 +1314,21 @@ html.theme-dark .highlight-color:hover {
   border-color: #fff;
 }
 
-html.theme-dark #importExport .modal-content {
+html.theme-dark #importExport .modal-content,
+html.theme-dark #instructionsModal .modal-content {
   background: #1e2229;
   color: #eee;
 }
 
 html.theme-dark #importExport .modal-header,
-html.theme-dark #importExport .modal-footer {
+html.theme-dark #importExport .modal-footer,
+html.theme-dark #instructionsModal .modal-header,
+html.theme-dark #instructionsModal .modal-footer {
   border-color: #3a3f4a;
 }
 
-html.theme-dark #importExport .close {
+html.theme-dark #importExport .close,
+html.theme-dark #instructionsModal .close {
   color: #fff;
   opacity: 0.8;
 }

@@ -204,6 +204,7 @@ var ROOM_ID_RE = /^[A-Za-z0-9]{12,16}$/;
 var MAX_COLLAB_BYTES = 5 * 1024 * 1024;
 var MAX_CURSOR_TILES = 512;
 var MAX_USERNAME = 32;
+var MAX_CHAT = 300;
 var collabRooms = Object.create(null);
 var nextClientId = 1;
 
@@ -221,6 +222,22 @@ function sanitizeUsername(raw, fallback) {
   var s = String(raw == null ? '' : raw).replace(/[\x00-\x1f\x7f]/g, '').trim();
   if (s.length > MAX_USERNAME) s = s.slice(0, MAX_USERNAME);
   return s || fallback;
+}
+
+function sanitizeChat(raw) {
+  if (typeof raw !== 'string') return '';
+  if (raw.length > 2000) return '';
+  var s = raw.replace(/[\x00-\x1f\x7f]/g, '').trim();
+  if (s.length > MAX_CHAT) s = s.slice(0, MAX_CHAT);
+  return s;
+}
+
+function broadcastSystem(room, text) {
+  if (!room || !text) return;
+  var payload = { type: 'system', msg: String(text).slice(0, 200) };
+  room.clients.forEach(function(peer) {
+    sendJson(peer, payload);
+  });
 }
 
 function publicUser(ws) {
@@ -287,6 +304,7 @@ function leaveCollabRoom(ws) {
   var id = ws.collabRoom;
   if (!id) return;
   var leftId = ws.clientId;
+  var leftName = ws.username;
   ws.collabRoom = null;
   var room = collabRooms[id];
   if (!room) return;
@@ -296,6 +314,7 @@ function leaveCollabRoom(ws) {
     return;
   }
   broadcastUsers(room);
+  if (leftName) broadcastSystem(room, leftName + ' left');
   room.clients.forEach(function(peer) {
     if (leftId != null) sendJson(peer, { type: 'cursor-leave', id: leftId });
     sendJson(peer, { type: 'state', peers: room.clients.size });
@@ -331,6 +350,7 @@ function joinCollabRoom(ws, roomId, msg) {
   ws.username = sanitizeUsername(msg && msg.username, 'Some Ball ' + (room.nextBall++));
   sendWelcome(ws, room);
   broadcastUsers(room);
+  broadcastSystem(room, ws.username + ' joined');
   room.clients.forEach(function(peer) {
     if (peer !== ws) sendJson(peer, { type: 'state', peers: room.clients.size });
   });
@@ -415,6 +435,25 @@ function applyCursor(ws, msg) {
   });
 }
 
+function applyChat(ws, msg) {
+  var id = ws.collabRoom;
+  if (!id) return;
+  var room = collabRooms[id];
+  if (!room) return;
+  var text = sanitizeChat(msg && msg.msg);
+  if (!text) return;
+  var payload = {
+    type: 'chat',
+    id: ws.clientId,
+    username: ws.username,
+    color: ws.color,
+    msg: text
+  };
+  room.clients.forEach(function(peer) {
+    sendJson(peer, payload);
+  });
+}
+
 var server = http.createServer(app);
 var wss = new WebSocket.Server({ server: server, maxPayload: MAX_COLLAB_BYTES });
 
@@ -440,6 +479,8 @@ wss.on('connection', function(ws) {
       applyDetails(ws, msg);
     } else if (msg.type === 'cursor') {
       applyCursor(ws, msg);
+    } else if (msg.type === 'chat') {
+      applyChat(ws, msg);
     }
   });
   ws.on('close', function() {

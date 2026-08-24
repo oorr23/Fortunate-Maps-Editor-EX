@@ -1524,6 +1524,8 @@ $(function() {
       controlDown = true;
     } else if (e.which==16) {
       shiftDown = true;
+    } else if (window.TagproCollab && typeof TagproCollab.chatFocused === 'function' && TagproCollab.chatFocused()) {
+      return;
     } else if (e.which==90) { //z
       undo();
     } else if (e.which==89) { //y

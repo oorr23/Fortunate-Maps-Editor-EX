@@ -32,6 +32,12 @@ $(function() {
   var lastCursorKey = null;
   var cursorTimer = null;
   var pendingCursorTiles = null;
+  var MAX_CHAT = 300;
+  var MAX_CHAT_LOG = 200;
+  var EDGE_WIDTH = 22;
+  var chatOpen = false;
+  var chatUnread = false;
+  var chatSwipe = null;
 
   function mapFn(names) {
     var map = window.TagproMap || {};
@@ -94,6 +100,270 @@ $(function() {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function urlify(escaped) {
+    return String(escaped).replace(/https?:\/\/[^\s<]+/gi, function(url) {
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+    });
+  }
+
+  function chatFocused() {
+    var el = document.activeElement;
+    return !!(el && el.id === 'collabChatInput');
+  }
+
+  function chatPanelEl() {
+    return document.getElementById('collabChat');
+  }
+
+  function chatPanelWidth() {
+    var el = chatPanelEl();
+    return (el && el.offsetWidth) || Math.min(280, Math.floor(window.innerWidth * 0.7));
+  }
+
+  function setChatHiddenPx(px, dragging) {
+    var el = chatPanelEl();
+    if (!el) return;
+    if (dragging) el.classList.add('is-dragging');
+    else el.classList.remove('is-dragging');
+    el.style.transform = 'translateX(' + Math.max(0, px) + 'px)';
+  }
+
+  function clearChatInlineTransform() {
+    var el = chatPanelEl();
+    if (el) el.style.transform = '';
+    if (el) el.classList.remove('is-dragging');
+  }
+
+  function setChatUnread(on) {
+    chatUnread = !!on;
+    var edge = document.getElementById('collabChatEdge');
+    if (!edge) return;
+    if (chatUnread && !chatOpen) $(edge).addClass('has-unread');
+    else $(edge).removeClass('has-unread');
+  }
+
+  function trimChatLog() {
+    var log = document.getElementById('collabChatLog');
+    if (!log) return;
+    while (log.childNodes.length > MAX_CHAT_LOG) {
+      log.removeChild(log.firstChild);
+    }
+  }
+
+  function scrollChatLog() {
+    var log = document.getElementById('collabChatLog');
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+
+  function appendSystem(text) {
+    if (!text) return;
+    var log = document.getElementById('collabChatLog');
+    if (!log) return;
+    var line = document.createElement('div');
+    line.className = 'collab-chat-system';
+    line.textContent = String(text);
+    log.appendChild(line);
+    trimChatLog();
+    scrollChatLog();
+    if (!chatOpen) setChatUnread(true);
+  }
+
+  function appendChat(msg) {
+    var log = document.getElementById('collabChatLog');
+    if (!log) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'collab-chat-line';
+    wrap.innerHTML = '<span style="color:' + hexFor(msg.color) + '"><b>' +
+      xmlEscape(msg.username || 'Some Ball') + '</b></span>: <span>' +
+      urlify(xmlEscape(msg.msg)) + '</span>';
+    log.appendChild(wrap);
+    trimChatLog();
+    scrollChatLog();
+    if (!chatOpen) setChatUnread(true);
+  }
+
+  function openChat() {
+    chatOpen = true;
+    setChatUnread(false);
+    $('#collabChatBackdrop').removeAttr('hidden');
+    $('#collabChat').addClass('is-open').attr('aria-hidden', 'false');
+    document.documentElement.classList.add('collab-chat-open');
+    clearChatInlineTransform();
+  }
+
+  function closeChat() {
+    chatOpen = false;
+    $('#collabChatBackdrop').attr('hidden', 'hidden');
+    $('#collabChat').removeClass('is-open').attr('aria-hidden', 'true');
+    document.documentElement.classList.remove('collab-chat-open');
+    clearChatInlineTransform();
+    var input = document.getElementById('collabChatInput');
+    if (input) input.blur();
+  }
+
+  function eventPoint(e) {
+    if (e.touches && e.touches[0]) return e.touches[0];
+    if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0];
+    return e;
+  }
+
+  function swipeIgnoreTarget(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest('input, textarea, button, a, select');
+  }
+
+  function beginChatSwipe(e, origin) {
+    if (e.touches && e.touches.length > 1) return;
+    if (origin === 'edge' && chatOpen) return;
+    if (origin === 'panel' && !chatOpen) return;
+    if (origin === 'panel' && swipeIgnoreTarget(e.target)) return;
+    if ($('.modal.in:visible').length) return;
+    var pt = eventPoint(e);
+    if (origin === 'edge' && pt.clientX < window.innerWidth - EDGE_WIDTH - 2) return;
+    chatSwipe = {
+      origin: origin,
+      startX: pt.clientX,
+      startY: pt.clientY,
+      width: chatPanelWidth(),
+      moved: false
+    };
+  }
+
+  function moveChatSwipe(e) {
+    if (!chatSwipe) return;
+    var pt = eventPoint(e);
+    var dx = pt.clientX - chatSwipe.startX;
+    var dy = pt.clientY - chatSwipe.startY;
+    if (!chatSwipe.moved) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        chatSwipe = null;
+        clearChatInlineTransform();
+        return;
+      }
+      if (chatSwipe.origin === 'edge' && dx > 6) {
+        chatSwipe = null;
+        return;
+      }
+      if (chatSwipe.origin === 'panel' && dx < -6) {
+        chatSwipe = null;
+        return;
+      }
+      chatSwipe.moved = true;
+    }
+    if (e.cancelable) e.preventDefault();
+    var hidden = chatSwipe.origin === 'edge' ? chatSwipe.width + dx : dx;
+    setChatHiddenPx(Math.max(0, Math.min(chatSwipe.width, hidden)), true);
+  }
+
+  function endChatSwipe(e) {
+    if (!chatSwipe) return;
+    var pt = eventPoint(e);
+    var dx = pt.clientX - chatSwipe.startX;
+    var origin = chatSwipe.origin;
+    var moved = chatSwipe.moved;
+    var threshold = Math.min(48, chatSwipe.width * 0.28);
+    chatSwipe = null;
+    clearChatInlineTransform();
+    if (!moved) return;
+    var shouldOpen = origin === 'edge' ? (-dx > threshold) : (dx < threshold);
+    if (shouldOpen) openChat();
+    else closeChat();
+  }
+
+  function layoutChatEdge() {
+    var edge = document.getElementById('collabChatEdge');
+    var map = document.getElementById('map');
+    if (!edge || !map) return;
+    var r = map.getBoundingClientRect();
+    edge.style.top = Math.max(0, r.top) + 'px';
+    edge.style.height = Math.max(0, r.height) + 'px';
+    edge.style.bottom = 'auto';
+    edge.style.right = '0px';
+    edge.style.width = EDGE_WIDTH + 'px';
+  }
+
+  function bindChatSwipe() {
+    var edge = document.getElementById('collabChatEdge');
+    var panel = chatPanelEl();
+    if (!edge || !panel) return;
+    layoutChatEdge();
+    $(window).on('resize orientationchange', layoutChatEdge);
+    if (window.visualViewport) {
+      visualViewport.addEventListener('resize', layoutChatEdge);
+    }
+
+    var followKind = null;
+    function onDocMove(e) { moveChatSwipe(e); }
+    function detachFollow() {
+      document.removeEventListener('mousemove', onDocMove, true);
+      document.removeEventListener('mouseup', onFinish, true);
+      document.removeEventListener('touchmove', onDocMove, true);
+      document.removeEventListener('touchend', onFinish, true);
+      document.removeEventListener('touchcancel', onFinish, true);
+      document.removeEventListener('pointermove', onDocMove, true);
+      document.removeEventListener('pointerup', onFinish, true);
+      document.removeEventListener('pointercancel', onFinish, true);
+      followKind = null;
+    }
+    function onFinish(e) {
+      endChatSwipe(e);
+      detachFollow();
+    }
+    function attachFollow(kind) {
+      if (followKind) return;
+      followKind = kind;
+      if (kind === 'pointer') {
+        document.addEventListener('pointermove', onDocMove, true);
+        document.addEventListener('pointerup', onFinish, true);
+        document.addEventListener('pointercancel', onFinish, true);
+      } else if (kind === 'touch') {
+        document.addEventListener('touchmove', onDocMove, { capture: true, passive: false });
+        document.addEventListener('touchend', onFinish, true);
+        document.addEventListener('touchcancel', onFinish, true);
+      } else {
+        document.addEventListener('mousemove', onDocMove, true);
+        document.addEventListener('mouseup', onFinish, true);
+      }
+    }
+
+    function onStart(origin) {
+      return function(e) {
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        if (e.type === 'pointerdown' && e.button !== 0 && e.pointerType === 'mouse') return;
+        beginChatSwipe(e, origin);
+        if (!chatSwipe) return;
+        if (e.type.indexOf('pointer') === 0) attachFollow('pointer');
+        else if (e.type.indexOf('touch') === 0) attachFollow('touch');
+        else attachFollow('mouse');
+      };
+    }
+
+    if ('onpointerdown' in window) {
+      edge.addEventListener('pointerdown', onStart('edge'));
+      panel.addEventListener('pointerdown', onStart('panel'));
+    } else {
+      edge.addEventListener('mousedown', onStart('edge'));
+      edge.addEventListener('touchstart', onStart('edge'), { passive: true });
+      panel.addEventListener('mousedown', onStart('panel'));
+      panel.addEventListener('touchstart', onStart('panel'), { passive: true });
+    }
+  }
+
+  function sendChatMessage() {
+    var input = document.getElementById('collabChatInput');
+    var raw = input ? input.value : '';
+    var msg = String(raw == null ? '' : raw).replace(/[\x00-\x1f\x7f]/g, '').trim();
+    if (!msg) return;
+    if (msg.length > MAX_CHAT) msg = msg.slice(0, MAX_CHAT);
+    if (input) input.value = '';
+    if (!socket || socket.readyState !== 1 || !joined) {
+      appendSystem('Not connected to a collab room.');
+      return;
+    }
+    socket.send(JSON.stringify({ type: 'chat', msg: msg }));
   }
 
   function roomFromLocation() {
@@ -201,6 +471,7 @@ $(function() {
     copyText(url, function(ok) {
       copiedFlash = ok;
       if (ok) {
+        appendSystem('Collab link copied.');
         renderStatus();
         setTimeout(function() {
           copiedFlash = false;
@@ -274,6 +545,7 @@ $(function() {
     if (Array.isArray(msg.users)) users = msg.users;
     joined = true;
     handleState(msg);
+    appendSystem('Connected to room.');
   }
 
   function handleUsers(msg) {
@@ -406,6 +678,14 @@ $(function() {
         handleCursorLeave(msg.id);
         return;
       }
+      if (msg.type === 'chat') {
+        if (typeof msg.msg === 'string' && msg.msg) appendChat(msg);
+        return;
+      }
+      if (msg.type === 'system') {
+        if (msg.msg) appendSystem(msg.msg);
+        return;
+      }
       if (msg.type !== 'state') return;
       joined = true;
       handleState(msg);
@@ -452,7 +732,8 @@ $(function() {
   window.TagproCollab = {
     onPersist: sendCurrentState,
     roomId: function() { return roomId; },
-    onTilesRebuilt: reapplyPeerCursors
+    onTilesRebuilt: reapplyPeerCursors,
+    chatFocused: chatFocused
   };
 
   if (window.TagproMap) {
@@ -499,6 +780,30 @@ $(function() {
       $(this).blur();
     }
   });
+
+  $('#collabChatForm').on('submit', function(e) {
+    e.preventDefault();
+    sendChatMessage();
+  });
+  $('#collabChatInput').on('keydown', function(e) {
+    if (e.which === 27) {
+      e.preventDefault();
+      closeChat();
+    }
+  });
+  $('#collabChatClose').on('click', function() {
+    closeChat();
+  });
+  $('#collabChatBackdrop').on('click', function() {
+    closeChat();
+  });
+  $(document).on('keydown', function(e) {
+    if (e.which !== 27 || !chatOpen) return;
+    if ($('.modal.in:visible').length) return;
+    e.preventDefault();
+    closeChat();
+  });
+  bindChatSwipe();
 
   var savedName = storedUsername();
   if (savedName) $('#collabUsername').val(savedName);
