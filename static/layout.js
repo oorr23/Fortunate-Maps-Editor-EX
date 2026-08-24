@@ -55,6 +55,11 @@
     root.classList.add('layout-' + layout);
     root.setAttribute('data-layout', layout);
     root.setAttribute('data-layout-override', readOverride() || 'auto');
+    var width = global.innerWidth || (root && root.clientWidth) || 0;
+    var height = global.innerHeight || (root && root.clientHeight) || 0;
+    var landscape = mq('(orientation: landscape)') || (width >= height && width > 0);
+    root.classList.toggle('orient-landscape', !!landscape);
+    root.classList.toggle('orient-portrait', !landscape);
     if (document.body) {
       document.body.classList.remove('layout-mobile', 'layout-desktop');
       document.body.classList.add('layout-' + layout);

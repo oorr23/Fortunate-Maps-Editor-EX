@@ -7,6 +7,7 @@ $(function() {
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
   var PINCH_ZOOM_RATIO = 1.08;
+  var LOUPE_STEP_PX = 40;
 
   var $map = $('#map');
   var mapEl = $map[0];
@@ -25,8 +26,11 @@ $(function() {
   var panPointer = null;
   var twoFingerPanning = false;
   var lastPinchMid = null;
+  var twoFingerAcc = { x: 0, y: 0 };
+  var wheelAcc = { x: 0, y: 0 };
   var mouseLoupe = false;
   var ignorePaintUntil = 0;
+  var settingsPointerDown = false;
 
   function isPhoneLayout() {
     if (window.TagproLayout && window.TagproLayout.isMobile) return window.TagproLayout.isMobile();
@@ -87,7 +91,26 @@ $(function() {
     applyTheme('light');
   });
 
+  function chromeChanged() {
+    if (!window.TagproMap || !TagproMap.getSize || !TagproMap.fitView) return;
+    if (TagproMap.getSize().zoom === 0) TagproMap.fitView();
+  }
+
+  function setMorePanel(name) {
+    var current = $moreSheet.attr('data-open') || '';
+    if (name && name === current) name = '';
+    $moreSheet.attr('data-open', name);
+    $('.more-nav-btn').removeClass('active').attr('aria-expanded', 'false');
+    $('.more-panel').attr('hidden', true);
+    if (name) {
+      $('.more-nav-btn[data-panel="' + name + '"]').addClass('active').attr('aria-expanded', 'true');
+      $('.more-panel[data-panel="' + name + '"]').removeAttr('hidden');
+    }
+    chromeChanged();
+  }
+
   function closeMore() {
+    setMorePanel('');
     $moreSheet.removeClass('open');
     $moreBackdrop.removeClass('open').attr('hidden', true);
   }
@@ -95,6 +118,7 @@ $(function() {
   function openMore() {
     $moreSheet.addClass('open');
     $moreBackdrop.addClass('open').removeAttr('hidden');
+    if (!$moreSheet.attr('data-open')) setMorePanel('file');
   }
 
   $('#moreToggle').on('click', function() {
@@ -102,6 +126,9 @@ $(function() {
     else openMore();
   });
   $('#moreClose, #moreBackdrop').on('click', closeMore);
+  $('.more-nav-btn').on('click', function() {
+    setMorePanel($(this).attr('data-panel'));
+  });
 
   function setPanMode(on) {
     panMode = !!on;
@@ -210,7 +237,10 @@ $(function() {
       var p = pendingSettingsPaint;
       pendingSettingsPaint = null;
       settingsPaintTimer = null;
-      if (p && p.$tile) beginPaintAtTile(p.$tile, p.clientX, p.clientY, false);
+      if (p && p.$tile) {
+        beginPaintAtTile(p.$tile, p.clientX, p.clientY, false);
+        if (!settingsPointerDown) endPaint(p.clientX, p.clientY);
+      }
     }, DOUBLE_TAP_MS);
   }
 
@@ -344,6 +374,58 @@ $(function() {
     requestLoupeStamp();
   }
 
+  function clampLoupeCenter() {
+    loupeCenterX = Math.round(loupeCenterX);
+    loupeCenterY = Math.round(loupeCenterY);
+    var size = window.TagproMap && TagproMap.getSize && TagproMap.getSize();
+    if (!size) return;
+    if (size.width) loupeCenterX = Math.max(0, Math.min(size.width - 1, loupeCenterX));
+    if (size.height) loupeCenterY = Math.max(0, Math.min(size.height - 1, loupeCenterY));
+  }
+
+  function stepLoupeBy(dx, dy) {
+    if (!dx && !dy) return;
+    loupeCenterX += dx;
+    loupeCenterY += dy;
+    clampLoupeCenter();
+    loupeFollow = false;
+    stampLoupeNow();
+  }
+
+  function accumulateLoupePan(dx, dy, acc) {
+    acc.x += dx;
+    acc.y += dy;
+    var sx = 0;
+    var sy = 0;
+    while (acc.x >= LOUPE_STEP_PX) { sx += 1; acc.x -= LOUPE_STEP_PX; }
+    while (acc.x <= -LOUPE_STEP_PX) { sx -= 1; acc.x += LOUPE_STEP_PX; }
+    while (acc.y >= LOUPE_STEP_PX) { sy += 1; acc.y -= LOUPE_STEP_PX; }
+    while (acc.y <= -LOUPE_STEP_PX) { sy -= 1; acc.y += LOUPE_STEP_PX; }
+    if (sx || sy) stepLoupeBy(sx, sy);
+  }
+
+  function revealLoupeForNav(clientX, clientY) {
+    if (!loupeVisible) {
+      var $tile = (clientX != null && clientY != null) ? tileFromPoint(clientX, clientY) : $();
+      if ($tile.length) {
+        var x = $tile.data('x');
+        var y = $tile.data('y');
+        if (x != null && y != null && !isNaN(x) && !isNaN(y)) {
+          loupeCenterX = x;
+          loupeCenterY = y;
+        }
+      }
+      clampLoupeCenter();
+      if (clientX != null && clientY != null) {
+        positionLoupe(clientX, clientY);
+      } else {
+        var r = mapEl.getBoundingClientRect();
+        positionLoupe(r.left + r.width / 2, r.top + r.height / 2);
+      }
+    }
+    stampLoupeNow();
+  }
+
   function beginPaintAtTile($tile, clientX, clientY, allowLoupe) {
     painting = true;
     loupeFollow = !!allowLoupe;
@@ -370,6 +452,9 @@ $(function() {
       if (handleSettingsDoubleTap(cell.x, cell.y)) return true;
       if (mapHasSettings(cell.x, cell.y)) {
         suppressLoupe = true;
+        settingsPointerDown = true;
+        holdStart = { clientX: clientX, clientY: clientY };
+        lastPointer = { x: clientX, y: clientY };
         queueSettingsPaint($tile, clientX, clientY);
         return true;
       }
@@ -477,13 +562,21 @@ $(function() {
       e.preventDefault();
       twoFingerPanning = true;
       painting = false;
-      hideLoupe();
       clearLongPress();
+      clearSettingsPaint();
       panPointer = null;
       if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
       lastTileEl = null;
-      pinchLastZoomAt = pinchDistance(e.touches[0], e.touches[1]);
       lastPinchMid = pinchMidpoint(e.touches[0], e.touches[1]);
+      twoFingerAcc.x = 0;
+      twoFingerAcc.y = 0;
+      if (isPhoneLayout()) {
+        pinchLastZoomAt = 0;
+        revealLoupeForNav(lastPinchMid.x, lastPinchMid.y);
+      } else {
+        hideLoupe();
+        pinchLastZoomAt = pinchDistance(e.touches[0], e.touches[1]);
+      }
       return;
     }
 
@@ -527,6 +620,7 @@ $(function() {
     closeMore();
     var x = $tile.data('x');
     var y = $tile.data('y');
+    settingsPointerDown = true;
     if (mapHasSettings(x, y) && handleSettingsDoubleTap(x, y)) return;
     if (mapHasSettings(x, y)) {
       suppressLoupe = true;
@@ -543,6 +637,13 @@ $(function() {
       e.preventDefault();
       twoFingerPanning = true;
       var mid = pinchMidpoint(e.touches[0], e.touches[1]);
+      if (isPhoneLayout()) {
+        if (lastPinchMid) {
+          accumulateLoupePan(mid.x - lastPinchMid.x, mid.y - lastPinchMid.y, twoFingerAcc);
+        }
+        lastPinchMid = mid;
+        return;
+      }
       if (lastPinchMid) {
         mapEl.scrollLeft += lastPinchMid.x - mid.x;
         mapEl.scrollTop += lastPinchMid.y - mid.y;
@@ -617,10 +718,14 @@ $(function() {
       twoFingerPanning = false;
       lastPinchMid = null;
       pinchLastZoomAt = 0;
+      twoFingerAcc.x = 0;
+      twoFingerAcc.y = 0;
       painting = false;
-      hideLoupe();
       ignorePaintUntil = Date.now() + 350;
-      startPan(e.touches[0].clientX, e.touches[0].clientY);
+      if (!isPhoneLayout()) {
+        hideLoupe();
+        startPan(e.touches[0].clientX, e.touches[0].clientY);
+      }
       return;
     }
     if (e.touches.length === 0) {
@@ -628,6 +733,9 @@ $(function() {
       twoFingerPanning = false;
       lastPinchMid = null;
       pinchLastZoomAt = 0;
+      twoFingerAcc.x = 0;
+      twoFingerAcc.y = 0;
+      settingsPointerDown = false;
       panPointer = null;
       endPan();
       var t = (e.changedTouches && e.changedTouches[0]) || {};
@@ -646,6 +754,27 @@ $(function() {
       startPan(e.clientX, e.clientY);
       return;
     }
+    if (isPhoneLayout() && !e.shiftKey) {
+      var $tile = $(e.target).closest('#map .tile');
+      if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
+      if ($tile.length) {
+        var x = $tile.data('x');
+        var y = $tile.data('y');
+        if (mapHasSettings(x, y)) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeMore();
+          settingsPointerDown = true;
+          holdStart = { clientX: e.clientX, clientY: e.clientY };
+          lastPointer = { x: e.clientX, y: e.clientY };
+          if (handleSettingsDoubleTap(x, y)) return;
+          suppressLoupe = true;
+          pendingDismiss = false;
+          if (!loupeVisible) queueSettingsPaint($tile, e.clientX, e.clientY);
+          return;
+        }
+      }
+    }
     if (loupeVisible) {
       e.preventDefault();
       e.stopPropagation();
@@ -662,6 +791,7 @@ $(function() {
 
   $map.on('mousedown', function(e) {
     if (e.which !== 1) return;
+    if (e.shiftKey) return;
     if (panMode) return;
     if (loupeVisible) return;
     mouseLoupe = true;
@@ -684,6 +814,12 @@ $(function() {
       movePan(e.clientX, e.clientY);
       return;
     }
+    if (pendingSettingsPaint && movedPastSlop(e.clientX, e.clientY)) {
+      var p = pendingSettingsPaint;
+      clearSettingsPaint();
+      beginPaintAtTile(p.$tile, e.clientX, e.clientY, false);
+      return;
+    }
     if (pendingDismiss || holdMovingLoupe) {
       if (movedPastSlop(e.clientX, e.clientY) || holdMovingLoupe) {
         clearLongPress();
@@ -699,6 +835,7 @@ $(function() {
     }
   });
   $(document).on('mouseup', function() {
+    settingsPointerDown = false;
     if (loupePainting) {
       paintLoupeAt(0, 0, 'end');
     }
@@ -717,6 +854,30 @@ $(function() {
       holdStart = null;
     }
   });
+
+  mapEl.addEventListener('dblclick', function(e) {
+    if (!isPhoneLayout()) return;
+    var $tile = $(e.target).closest('#map .tile');
+    if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
+    if (!$tile.length) return;
+    var x = $tile.data('x');
+    var y = $tile.data('y');
+    if (!mapHasSettings(x, y)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    clearSettingsPaint();
+    lastSettingsTap = null;
+    settingsPointerDown = false;
+    openSettingsAt(x, y);
+    hideLoupe();
+  }, true);
+
+  mapEl.addEventListener('wheel', function(e) {
+    if (!isPhoneLayout()) return;
+    e.preventDefault();
+    revealLoupeForNav(e.clientX, e.clientY);
+    accumulateLoupePan(e.deltaX, e.deltaY, wheelAcc);
+  }, { passive: false });
 
   var loupeEl = $loupe[0];
   loupeEl.addEventListener('touchstart', function(e) {
@@ -746,6 +907,24 @@ $(function() {
     e.stopPropagation();
     paintLoupeAt(e.clientX, e.clientY, 'start');
   });
+  $loupe.on('dblclick', function(e) {
+    if (!isPhoneLayout()) return;
+    var cell = loupeCellFromPoint(e.clientX, e.clientY);
+    if (!cell || !mapHasSettings(cell.x, cell.y)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    clearSettingsPaint();
+    lastSettingsTap = null;
+    settingsPointerDown = false;
+    openSettingsAt(cell.x, cell.y);
+  });
+  loupeEl.addEventListener('wheel', function(e) {
+    if (!isPhoneLayout()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    revealLoupeForNav(e.clientX, e.clientY);
+    accumulateLoupePan(e.deltaX, e.deltaY, wheelAcc);
+  }, { passive: false });
 
   $('#pngDrop').on('click', function(e) {
     if ($(this).hasClass('hasExportable')) return;
@@ -774,8 +953,15 @@ $(function() {
     var animating = false;
     var scrollAnimFrame = null;
 
+    function axis() {
+      var vertical = window.getComputedStyle(track).flexDirection.indexOf('column') === 0;
+      return vertical
+        ? { size: function() { return track.scrollHeight / 3; }, pos: 'scrollTop', client: 'clientHeight', offset: 'offsetTop', dim: 'offsetHeight' }
+        : { size: function() { return track.scrollWidth / 3; }, pos: 'scrollLeft', client: 'clientWidth', offset: 'offsetLeft', dim: 'offsetWidth' };
+    }
+
     function measure() {
-      setWidth = track.scrollWidth / 3;
+      setWidth = axis().size();
       return setWidth;
     }
 
@@ -791,8 +977,9 @@ $(function() {
       if (animating) return;
       if (!setWidth) measure();
       if (setWidth < 8) return;
-      if (el.scrollLeft <= 4) el.scrollLeft += setWidth;
-      else if (el.scrollLeft >= setWidth * 2 - 4) el.scrollLeft -= setWidth;
+      var a = axis();
+      if (el[a.pos] <= 4) el[a.pos] += setWidth;
+      else if (el[a.pos] >= setWidth * 2 - 4) el[a.pos] -= setWidth;
     }
 
     function finishCenter() {
@@ -811,14 +998,15 @@ $(function() {
 
     function animateScrollTo(to, duration) {
       if (scrollAnimFrame) cancelAnimationFrame(scrollAnimFrame);
-      var from = el.scrollLeft;
+      var a = axis();
+      var from = el[a.pos];
       var dist = to - from;
       var start = null;
       animating = true;
       function step(now) {
         if (start === null) start = now;
         var t = Math.min(1, (now - start) / duration);
-        el.scrollLeft = from + dist * easeInOutCubic(t);
+        el[a.pos] = from + dist * easeInOutCubic(t);
         if (t < 1) {
           scrollAnimFrame = requestAnimationFrame(step);
         } else {
@@ -836,25 +1024,26 @@ $(function() {
         refreshScale();
         return;
       }
-      var viewCenter = el.scrollLeft + el.clientWidth / 2;
+      var a = axis();
+      var viewCenter = el[a.pos] + el[a.client] / 2;
       var target = selected[0];
       var best = Infinity;
       for (var i = 0; i < selected.length; i++) {
-        var c = selected[i].offsetLeft + selected[i].offsetWidth / 2;
+        var c = selected[i][a.offset] + selected[i][a.dim] / 2;
         var d = Math.abs(c - viewCenter);
         if (d < best) {
           best = d;
           target = selected[i];
         }
       }
-      var left = target.offsetLeft - (el.clientWidth / 2) + (target.offsetWidth / 2);
+      var left = target[a.offset] - (el[a.client] / 2) + (target[a.dim] / 2);
       if (left < 0) left = 0;
-      if (Math.abs(el.scrollLeft - left) < 2) {
+      if (Math.abs(el[a.pos] - left) < 2) {
         refreshScale();
         return;
       }
       if (animate === false) {
-        el.scrollLeft = left;
+        el[a.pos] = left;
         jumpLoop();
         refreshScale();
         return;
@@ -869,6 +1058,12 @@ $(function() {
     window.addEventListener('resize', function() {
       measure();
       centerOnSelected(false);
+    });
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() {
+        measure();
+        centerOnSelected(false);
+      }, 250);
     });
 
     requestAnimationFrame(function() {
@@ -885,5 +1080,36 @@ $(function() {
         if (loupeVisible) renderLoupe();
       }
     };
+  })();
+
+  (function setupToolsCarousel() {
+    var el = document.getElementById('tools');
+    if (!el) return;
+
+    function centerOnActive(animate) {
+      var active = el.querySelector('.btn.active');
+      if (!active) return;
+      var left = active.offsetLeft - (el.clientWidth / 2) + (active.offsetWidth / 2);
+      if (left < 0) left = 0;
+      var max = Math.max(0, el.scrollWidth - el.clientWidth);
+      if (left > max) left = max;
+      if (animate === false) {
+        el.scrollLeft = left;
+        return;
+      }
+      if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ left: left, behavior: 'smooth' });
+      } else {
+        el.scrollLeft = left;
+      }
+    }
+
+    window.addEventListener('resize', function() { centerOnActive(false); });
+    window.addEventListener('orientationchange', function() {
+      setTimeout(function() { centerOnActive(false); }, 250);
+    });
+    requestAnimationFrame(function() { centerOnActive(false); });
+
+    window.TagproTools = { centerOnActive: centerOnActive };
   })();
 });

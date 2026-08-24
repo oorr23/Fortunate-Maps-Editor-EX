@@ -26,6 +26,8 @@ $(function() {
     this.opposite = this; // What it switches to when mirrored
     this.verticalMirror = this;
     this.horizontalMirror = this;
+    this.plusNinetyRotator = this;
+    this.minusNinetyRotator = this;
     this.toolTipText = toolTipText;
   }
   TileType.prototype.isWall = function() {
@@ -38,9 +40,15 @@ $(function() {
     if (window.TagproTextures && TagproTextures.urlFor) return TagproTextures.urlFor(type);
     return (type.image || 'default-skin-v2') + '.png';
   }
+  var PALETTE_CELL = 40;
+
   function bustDrawCache($elem) {
     if (!$elem || !$elem.length) return;
     $elem.styleUrl = $elem.styleBackgroundSize = $elem.styleBgColor = undefined;
+    var node = $elem[0];
+    if (node) {
+      node.styleUrl = node.styleBackgroundSize = node.styleBgColor = undefined;
+    }
   }
   TileType.prototype.drawOn = function($elem, tile) {
     var styleBgColor = '';
@@ -78,10 +86,10 @@ $(function() {
             var cornerY = y + ((((q+1)&2)==0) ? 0 : 1);
             // Figure out the filled/unfilledness of the 8 spots around this corner
             var aroundCorner = 
-               (wallSolidsAt(cornerX,cornerY)&0xc0)|
-               (wallSolidsAt(cornerX-1, cornerY)&0x03)| 
-               (wallSolidsAt(cornerX-1, cornerY-1)&0x0c)| 
-               (wallSolidsAt(cornerX, cornerY-1)&0x30);
+               (wallSolidsAt(cornerX,cornerY, tile)&0xc0)|
+               (wallSolidsAt(cornerX-1, cornerY, tile)&0x03)| 
+               (wallSolidsAt(cornerX-1, cornerY-1, tile)&0x0c)| 
+               (wallSolidsAt(cornerX, cornerY-1, tile)&0x30);
             aroundCorner = aroundCorner|(aroundCorner<<8);
             var startDirection = q*2 + 1; // start pointing through the middle of our own quadrant
             // See how far we can rotate clockwise without falling off the wall
@@ -109,7 +117,7 @@ $(function() {
               solidStart = (startDirection - ccwSteps + 12) % 8;
             }
             
-            var coords = quadrantCoords[q+''+solidStart+''+solidEnd + (hasChip?'d':'')];
+            var coords = quadrantCoords && quadrantCoords[q+''+solidStart+''+solidEnd + (hasChip?'d':'')];
             if (!coords) {
               coords = [5.5,5.5];
             }
@@ -164,6 +172,7 @@ $(function() {
     this.stateChange = fns.stateChange || function() {}; // arbitrary state change happened -- redraw tool state if necessary
     this.getState = fns.getState || function() {};
     this.setState = fns.setState || function() {};
+    this.previewOnly = !!fns.previewOnly;
   }
   var pencil = new Tool({
     speculateDrag: function(x,y) {
@@ -521,6 +530,101 @@ $(function() {
     $map.find('.selectionIndicator').css('display', 'none');
   }
 
+  function pairType(ty, axis) {
+    var mirrored = axis === 'h' ? ty.horizontalMirror : ty.verticalMirror;
+    if (mirrored && mirrored !== ty) return mirrored;
+    return ty.opposite || ty;
+  }
+
+  function mirrorDirFromClick(x, y) {
+    var dl = x;
+    var dr = width - 1 - x;
+    var dt = y;
+    var db = height - 1 - y;
+    var nearest = Math.min(dl, dr, dt, db);
+    if (nearest === dl) return 'right';
+    if (nearest === dr) return 'left';
+    if (nearest === dt) return 'down';
+    return 'up';
+  }
+
+  var addWidth = new Tool({
+    previewOnly: true,
+    down: function(x) {
+      this.downX = x;
+      this.lastX = x;
+    },
+    speculateDrag: function(x) {
+      this.lastX = x;
+      if (this.downX === undefined) this.downX = x;
+      var start = Math.min(x, this.downX);
+      var end = Math.max(x, this.downX);
+      var calculated = [];
+      for (var ix = start; ix <= end; ix++) {
+        for (var iy = 0; iy < height; iy++) {
+          calculated.push(new TileState(tiles[ix][iy]));
+        }
+      }
+      return new UndoStep(calculated);
+    },
+    up: function() {
+      if (this.downX === undefined || this.lastX === undefined) return;
+      var extra = Math.abs(this.lastX - this.downX) + 1;
+      var start = Math.min(this.lastX, this.downX);
+      this.downX = this.lastX = undefined;
+      insertColumns(start, extra);
+      reselectDrawingTool();
+    }
+  });
+
+  var addHeight = new Tool({
+    previewOnly: true,
+    down: function(x, y) {
+      this.downY = y;
+      this.lastY = y;
+    },
+    speculateDrag: function(x, y) {
+      this.lastY = y;
+      if (this.downY === undefined) this.downY = y;
+      var start = Math.min(y, this.downY);
+      var end = Math.max(y, this.downY);
+      var calculated = [];
+      for (var iy = start; iy <= end; iy++) {
+        for (var ix = 0; ix < width; ix++) {
+          calculated.push(new TileState(tiles[ix][iy]));
+        }
+      }
+      return new UndoStep(calculated);
+    },
+    up: function() {
+      if (this.downY === undefined || this.lastY === undefined) return;
+      var extra = Math.abs(this.lastY - this.downY) + 1;
+      var start = Math.min(this.lastY, this.downY);
+      this.downY = this.lastY = undefined;
+      insertRows(start, extra);
+      reselectDrawingTool();
+    }
+  });
+
+  var mirrorTool = new Tool({
+    previewOnly: true,
+    speculateUp: function(x, y) {
+      var calculated = [];
+      for (var ix = 0; ix < width; ix++) {
+        for (var iy = 0; iy < height; iy++) {
+          calculated.push(new TileState(tiles[ix][iy]));
+        }
+      }
+      return new UndoStep(calculated);
+    },
+    up: function(x, y) {
+      if (x === undefined || y === undefined) return;
+      if (x === 0 && y === 0 && width > 1 && height > 1) return;
+      mirrorMap(mirrorDirFromClick(x, y));
+      reselectDrawingTool();
+    }
+  });
+
   function ensureUnique(placedX, placedY) {
     for (var x=0; x<width; x++) {
       for (var y=0; y<height; y++) {
@@ -814,6 +918,12 @@ $(function() {
     t1.horizontalMirror = t2;
     t2.horizontalMirror = t1;
   }
+  function isPlusNinetyRotator(t1, t2) {
+    t1.plusNinetyRotator = t2;
+  }
+  function isMinusNinetyRotator(t1, t2) {
+    t1.minusNinetyRotator = t2;
+  }
   areOpposites(redSpeedPadType, blueSpeedpadType);
   areOpposites(redFloorType, blueFloorType);
   areOpposites(redFieldType, blueFieldType);
@@ -824,6 +934,14 @@ $(function() {
   areHorizontalMirrors(wallTopLeftType, wallTopRightType);
   areVerticalMirrors(wallBottomLeftType, wallTopLeftType);
   areVerticalMirrors(wallBottomRightType, wallTopRightType);
+  isPlusNinetyRotator(wallBottomLeftType, wallTopLeftType);
+  isPlusNinetyRotator(wallTopLeftType, wallTopRightType);
+  isPlusNinetyRotator(wallTopRightType, wallBottomRightType);
+  isPlusNinetyRotator(wallBottomRightType, wallBottomLeftType);
+  isMinusNinetyRotator(wallTopLeftType, wallBottomLeftType);
+  isMinusNinetyRotator(wallTopRightType, wallTopLeftType);
+  isMinusNinetyRotator(wallBottomRightType, wallTopRightType);
+  isMinusNinetyRotator(wallBottomLeftType, wallBottomRightType);
   
 
   function Tile(options, elem) {
@@ -879,10 +997,17 @@ $(function() {
 
   var dirtyWalls = {};
   function isWall(x, y) {
-    return tiles[x] && tiles[x][y] && tiles[x][y].type.isWall();
+    return !!(tiles && tiles[x] && tiles[x][y] && tiles[x][y].type.isWall());
   }
-  function wallSolidsAt(x,y) {
-    var t = (tiles[x] && tiles[x][y] && tiles[x][y].type.wallSolids|0);
+  function wallSolidsAt(x,y, ctx) {
+    var t;
+    if (ctx && ctx.isolated) {
+      t = (x === ctx.x && y === ctx.y) ? (ctx.previewSolids|0) : 0;
+    } else if (!tiles) {
+      t = 0;
+    } else {
+      t = (tiles[x] && tiles[x][y] && tiles[x][y].type.wallSolids|0);
+    }
     return t|(t<<8);
   }
   function maybeIsDirtyWall(x, y) {
@@ -907,6 +1032,19 @@ $(function() {
   var width;
   var $tiles;
   var tiles;
+  var ownHighlightHex = '#99FF99';
+  var speculativeListener = null;
+  var tilesRebuiltListener = null;
+
+  function highlightClassId(id) {
+    return String(id == null ? '' : id).replace(/[^A-Za-z0-9_-]/g, '');
+  }
+
+  function notifySpeculativeTiles(coords) {
+    if (typeof speculativeListener === 'function') {
+      try { speculativeListener(coords || []); } catch (err) {}
+    }
+  }
 
   function buildTilesWith(types) {
     width = types.length;
@@ -922,13 +1060,13 @@ $(function() {
         "<div class='tileQuadrant nestedSquareBR'></div>" +
         "<div class='tileQuadrant nestedSquareBL'></div>" +
         "<div class='tileQuadrant nestedSquareTL'></div>" +
-        "<div class='selectionIndicator nestedSquare'></div><div class='potentialHighlight nestedSquare'></div></div></div>";
+        "<div class='selectionIndicator nestedSquare'></div><div class='potentialHighlight nestedSquare'></div><div class='potentialHighlightOther nestedSquare'></div></div></div>";
     }
     row += "</div>"
     for (var y=0; y<height; y++) {
       html += row;
     }
-    $map.html( html );
+    $map.html('<div class="map-canvas">' + html + '</div>');
 
     $tiles = $map.find('.tile');
     tiles = [];
@@ -953,6 +1091,184 @@ $(function() {
       showZoom();
       enableZoomButtons();
     });
+    $map.find('.potentialHighlight').css('background-color', ownHighlightHex);
+    if (typeof tilesRebuiltListener === 'function') {
+      try { tilesRebuiltListener(); } catch (err) {}
+    }
+  }
+
+  function confirmLargeMap(nextW, nextH) {
+    if (nextW * nextH <= 3600) return true;
+    return confirm('Maps larger than 3600 tiles cannot be tested and may lag the browser.\nContinue anyway?');
+  }
+
+  function snapshotTiles() {
+    var snap = [];
+    for (var x = 0; x < width; x++) {
+      snap[x] = [];
+      for (var y = 0; y < height; y++) {
+        var t = tiles[x][y];
+        var affected = [];
+        for (var key in t.affected || {}) {
+          var a = t.affected[key];
+          if (a) affected.push({ x: a.x, y: a.y });
+        }
+        snap[x][y] = {
+          type: t.type,
+          cooldown: t.cooldown,
+          timer: t.timer,
+          radius: t.radius,
+          weight: t.weight,
+          dest: t.destination ? { x: t.destination.x, y: t.destination.y } : null,
+          affected: affected
+        };
+      }
+    }
+    return snap;
+  }
+
+  function applyMappedProps(snap, oldW, oldH, destOf) {
+    for (var x = 0; x < oldW; x++) {
+      for (var y = 0; y < oldH; y++) {
+        var d = destOf(x, y);
+        if (!d || !tiles[d.x] || !tiles[d.x][d.y]) continue;
+        var tile = tiles[d.x][d.y];
+        var s = snap[x][y];
+        tile.cooldown = s.cooldown;
+        tile.timer = s.timer;
+        tile.radius = s.radius;
+        tile.weight = s.weight;
+        if (s.dest) {
+          var nd = destOf(s.dest.x, s.dest.y);
+          if (nd && tiles[nd.x]) tile.destination = tiles[nd.x][nd.y];
+        }
+        if (s.affected.length) {
+          tile.affected = {};
+          for (var i = 0; i < s.affected.length; i++) {
+            var na = destOf(s.affected[i].x, s.affected[i].y);
+            if (na && tiles[na.x] && tiles[na.x][na.y]) {
+              tile.affected[na.x + ',' + na.y] = tiles[na.x][na.y];
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function rebuildMapped(newW, newH, destOf, opts) {
+    opts = opts || {};
+    if (!confirmLargeMap(newW, newH)) return false;
+    var oldW = width;
+    var oldH = height;
+    var snap = snapshotTiles();
+    var types = [];
+    var x, y, d;
+    for (x = 0; x < newW; x++) {
+      types[x] = [];
+      for (y = 0; y < newH; y++) types[x][y] = emptyType;
+    }
+    var mapType = opts.mapType || function(ty) { return ty; };
+    for (x = 0; x < oldW; x++) {
+      for (y = 0; y < oldH; y++) {
+        d = destOf(x, y);
+        if (!d || d.x < 0 || d.y < 0 || d.x >= newW || d.y >= newH) continue;
+        types[d.x][d.y] = mapType(snap[x][y].type);
+      }
+    }
+    if (opts.copyOf) {
+      var copyType = opts.copyType || function(ty) { return ty; };
+      for (x = 0; x < oldW; x++) {
+        for (y = 0; y < oldH; y++) {
+          d = opts.copyOf(x, y);
+          if (!d || d.x < 0 || d.y < 0 || d.x >= newW || d.y >= newH) continue;
+          types[d.x][d.y] = copyType(snap[x][y].type);
+        }
+      }
+    }
+    buildTilesWith(types);
+    applyMappedProps(snap, oldW, oldH, destOf);
+    if (opts.copyOf) applyMappedProps(snap, oldW, oldH, opts.copyOf);
+    cleanDirtyWalls();
+    savePoint();
+    persistMap();
+    return true;
+  }
+
+  function insertColumns(start, extra) {
+    var oldW = width;
+    rebuildMapped(oldW + extra, height, function(x, y) {
+      return { x: x < start ? x : x + extra, y: y };
+    });
+  }
+
+  function insertRows(start, extra) {
+    var oldH = height;
+    rebuildMapped(width, oldH + extra, function(x, y) {
+      return { x: x, y: y < start ? y : y + extra };
+    });
+  }
+
+  function rotateMap(degrees) {
+    var oldW = width;
+    var oldH = height;
+    if (degrees === 90) {
+      rebuildMapped(oldH, oldW, function(x, y) {
+        return { x: oldH - 1 - y, y: x };
+      }, { mapType: function(ty) { return ty.plusNinetyRotator || ty; } });
+    } else {
+      rebuildMapped(oldH, oldW, function(x, y) {
+        return { x: y, y: oldW - 1 - x };
+      }, { mapType: function(ty) { return ty.minusNinetyRotator || ty; } });
+    }
+  }
+
+  function flipMap(axis) {
+    var oldW = width;
+    var oldH = height;
+    if (axis === 'h') {
+      rebuildMapped(oldW, oldH, function(x, y) {
+        return { x: oldW - 1 - x, y: y };
+      }, { mapType: function(ty) { return ty.horizontalMirror || ty; } });
+    } else {
+      rebuildMapped(oldW, oldH, function(x, y) {
+        return { x: x, y: oldH - 1 - y };
+      }, { mapType: function(ty) { return ty.verticalMirror || ty; } });
+    }
+  }
+
+  function mirrorMap(dir) {
+    var oldW = width;
+    var oldH = height;
+    if (dir === 'right') {
+      rebuildMapped(oldW * 2, oldH, function(x, y) { return { x: x, y: y }; }, {
+        copyOf: function(x, y) { return { x: oldW * 2 - 1 - x, y: y }; },
+        copyType: function(ty) { return pairType(ty, 'h'); }
+      });
+    } else if (dir === 'left') {
+      rebuildMapped(oldW * 2, oldH, function(x, y) { return { x: x + oldW, y: y }; }, {
+        copyOf: function(x, y) { return { x: oldW - 1 - x, y: y }; },
+        copyType: function(ty) { return pairType(ty, 'h'); }
+      });
+    } else if (dir === 'down') {
+      rebuildMapped(oldW, oldH * 2, function(x, y) { return { x: x, y: y }; }, {
+        copyOf: function(x, y) { return { x: x, y: oldH * 2 - 1 - y }; },
+        copyType: function(ty) { return pairType(ty, 'v'); }
+      });
+    } else {
+      rebuildMapped(oldW, oldH * 2, function(x, y) { return { x: x, y: y + oldH }; }, {
+        copyOf: function(x, y) { return { x: x, y: oldH - 1 - y }; },
+        copyType: function(ty) { return pairType(ty, 'v'); }
+      });
+    }
+  }
+
+  var lastDrawingToolId = 'toolPencil';
+  function reselectDrawingTool() {
+    setTimeout(function() {
+      var $btn = $('#' + lastDrawingToolId);
+      if ($btn.length) $btn.trigger('click');
+      else $('#toolPencil').trigger('click');
+    }, 0);
   }
 
   function clearMap() {
@@ -1044,14 +1360,61 @@ $(function() {
   }
   
   function setSpeculativeStep(step) {
+    if (!step || !step.states) return;
     applySymmetry(step);
+    var coords = [];
     $.each(step.states, function(idx, state) {
+      if (!tiles[state.x] || !tiles[state.x][state.y]) return;
+      tiles[state.x][state.y].elem.find('.potentialHighlight').css('background-color', ownHighlightHex);
       tiles[state.x][state.y].highlightWithPotential(true);
+      coords.push({ x: state.x, y: state.y });
     });
+    notifySpeculativeTiles(coords);
+  }
+
+  function setOwnHighlightColor(name, hex) {
+    if (hex) ownHighlightHex = hex;
+    $map.find('.potentialHighlight').css('background-color', ownHighlightHex);
+  }
+
+  function clearPeerHighlights(id) {
+    var sid = highlightClassId(id);
+    if (!sid) {
+      $map.find('.potentialHighlightOther').filter(function() {
+        return /(?:^|\s)potentialHighlightOther-\S+/.test(this.className);
+      }).remove();
+      $map.find('.potentialHighlightOther').css('display', 'none');
+      return;
+    }
+    $map.find('.potentialHighlightOther-' + sid).remove();
+  }
+
+  function showPeerHighlights(id, tileList, hex) {
+    var sid = highlightClassId(id);
+    if (!sid || !tiles) return;
+    clearPeerHighlights(sid);
+    if (!tileList || !tileList.length) return;
+    var color = hex || ownHighlightHex;
+    var sizeCss = tileSize + 'px';
+    for (var i = 0; i < tileList.length; i++) {
+      var pt = tileList[i];
+      if (!pt) continue;
+      var tile = tiles[pt.x] && tiles[pt.x][pt.y];
+      if (!tile) continue;
+      var $el = $("<div class='potentialHighlightOther nestedSquare potentialHighlightOther-" + sid + "'></div>");
+      $el.css({
+        display: 'inline-block',
+        backgroundColor: color,
+        width: sizeCss,
+        height: sizeCss
+      });
+      tile.elem.append($el);
+    }
   }
   
   $map.mouseleave(function(e) {
-    console.log('map left');
+    clearPotentialHighlights();
+    notifySpeculativeTiles([]);
   });
 
   var controlDown = false;
@@ -1155,7 +1518,8 @@ $(function() {
         change = selectedTool.speculateUp && selectedTool.speculateUp(x,y)
       }
       selectedTool.setState(st);
-      setSpeculativeStep(change);
+      if (change) setSpeculativeStep(change);
+      else notifySpeculativeTiles([{ x: x, y: y }]);
       return;
     }
     })
@@ -1171,13 +1535,14 @@ $(function() {
         if (!controlDown) {
           if (e.shiftKey && openTileSettings(x, y)) {
             e.preventDefault();
+            mouseDown = false;
             return;
           }
           mouseDown = true;
 
           selectedTool.down(x,y)
           var change = selectedTool.speculateDrag(x,y);
-          if (change) {
+          if (change && !selectedTool.previewOnly) {
             applySymmetry(change);
             applyStep(change);
             selectedTool.stateChange();
@@ -1200,6 +1565,14 @@ $(function() {
           applySymmetry(change);
           applyStep(change);
         }
+      }
+    })
+    .on('dblclick', '.tile', function(e) {
+      var x = $(this).data('x');
+      var y = $(this).data('y');
+      if (openTileSettings(x, y)) {
+        e.preventDefault();
+        mouseDown = false;
       }
     })
     .on('mousemove', '.tile', function() {
@@ -1227,7 +1600,7 @@ $(function() {
           setBrushTileType(eyeDropBrushType);
         } else {
           var change = selectedTool.speculateUp(x,y);
-          if (change) {
+          if (change && !selectedTool.previewOnly) {
             applySymmetry(change);
             applyStep(change);
             selectedTool.stateChange();
@@ -1320,6 +1693,116 @@ $(function() {
     return map;
   }
 
+  function typeByNameMap() {
+    var byName = {};
+    tileTypes.forEach(function(type) {
+      byName[type.name] = type;
+    });
+    return byName;
+  }
+
+  function applyJsonMetadata(json) {
+    if (!json) return;
+    var info = json.info || {};
+    $('#mapName').val(info.name || '');
+    $('#author').val(info.author || '');
+
+    var portals = json.portals || {};
+    for (var key in portals) {
+      var xy = key.split(',');
+      var tile = (tiles[xy[0]] || [])[xy[1]];
+      if (tile && tile.type == portalType) {
+        var dest = portals[key].destination || {};
+        if (!tile.destination && dest) tile.destination = (tiles[dest.x] || [])[dest.y];
+        if (portals[key].cooldown != undefined) tile.cooldown = portals[key].cooldown;
+      }
+    }
+
+    var switches = json.switches || {};
+    for (var key in switches) {
+      var xy = key.split(',');
+      var tile = (tiles[xy[0]] || [])[xy[1]];
+      if (tile && tile.type == switchType) {
+        if (!tile.affected || !Object.keys(tile.affected).length) {
+          tile.affected = {};
+          (switches[key].toggle || []).forEach(function(affected) {
+            var pos = affected.pos || {};
+            var affectedTile = (tiles[pos.x] || [])[pos.y];
+            if (affectedTile) tile.affected[pos.x + ',' + pos.y] = affectedTile;
+          });
+        }
+        if (switches[key].timer != undefined) tile.timer = switches[key].timer;
+      }
+    }
+
+    var spawnPoints = json.spawnPoints || {};
+    function applySpawnMeta(color) {
+      (spawnPoints[color] || []).forEach(function(pt) {
+        var tile = (tiles[pt.x] || [])[pt.y];
+        if (!tile) return;
+        if (pt.radius != undefined) tile.radius = pt.radius;
+        if (pt.weight != undefined) tile.weight = pt.weight;
+      });
+    }
+    applySpawnMeta('red');
+    applySpawnMeta('blue');
+  }
+
+  function restoreFromExtractedMap(extracted, jsonString, doHistoryClear) {
+    var rows = Array.isArray(extracted) ? extracted : (extracted && extracted.tiles);
+    if (!rows || !rows.length || !rows[0] || !rows[0].length) return false;
+    var heightRows = rows.length;
+    var widthCols = rows[0].length;
+    var byName = typeByNameMap();
+    var cols = [];
+    var x, y, cell, name;
+    for (x = 0; x < widthCols; x++) {
+      cols[x] = [];
+      for (y = 0; y < heightRows; y++) {
+        cell = (rows[y] || [])[x];
+        name = (cell && typeof cell === 'object') ? cell.type : cell;
+        cols[x][y] = byName[name] || emptyType;
+      }
+    }
+    if (applyingRemote && persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    buildTilesWith(cols);
+
+    for (y = 0; y < heightRows; y++) {
+      for (x = 0; x < widthCols; x++) {
+        cell = (rows[y] || [])[x];
+        var tile = tiles[x] && tiles[x][y];
+        if (!tile || !cell || typeof cell !== 'object') continue;
+        if (cell.type === 'portal' && cell.destination) {
+          tile.destination = (tiles[cell.destination[0]] || [])[cell.destination[1]];
+        } else if (cell.type === 'switch' && cell.targets) {
+          tile.affected = {};
+          cell.targets.forEach(function(target) {
+            var affectedTile = (tiles[target[0]] || [])[target[1]];
+            if (affectedTile) tile.affected[target[0] + ',' + target[1]] = affectedTile;
+          });
+        }
+      }
+    }
+
+    var json = null;
+    if (typeof jsonString === 'string' && jsonString) {
+      try { json = JSON.parse(jsonString); } catch (err) { json = null; }
+    } else if (jsonString && typeof jsonString === 'object') {
+      json = jsonString;
+    }
+    applyJsonMetadata(json);
+
+    savePoint();
+    if (doHistoryClear) clearHistory();
+    persistReady = true;
+    persistMapNow();
+    applyingRemote = false;
+    return true;
+  }
+
   function getPngBase64() {
     return Base64.encode(generatePng(width, height, createPng()));
   }
@@ -1397,15 +1880,20 @@ $(function() {
 
   var persistReady = false;
   var persistTimer = null;
+  var applyingRemote = false;
+  var restoreSerial = 0;
   function persistMapNow() {
     if (!persistReady || !tiles || !tiles.length) return;
     try {
       localStorage.setItem('png', getPngBase64Url());
       localStorage.setItem('json', makeLogicString());
     } catch (err) {}
+    if (!applyingRemote && window.TagproCollab && typeof window.TagproCollab.onPersist === 'function') {
+      try { window.TagproCollab.onPersist(); } catch (err) {}
+    }
   }
   function persistMap() {
-    if (!persistReady) return;
+    if (!persistReady || applyingRemote) return;
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(persistMapNow, 350);
   }
@@ -1421,14 +1909,108 @@ $(function() {
 
   var brushTileType = floorType;
 
-  function makePaletteButton(type) {
-    var $button = $("<div class='tileBackground tilePaletteOption' title = '" + type.toolTipText + "'><div class='tile'><div class='tileTypeSelectionIndicator'></div></div></div>");
-    $button.data('tileType', type);
+  function applyPalettePreviewStyles($button, type, $inner) {
+    var cell = PALETTE_CELL;
+    var sizeCss = cell + 'px';
+    var sheetCss = (tileSheetWidth * cell) + 'px ' + (tileSheetHeight * cell) + 'px';
+    var imageCss = type.image
+      ? (type.imageTileWidth * cell + 'px ' + type.imageTileHeight * cell + 'px')
+      : sheetCss;
+    var pos = '-' + (type.sheetX * cell) + 'px -' + (type.sheetY * cell) + 'px';
+    var floorPos = '-' + (floorType.sheetX * cell) + 'px -' + (floorType.sheetY * cell) + 'px';
+    $button.css({
+      width: sizeCss,
+      height: sizeCss,
+      backgroundSize: sheetCss,
+      backgroundPosition: floorPos,
+      overflow: 'visible'
+    });
+    if (type.isWall()) {
+      $inner.css({
+        width: sizeCss,
+        height: sizeCss,
+        overflow: 'visible',
+        backgroundSize: sheetCss,
+        backgroundPosition: floorPos
+      });
+      return;
+    }
+    $inner.css({
+      width: sizeCss,
+      height: sizeCss,
+      overflow: 'visible'
+    });
+    if (type.name == 'empty') {
+      $inner.css({
+        backgroundImage: 'none',
+        backgroundColor: 'black',
+        backgroundSize: sheetCss
+      });
+    } else {
+      $inner.css({
+        backgroundSize: imageCss,
+        backgroundPosition: pos
+      });
+    }
+  }
+
+  function paintPaletteOption($button) {
+    var type = $button.data('tileType');
+    if (!type) return;
+    var $inner = $button.find('.tile').first();
+    var inner = $inner[0];
+    bustDrawCache($button);
+    bustDrawCache($inner);
     var savedTileSize = tileSize;
-    tileSize = 40;
-    floorType.drawOn($button);
-    type.drawOn($button.find('.tile'));
-    tileSize = savedTileSize;
+    tileSize = PALETTE_CELL;
+    try {
+      floorType.drawOn($button);
+      var kids = inner && inner.children;
+      if (type.isWall() && kids && kids.length >= 4 && quadrantCoords) {
+        var half = (PALETTE_CELL / 2) + 'px';
+        var sheetCss = (tileSheetWidth * PALETTE_CELL) + 'px ' + (tileSheetHeight * PALETTE_CELL) + 'px';
+        for (var q = 0; q < 4; q++) {
+          if (!kids[q]) continue;
+          kids[q].style.width = kids[q].style.height = half;
+          kids[q].style.left = (q & 2) ? '0' : half;
+          kids[q].style.top = ((q + 1) & 2) ? half : '0';
+          kids[q].style.position = 'absolute';
+          kids[q].style.backgroundSize = sheetCss;
+        }
+        type.drawOn($inner, {
+          x: 0,
+          y: 0,
+          isolated: true,
+          previewSolids: type.wallSolids | 0,
+          quadrantElems: [kids[0], kids[1], kids[2], kids[3]]
+        });
+      } else {
+        type.drawOn($inner);
+      }
+      applyPalettePreviewStyles($button, type, $inner);
+    } finally {
+      tileSize = savedTileSize;
+    }
+  }
+
+  function redrawPaletteTiles() {
+    $('.tilePaletteOption').each(function() {
+      paintPaletteOption($(this));
+    });
+  }
+
+  function makePaletteButton(type) {
+    var inner = type.isWall()
+      ? "<div class='tile nestedSquare'>" +
+        "<div class='tileQuadrant nestedSquareTR'></div>" +
+        "<div class='tileQuadrant nestedSquareBR'></div>" +
+        "<div class='tileQuadrant nestedSquareBL'></div>" +
+        "<div class='tileQuadrant nestedSquareTL'></div>" +
+        "<div class='tileTypeSelectionIndicator nestedSquare'></div></div>"
+      : "<div class='tile'><div class='tileTypeSelectionIndicator'></div></div>";
+    var $button = $("<div class='tileBackground tilePaletteOption' title = '" + type.toolTipText + "'>" + inner + "</div>");
+    $button.data('tileType', type);
+    paintPaletteOption($button);
     $button.on('click', function() {
       if (selectedTool == wire) {
         $('#toolPencil').trigger('click');
@@ -1456,13 +2038,32 @@ $(function() {
   $('#toolCircleOutline').data('tool', circleOutline);
   $('#toolFill').data('tool', fill);
   $('#toolWire').data('tool', wire);
-  $('#tools .btn').click(function() {
+  $('#toolAddCol').data('tool', addWidth);
+  $('#toolAddRow').data('tool', addHeight);
+  $('#toolMirror').data('tool', mirrorTool);
+  $('#tools').on('click', '.btn', function(e) {
+    var $btn = $(this);
+    var action = $btn.attr('data-action');
+    if (action) {
+      e.preventDefault();
+      if (action === 'rotateCw') rotateMap(90);
+      else if (action === 'rotateCcw') rotateMap(-90);
+      else if (action === 'flipH') flipMap('h');
+      else if (action === 'flipV') flipMap('v');
+      return;
+    }
+    var tool = $btn.data('tool');
+    if (!tool) return;
     selectedTool.unselect.call(selectedTool);
     $('#tools .btn').removeClass('active');
-    $(this).toggleClass('active');
-    selectedTool = $(this).data('tool');
+    $btn.addClass('active');
+    selectedTool = tool;
     selectedTool.select.call(selectedTool);
-  })
+    if ($btn.attr('id') && !$btn.is('#toolAddCol, #toolAddRow, #toolMirror')) {
+      lastDrawingToolId = $btn.attr('id');
+    }
+    if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(true);
+  });
 
   var selectedTool = pencil;
   $('#toolPencil').toggleClass("active");
@@ -1544,15 +2145,27 @@ $(function() {
   });
 
   function restoreFromPngAndJson(pngBase64, jsonString, optResizeParams, doHistoryClear) {
+    var serial = ++restoreSerial;
     var optWidth = optResizeParams && optResizeParams.width;
     var optHeight = optResizeParams && optResizeParams.height;
     var deltaX = (optResizeParams && optResizeParams.deltaX) || 0;
     var deltaY = (optResizeParams && optResizeParams.deltaY) || 0;
     var canvas = document.getElementById('importCanvas');
     var ctx = canvas.getContext('2d');
-    var json = JSON.parse(jsonString);
+    var json;
+    try {
+      json = JSON.parse(jsonString);
+    } catch (err) {
+      if (serial === restoreSerial) applyingRemote = false;
+      return;
+    }
+    if (applyingRemote && persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
     var img = new Image();
     img.onload = function() {
+      if (serial !== restoreSerial) return;
       var w = img.width;
       var h = img.height;
       optWidth = optWidth || w;
@@ -1567,6 +2180,9 @@ $(function() {
       })
 
       var fields = json.fields || {};
+      if (!json.spawnPoints) json.spawnPoints = { red: [], blue: [] };
+      if (!json.spawnPoints.red) json.spawnPoints.red = [];
+      if (!json.spawnPoints.blue) json.spawnPoints.blue = [];
       var cols = [];
       for (var destX=0; destX<optWidth; destX++) {
         var sourceX = destX - deltaX;
@@ -1574,12 +2190,17 @@ $(function() {
         for (var destY=0; destY<optHeight; destY++) {
           var sourceY = destY - deltaY;
           var type;
-          console.log('sourceX=', sourceX,'sourceY=', sourceY)
           if (sourceX<w && sourceY<h && sourceX>=0 && sourceY>=0) {
             var i = (sourceY*w + sourceX)*4;
             var pixel = imgd[i] | (imgd[i+1]<<8) | (imgd[i+2]<<16);
             type = typeByColor[pixel] || emptyType;
-            if (type == onFieldType || type==offFieldType || type==redFieldType || type==blueFieldType) {
+            if (type == redSpawnType) {
+              type = floorType;
+              json.spawnPoints.red.push({x: destX, y: destY});
+            } else if (type == blueSpawnType) {
+              type = floorType;
+              json.spawnPoints.blue.push({x: destX, y: destY});
+            } else if (type == onFieldType || type==offFieldType || type==redFieldType || type==blueFieldType) {
               type = {on: onFieldType, off: offFieldType, red: redFieldType, blue: blueFieldType
               }[(fields[sourceX+','+sourceY]||{}).defaultState] || offFieldType;
             }
@@ -1624,20 +2245,33 @@ $(function() {
       }
 
       var spawnPoints = json.spawnPoints || {};
-      ['red', 'blue'].forEach(function(color) {
+      function applyImportedSpawns(color) {
+        var spawnType = color === 'red' ? redSpawnType : blueSpawnType;
         (spawnPoints[color] || []).forEach(function(pt) {
-          var tile = (tiles[pt.x] || [])[pt.y];
+          var x = parseInt(pt.x, 10) + deltaX;
+          var y = parseInt(pt.y, 10) + deltaY;
+          var tile = (tiles[x] || [])[y];
           if (!tile) return;
-          if (pt.radius != undefined) tile.radius = pt.radius;
-          if (pt.weight != undefined) tile.weight = pt.weight;
+          var under = tile.type;
+          if (under !== floorType && under !== redFloorType && under !== blueFloorType && under !== spawnType) return;
+          var changes = { type: spawnType };
+          if (pt.radius != undefined) changes.radius = pt.radius;
+          if (pt.weight != undefined) changes.weight = pt.weight;
+          new TileState(tile, changes).restoreInto(tile);
         });
-      });
+      }
+      applyImportedSpawns('red');
+      applyImportedSpawns('blue');
 
       savePoint();
       if (doHistoryClear) clearHistory();
       persistReady = true;
       persistMapNow();
-    }
+      applyingRemote = false;
+    };
+    img.onerror = function() {
+      if (serial === restoreSerial) applyingRemote = false;
+    };
     img.src = pngBase64;//'https://mdn.mozillademos.org/files/5397/rhino.jpg';
   }
   
@@ -1708,11 +2342,16 @@ $(function() {
     var el = document.getElementById('map');
     var w = el && el.clientWidth;
     var h = el && el.clientHeight;
+    if (el) {
+      var cs = window.getComputedStyle(el);
+      w -= (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+      h -= (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    }
     if (!w || !h) {
       w = window.innerWidth || 320;
       h = Math.max(120, (window.innerHeight || 480) - 180);
     }
-    return { w: w, h: h };
+    return { w: Math.max(1, w), h: Math.max(1, h) };
   }
 
   function computeFitTileSize() {
@@ -1759,6 +2398,8 @@ $(function() {
         tile.selectionIndicator.style.backgroundSize = singleTileBackgroundSize;
         applySize(tile.elem[0]);
         applySize(tile.background[0]);
+        var others = typeIndicator.querySelectorAll('.potentialHighlightOther');
+        for (var oi = 0; oi < others.length; oi++) applySize(others[oi]);
         for (var q = 0; q < 4; q++) {
           applyQuadrantSize(tile.quadrantElems[q], q & 2, (q + 1) & 2);
         }
@@ -1774,8 +2415,52 @@ $(function() {
     return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
   }
 
+  function mapScrollSnapshot() {
+    var el = document.getElementById('map');
+    if (!el) return null;
+    return {
+      sl: el.scrollLeft,
+      st: el.scrollTop,
+      cw: el.clientWidth,
+      ch: el.clientHeight,
+      sw: el.scrollWidth,
+      sh: el.scrollHeight
+    };
+  }
+
+  function pinMapCanvas() {
+    var el = document.getElementById('map');
+    var canvas = el && el.querySelector('.map-canvas');
+    if (!el || !canvas) return;
+    var cs = window.getComputedStyle(el);
+    var padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    var extraX = Math.max(0, el.clientWidth - padX - canvas.offsetWidth);
+    var extraY = Math.max(0, el.clientHeight - padY - canvas.offsetHeight);
+    canvas.style.marginLeft = (extraX / 2) + 'px';
+    canvas.style.marginRight = (extraX / 2) + 'px';
+    canvas.style.marginTop = (extraY / 2) + 'px';
+    canvas.style.marginBottom = (extraY / 2) + 'px';
+  }
+
+  function restoreMapCenter(prev) {
+    var el = document.getElementById('map');
+    if (!el) return;
+    pinMapCanvas();
+    var sw = el.scrollWidth;
+    var sh = el.scrollHeight;
+    if (prev && prev.sw > 0 && prev.sh > 0) {
+      el.scrollLeft = (prev.sl + prev.cw / 2) / prev.sw * sw - el.clientWidth / 2;
+      el.scrollTop = (prev.st + prev.ch / 2) / prev.sh * sh - el.clientHeight / 2;
+    } else {
+      el.scrollLeft = Math.max(0, (sw - el.clientWidth) / 2);
+      el.scrollTop = Math.max(0, (sh - el.clientHeight) / 2);
+    }
+  }
+
   function showZoom(opts) {
     opts = opts || {};
+    var prev = mapScrollSnapshot();
     var next = tileSizeForZoom();
     if (opts.shrinkOnly) next = Math.min(tileSize, computeFitTileSize());
     applyTilePixelSize(next);
@@ -1785,6 +2470,7 @@ $(function() {
         applyTilePixelSize(tileSize - 1);
       }
     }
+    restoreMapCenter(zoom <= 0 ? null : prev);
   }
 
   function zoomIn() {
@@ -1840,9 +2526,20 @@ $(function() {
       "Hit Export. The .png and .json files can then be dragged or clicked from their respective squares.")
   })
   
+  function collabRoomFromUrl() {
+    var search = window.location.search || '';
+    var q = search.match(/[?&]room=([A-Za-z0-9]{12,16})(?:&|$)/);
+    if (q) return q[1];
+    var pathname = window.location.pathname || '';
+    var m = pathname.match(/^\/collab\/([A-Za-z0-9]{12,16})\/?$/);
+    return m ? m[1] : null;
+  }
+
   var savedPng = localStorage.getItem('png')
   var savedJson = localStorage.getItem('json')
-  if (savedPng && savedJson) {
+  if (collabRoomFromUrl()) {
+    persistReady = false;
+  } else if (savedPng && savedJson) {
     restoreFromPngAndJson(savedPng, savedJson, undefined, true);
   } else {
     persistReady = true;
@@ -2087,6 +2784,7 @@ $(function() {
     "300d": [6, 10],
     "000d": [5.5, 10]
   };
+  redrawPaletteTiles();
 
   function parseFortunateMapsId(input) {
     var s = String(input || '').trim();
@@ -2162,20 +2860,8 @@ $(function() {
         }
       }
     }
-    var savedTileSize = tileSize;
-    tileSize = 40;
-    $('.tilePaletteOption').each(function() {
-      var $btn = $(this);
-      var type = $btn.data('tileType');
-      bustDrawCache($btn);
-      bustDrawCache($btn.find('.tile'));
-      if (type) {
-        floorType.drawOn($btn);
-        type.drawOn($btn.find('.tile'));
-      }
-    });
-    tileSize = savedTileSize;
     if (tiles && tiles.length) showZoom();
+    redrawPaletteTiles();
     if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
     if (window.TagproPalette && TagproPalette.refreshScale) TagproPalette.refreshScale();
   }
@@ -2204,6 +2890,7 @@ $(function() {
     }
     if (kids[4]) kids[4].style.display = 'none';
     if (kids[5]) kids[5].style.display = 'none';
+    if (kids[6]) kids[6].style.display = 'none';
     bustDrawCache($bg);
     bustDrawCache($tile);
     var saved = tileSize;
@@ -2230,7 +2917,15 @@ $(function() {
 
   window.TagproMap = {
     restoreFromPngAndJson: restoreFromPngAndJson,
+    restoreFromExtractedMap: restoreFromExtractedMap,
+    extractMap: extractMap,
     importFromFortunateMaps: importFromFortunateMaps,
+    getPngBase64Url: getPngBase64Url,
+    makeLogicString: makeLogicString,
+    setApplyingRemote: function(v) { applyingRemote = !!v; },
+    isApplyingRemote: function() { return applyingRemote; },
+    enablePersist: function() { persistReady = true; },
+    persistNow: persistMapNow,
     getSize: function() { return { width: width, height: height, tileSize: tileSize, zoom: zoom }; },
     fitView: function() { zoom = 0; showZoom(); enableZoomButtons(); },
     zoomIn: zoomIn,
@@ -2238,6 +2933,15 @@ $(function() {
     redrawTextures: redrawTextures,
     paintLoupeCell: paintLoupeCell,
     tileHasSettings: tileHasSettings,
-    openTileSettings: openTileSettings
+    openTileSettings: openTileSettings,
+    setOwnHighlightColor: setOwnHighlightColor,
+    showPeerHighlights: showPeerHighlights,
+    clearPeerHighlights: clearPeerHighlights,
+    onSpeculativeHover: function(fn) { speculativeListener = fn; },
+    onTilesRebuilt: function(fn) { tilesRebuiltListener = fn; },
+    rotateCw: function() { rotateMap(90); },
+    rotateCcw: function() { rotateMap(-90); },
+    flipH: function() { flipMap('h'); },
+    flipV: function() { flipMap('v'); }
   };
 });

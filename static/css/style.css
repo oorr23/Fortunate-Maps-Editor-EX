@@ -3,6 +3,13 @@ div.tileRow {
     font-size: 0;
     line-height: 0;
 }
+.map-canvas {
+    width: max-content;
+    margin: auto;
+    font-size: 0;
+    line-height: 0;
+    white-space: nowrap;
+}
 .hasImportable {
     background-color:#9f9;
 }
@@ -74,6 +81,66 @@ div.potentialHighlight {
     opacity: .5;
     /*background-image: url("selected.png");*/
     display:none;
+    pointer-events: none;
+}
+div.potentialHighlightOther {
+    width:40px;
+    height:40px;
+    background-color:#99ff99;
+    opacity: .5;
+    display:none;
+    pointer-events: none;
+}
+.collab-colors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+    align-items: center;
+}
+.highlight-color {
+    height: 20px;
+    width: 20px;
+    box-sizing: border-box;
+    cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.25);
+}
+.highlight-color:hover {
+    border-color: #000;
+    border-style: solid;
+    border-width: 2px;
+}
+.highlight-color-active {
+    border-color: #000;
+    border-style: solid;
+    border-width: 2px;
+}
+.green { background-color: #99FF99; }
+.blue { background-color: #9999ff; }
+.red { background-color: #ff9999; }
+.purple { background-color: #cc99ff; }
+.orange { background-color: #ffcc99; }
+.yellow { background-color: #ffff99; }
+.turquoise { background-color: #6fe8e0; }
+.pink { background-color: #ffb8e8; }
+.brown { background-color: #816040; }
+#collabUsername {
+    margin-top: 6px;
+    font-size: 12px;
+    height: 28px;
+    min-height: 28px;
+    padding: 2px 8px;
+}
+.collab-users {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.3;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+}
+.collab-user {
+    font-weight: 700;
 }
 a.dropArea {
     width: 100%;
