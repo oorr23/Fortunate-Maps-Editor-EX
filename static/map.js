@@ -38,9 +38,15 @@ $(function() {
     if (window.TagproTextures && TagproTextures.urlFor) return TagproTextures.urlFor(type);
     return (type.image || 'default-skin-v2') + '.png';
   }
+  var PALETTE_CELL = 40;
+
   function bustDrawCache($elem) {
     if (!$elem || !$elem.length) return;
     $elem.styleUrl = $elem.styleBackgroundSize = $elem.styleBgColor = undefined;
+    var node = $elem[0];
+    if (node) {
+      node.styleUrl = node.styleBackgroundSize = node.styleBgColor = undefined;
+    }
   }
   TileType.prototype.drawOn = function($elem, tile) {
     var styleBgColor = '';
@@ -1171,6 +1177,7 @@ $(function() {
         if (!controlDown) {
           if (e.shiftKey && openTileSettings(x, y)) {
             e.preventDefault();
+            mouseDown = false;
             return;
           }
           mouseDown = true;
@@ -1200,6 +1207,14 @@ $(function() {
           applySymmetry(change);
           applyStep(change);
         }
+      }
+    })
+    .on('dblclick', '.tile', function(e) {
+      var x = $(this).data('x');
+      var y = $(this).data('y');
+      if (openTileSettings(x, y)) {
+        e.preventDefault();
+        mouseDown = false;
       }
     })
     .on('mousemove', '.tile', function() {
@@ -1421,14 +1436,68 @@ $(function() {
 
   var brushTileType = floorType;
 
+  function applyPalettePreviewStyles($button, type, $inner) {
+    var cell = PALETTE_CELL;
+    var sizeCss = cell + 'px';
+    var sheetCss = (tileSheetWidth * cell) + 'px ' + (tileSheetHeight * cell) + 'px';
+    var imageCss = type.image
+      ? (type.imageTileWidth * cell + 'px ' + type.imageTileHeight * cell + 'px')
+      : sheetCss;
+    var pos = '-' + (type.sheetX * cell) + 'px -' + (type.sheetY * cell) + 'px';
+    var floorPos = '-' + (floorType.sheetX * cell) + 'px -' + (floorType.sheetY * cell) + 'px';
+    $button.css({
+      width: sizeCss,
+      height: sizeCss,
+      backgroundSize: sheetCss,
+      backgroundPosition: floorPos,
+      overflow: 'visible'
+    });
+    $inner.css({
+      width: sizeCss,
+      height: sizeCss,
+      overflow: 'visible'
+    });
+    if (type.name == 'empty') {
+      $inner.css({
+        backgroundImage: 'none',
+        backgroundColor: 'black',
+        backgroundSize: sheetCss
+      });
+    } else {
+      $inner.css({
+        backgroundSize: imageCss,
+        backgroundPosition: pos
+      });
+    }
+  }
+
+  function paintPaletteOption($button) {
+    var type = $button.data('tileType');
+    if (!type) return;
+    var $inner = $button.find('.tile');
+    bustDrawCache($button);
+    bustDrawCache($inner);
+    var savedTileSize = tileSize;
+    tileSize = PALETTE_CELL;
+    try {
+      floorType.drawOn($button);
+      type.drawOn($inner);
+      applyPalettePreviewStyles($button, type, $inner);
+    } finally {
+      tileSize = savedTileSize;
+    }
+  }
+
+  function redrawPaletteTiles() {
+    $('.tilePaletteOption').each(function() {
+      paintPaletteOption($(this));
+    });
+  }
+
   function makePaletteButton(type) {
     var $button = $("<div class='tileBackground tilePaletteOption' title = '" + type.toolTipText + "'><div class='tile'><div class='tileTypeSelectionIndicator'></div></div></div>");
     $button.data('tileType', type);
-    var savedTileSize = tileSize;
-    tileSize = 40;
-    floorType.drawOn($button);
-    type.drawOn($button.find('.tile'));
-    tileSize = savedTileSize;
+    paintPaletteOption($button);
     $button.on('click', function() {
       if (selectedTool == wire) {
         $('#toolPencil').trigger('click');
@@ -2162,20 +2231,8 @@ $(function() {
         }
       }
     }
-    var savedTileSize = tileSize;
-    tileSize = 40;
-    $('.tilePaletteOption').each(function() {
-      var $btn = $(this);
-      var type = $btn.data('tileType');
-      bustDrawCache($btn);
-      bustDrawCache($btn.find('.tile'));
-      if (type) {
-        floorType.drawOn($btn);
-        type.drawOn($btn.find('.tile'));
-      }
-    });
-    tileSize = savedTileSize;
     if (tiles && tiles.length) showZoom();
+    redrawPaletteTiles();
     if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
     if (window.TagproPalette && TagproPalette.refreshScale) TagproPalette.refreshScale();
   }
