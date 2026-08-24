@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="layout-mobile">
+<html lang="en" class="layout-mobile theme-dark">
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -78,15 +78,16 @@
       <div class="form-group">
         <div class="input-group">
           <span class="input-group-addon">Map Size:</span>
-          <input type="number" class="form-control" placeholder="Width" id="resizeWidth">
-          <span class="input-group-addon">by</span>
-          <input type="number" class="form-control" placeholder="Height" id="resizeHeight">
+          <input type="text" class="form-control" placeholder="56x24" id="mapSize" inputmode="numeric" autocomplete="off" aria-label="Map size as width x height">
+          <input type="hidden" id="resizeWidth">
+          <input type="hidden" id="resizeHeight">
           <span class="input-group-btn">
-            <button id="resize" class="btn btn-default" title="Resize the map to the entered dimensions.">
-              <span class="glyphicon glyphicon-resize-full"></span>
+            <button type="button" id="resize" class="btn btn-default" title="Resize the map to the entered dimensions.">
+              Resize
             </button>
           </span>
         </div>
+        <p class="help-block" style="margin:8px 0 0;font-size:12px;">Example: <code>56x24</code>. The default view shows the whole map.</p>
       </div>
 
       <div class="form-group">
@@ -99,6 +100,13 @@
         </select>
       </div>
 
+            <div class="form-group" id="themeSwitcher">
+        <label>Theme</label>
+        <div class="btn-group btn-group-justified">
+          <a href="#" id="themeDarkBtn" class="btn btn-default">Dark</a>
+          <a href="#" id="themeLightBtn" class="btn btn-default">Light</a>
+        </div>
+      </div>
             <div class="form-group" id="layoutSwitcher">
         <label>Layout</label>
         <div class="btn-group btn-group-justified">
@@ -108,7 +116,26 @@
         </div>
         <p class="help-block" style="margin:8px 0 0;font-size:12px;">Mobile is the default. Desktop is used only on wide screens with a mouse.</p>
       </div>
-<p class="source-link"><a href="https://github.com/PeterReid/tagpro-map-editor">Original source</a> · <a href="https://github.com/PeterReid/tagpro-map-editor/blob/master/LICENSE.txt">AGPL-3.0</a></p>
+
+      <div class="form-group" id="texturePackSection">
+        <label for="texturePackSelect">Texture pack</label>
+        <select id="texturePackSelect" class="form-control">
+          <option value="editor-default">Editor Default</option>
+        </select>
+        <p class="help-block" id="texturePackMeta" style="margin:8px 0 0;font-size:12px;">Editor Default</p>
+        <div class="btn-group btn-group-justified" style="margin-top:8px">
+          <a href="#" id="textureImportFiles" class="btn btn-default" title="Import PNG files or a sharepack JSON">Import files</a>
+          <a href="#" id="textureImportUrl" class="btn btn-default" title="Paste a sharepack JSON or texture URL">Import URLs</a>
+        </div>
+        <input type="file" id="texturePackFiles" accept="image/png,.png,application/json,.json" multiple style="display:none">
+        <div id="textureUrlImport" hidden>
+          <textarea id="textureSharepack" class="form-control" rows="3" placeholder="Paste TagPro sharepack JSON, a tiles.png URL, or an official pack slug"></textarea>
+          <button type="button" id="textureUrlApply" class="btn btn-default btn-block">Load pack</button>
+        </div>
+        <p class="help-block" style="margin:8px 0 0;font-size:12px;">Packs match <a href="https://github.com/raikutro/fortunatemaps" target="_blank" rel="noopener">FortunateMaps</a> and <a href="https://tagpro.koalabeast.com/textures/" target="_blank" rel="noopener">TagPro textures</a>. Import a tiles.png (640×440) or a sharepack JSON; speedpad, portal, and gravity well PNGs are optional.</p>
+      </div>
+
+<p class="source-link"><a href="https://github.com/raikutro/fortunatemaps">FortunateMaps editor</a> · <a href="https://github.com/PeterReid/tagpro-map-editor">Original source</a> · <a href="https://github.com/PeterReid/tagpro-map-editor/blob/master/LICENSE.txt">AGPL-3.0</a></p>
     </div>
 
     <div id="dock">
@@ -143,7 +170,7 @@
         <button type="button" class="dock-btn" id="dockRedo" title="Redo"><span class="glyphicon glyphicon-share-alt"></span></button>
         <button type="button" class="dock-btn" id="dockZoomOut" title="Zoom out"><span class="glyphicon glyphicon-zoom-out"></span></button>
         <button type="button" class="dock-btn" id="dockZoomIn" title="Zoom in"><span class="glyphicon glyphicon-zoom-in"></span></button>
-        <button type="button" class="dock-btn" id="panMode" title="Pan map"><span class="glyphicon glyphicon-move"></span></button>
+        <button type="button" class="dock-btn" id="panMode" title="Pan: drag to move the map. Tap again to place tiles." aria-pressed="false"><span class="glyphicon glyphicon-move"></span></button>
         <button type="button" class="dock-btn" id="moreToggle" title="More options"><span class="glyphicon glyphicon-option-horizontal"></span> More</button>
       </div>
     </div>
@@ -173,8 +200,20 @@
         </div>
 
         <div class="modal-body">
-          <p>To import a map, tap a drop area to pick a file (or drag and drop on desktop), then click Import.</p>
-          <p>To export a map, click Export and then tap the PNG and JSON buttons to download the files.</p>
+          <div class="form-group">
+            <label for="fmMapId">FortunateMaps</label>
+            <input type="text" class="form-control" id="fmMapId" placeholder="Map ID or URL, e.g. 77011" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <div class="btn-group btn-group-justified">
+              <a href="#" id="fmImport" class="btn btn-default" title="Import a map from FortunateMaps">Import from FM</a>
+              <a href="#" id="fmExport" class="btn btn-default" title="Export files and open FortunateMaps">Export to FM</a>
+            </div>
+            <p class="help-block" style="margin:8px 0 0;font-size:12px;">Import uses a public map ID. Upload on FortunateMaps requires you to be signed in there.</p>
+          </div>
+          <hr>
+          <p>To import local files, tap a drop area to pick a PNG and JSON (or drag and drop on desktop), then click Import.</p>
+          <p>To export local files, click Export and then tap the PNG and JSON buttons to download them.</p>
           <div class="form-group">
             <div class="row">
               <div class="col-xs-6">
@@ -236,8 +275,71 @@
       Width: <input type='text' id='resizeWidthTo' style='width:4em' /> Height: <input type='text' id='resizeHeightTo' style='width:4em' />
     </div>
   </div>
+
+  <div class="modal fade" id="portalOptions" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Portal</h4>
+        </div>
+        <div class="modal-body">
+          <p>Cooldown time in milliseconds. 0 means no cooldown.</p>
+          <label for="portalCooldown">Cooldown</label>
+          <input type="number" id="portalCooldown" class="form-control" min="0" step="100">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="portalSubmit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="switchOptions" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Button</h4>
+        </div>
+        <div class="modal-body">
+          <p>Timer in seconds. 0 means the button is not held after a player leaves. A negative value keeps it on after the first press.</p>
+          <label for="switchTimer">Timer</label>
+          <input type="number" id="switchTimer" class="form-control" step="1">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="switchSubmit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="spawnOptions" tabindex="-1" role="dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Spawn point</h4>
+        </div>
+        <div class="modal-body">
+          <p>Radius is in tiles (0 pins spawns to this tile). Weight controls how often this spawn is chosen.</p>
+          <label for="spawnRadius">Radius</label>
+          <input type="number" id="spawnRadius" class="form-control" min="0" step="1">
+          <label for="spawnWeight" style="margin-top:8px">Weight</label>
+          <input type="number" id="spawnWeight" class="form-control" min="1" step="1">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="spawnSubmit">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
   
   <script type="text/javascript" src="map.js"></script>
+  <script type="text/javascript" src="textures.js"></script>
   <script type="text/javascript" src="mobile.js"></script>
 
 </body></html>

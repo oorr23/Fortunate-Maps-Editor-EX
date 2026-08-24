@@ -2,7 +2,7 @@
 
 A portrait-first, one-handed **web** UI for editing TagPro maps on a phone, plus an iOS-style magnifying glass. This is a first draft of mobile support — not an Android/iOS app wrap.
 
-Based on the original [PeterReid/tagpro-map-editor](https://github.com/PeterReid/tagpro-map-editor) (AGPL-3.0). This repository is an independent copy with mobile UI work; it is not a GitHub fork.
+Based on the current public TagPro editor in [raikutro/fortunatemaps](https://github.com/raikutro/fortunatemaps) (`editor/public`, including its texture-pack menu). That editor descends from [PeterReid/tagpro-map-editor](https://github.com/PeterReid/tagpro-map-editor) (AGPL-3.0). This repo keeps the FortunateMaps editing model and adds a portrait mobile UI; it is not the FortunateMaps website (accounts, MongoDB, map hosting).
 
 ## Layout: mobile by default
 
@@ -66,4 +66,4 @@ The original README said `npm main`; the start command is `node main.js` (also a
 
 ## License
 
-GNU Affero General Public License v3.0 — see `LICENSE.txt`. Copyright of the original editor belongs to Peter Reid and contributors.
+GNU Affero General Public License v3.0 — see `LICENSE.txt`. The FortunateMaps site is Apache-2.0; the map editor it vendors remains AGPL. Copyright of the original editor belongs to Peter Reid and contributors.
