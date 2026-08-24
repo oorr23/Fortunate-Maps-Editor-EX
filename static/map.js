@@ -84,10 +84,10 @@ $(function() {
             var cornerY = y + ((((q+1)&2)==0) ? 0 : 1);
             // Figure out the filled/unfilledness of the 8 spots around this corner
             var aroundCorner = 
-               (wallSolidsAt(cornerX,cornerY)&0xc0)|
-               (wallSolidsAt(cornerX-1, cornerY)&0x03)| 
-               (wallSolidsAt(cornerX-1, cornerY-1)&0x0c)| 
-               (wallSolidsAt(cornerX, cornerY-1)&0x30);
+               (wallSolidsAt(cornerX,cornerY, tile)&0xc0)|
+               (wallSolidsAt(cornerX-1, cornerY, tile)&0x03)| 
+               (wallSolidsAt(cornerX-1, cornerY-1, tile)&0x0c)| 
+               (wallSolidsAt(cornerX, cornerY-1, tile)&0x30);
             aroundCorner = aroundCorner|(aroundCorner<<8);
             var startDirection = q*2 + 1; // start pointing through the middle of our own quadrant
             // See how far we can rotate clockwise without falling off the wall
@@ -115,7 +115,7 @@ $(function() {
               solidStart = (startDirection - ccwSteps + 12) % 8;
             }
             
-            var coords = quadrantCoords[q+''+solidStart+''+solidEnd + (hasChip?'d':'')];
+            var coords = quadrantCoords && quadrantCoords[q+''+solidStart+''+solidEnd + (hasChip?'d':'')];
             if (!coords) {
               coords = [5.5,5.5];
             }
@@ -885,10 +885,17 @@ $(function() {
 
   var dirtyWalls = {};
   function isWall(x, y) {
-    return tiles[x] && tiles[x][y] && tiles[x][y].type.isWall();
+    return !!(tiles && tiles[x] && tiles[x][y] && tiles[x][y].type.isWall());
   }
-  function wallSolidsAt(x,y) {
-    var t = (tiles[x] && tiles[x][y] && tiles[x][y].type.wallSolids|0);
+  function wallSolidsAt(x,y, ctx) {
+    var t;
+    if (ctx && ctx.isolated) {
+      t = (x === ctx.x && y === ctx.y) ? (ctx.previewSolids|0) : 0;
+    } else if (!tiles) {
+      t = 0;
+    } else {
+      t = (tiles[x] && tiles[x][y] && tiles[x][y].type.wallSolids|0);
+    }
     return t|(t<<8);
   }
   function maybeIsDirtyWall(x, y) {
@@ -1452,6 +1459,16 @@ $(function() {
       backgroundPosition: floorPos,
       overflow: 'visible'
     });
+    if (type.isWall()) {
+      $inner.css({
+        width: sizeCss,
+        height: sizeCss,
+        overflow: 'visible',
+        backgroundSize: sheetCss,
+        backgroundPosition: floorPos
+      });
+      return;
+    }
     $inner.css({
       width: sizeCss,
       height: sizeCss,
@@ -1474,14 +1491,36 @@ $(function() {
   function paintPaletteOption($button) {
     var type = $button.data('tileType');
     if (!type) return;
-    var $inner = $button.find('.tile');
+    var $inner = $button.find('.tile').first();
+    var inner = $inner[0];
     bustDrawCache($button);
     bustDrawCache($inner);
     var savedTileSize = tileSize;
     tileSize = PALETTE_CELL;
     try {
       floorType.drawOn($button);
-      type.drawOn($inner);
+      var kids = inner && inner.children;
+      if (type.isWall() && kids && kids.length >= 4 && quadrantCoords) {
+        var half = (PALETTE_CELL / 2) + 'px';
+        var sheetCss = (tileSheetWidth * PALETTE_CELL) + 'px ' + (tileSheetHeight * PALETTE_CELL) + 'px';
+        for (var q = 0; q < 4; q++) {
+          if (!kids[q]) continue;
+          kids[q].style.width = kids[q].style.height = half;
+          kids[q].style.left = (q & 2) ? '0' : half;
+          kids[q].style.top = ((q + 1) & 2) ? half : '0';
+          kids[q].style.position = 'absolute';
+          kids[q].style.backgroundSize = sheetCss;
+        }
+        type.drawOn($inner, {
+          x: 0,
+          y: 0,
+          isolated: true,
+          previewSolids: type.wallSolids | 0,
+          quadrantElems: [kids[0], kids[1], kids[2], kids[3]]
+        });
+      } else {
+        type.drawOn($inner);
+      }
       applyPalettePreviewStyles($button, type, $inner);
     } finally {
       tileSize = savedTileSize;
@@ -1495,7 +1534,15 @@ $(function() {
   }
 
   function makePaletteButton(type) {
-    var $button = $("<div class='tileBackground tilePaletteOption' title = '" + type.toolTipText + "'><div class='tile'><div class='tileTypeSelectionIndicator'></div></div></div>");
+    var inner = type.isWall()
+      ? "<div class='tile nestedSquare'>" +
+        "<div class='tileQuadrant nestedSquareTR'></div>" +
+        "<div class='tileQuadrant nestedSquareBR'></div>" +
+        "<div class='tileQuadrant nestedSquareBL'></div>" +
+        "<div class='tileQuadrant nestedSquareTL'></div>" +
+        "<div class='tileTypeSelectionIndicator nestedSquare'></div></div>"
+      : "<div class='tile'><div class='tileTypeSelectionIndicator'></div></div>";
+    var $button = $("<div class='tileBackground tilePaletteOption' title = '" + type.toolTipText + "'>" + inner + "</div>");
     $button.data('tileType', type);
     paintPaletteOption($button);
     $button.on('click', function() {
@@ -1636,6 +1683,9 @@ $(function() {
       })
 
       var fields = json.fields || {};
+      if (!json.spawnPoints) json.spawnPoints = { red: [], blue: [] };
+      if (!json.spawnPoints.red) json.spawnPoints.red = [];
+      if (!json.spawnPoints.blue) json.spawnPoints.blue = [];
       var cols = [];
       for (var destX=0; destX<optWidth; destX++) {
         var sourceX = destX - deltaX;
@@ -1643,12 +1693,17 @@ $(function() {
         for (var destY=0; destY<optHeight; destY++) {
           var sourceY = destY - deltaY;
           var type;
-          console.log('sourceX=', sourceX,'sourceY=', sourceY)
           if (sourceX<w && sourceY<h && sourceX>=0 && sourceY>=0) {
             var i = (sourceY*w + sourceX)*4;
             var pixel = imgd[i] | (imgd[i+1]<<8) | (imgd[i+2]<<16);
             type = typeByColor[pixel] || emptyType;
-            if (type == onFieldType || type==offFieldType || type==redFieldType || type==blueFieldType) {
+            if (type == redSpawnType) {
+              type = floorType;
+              json.spawnPoints.red.push({x: destX, y: destY});
+            } else if (type == blueSpawnType) {
+              type = floorType;
+              json.spawnPoints.blue.push({x: destX, y: destY});
+            } else if (type == onFieldType || type==offFieldType || type==redFieldType || type==blueFieldType) {
               type = {on: onFieldType, off: offFieldType, red: redFieldType, blue: blueFieldType
               }[(fields[sourceX+','+sourceY]||{}).defaultState] || offFieldType;
             }
@@ -1693,14 +1748,23 @@ $(function() {
       }
 
       var spawnPoints = json.spawnPoints || {};
-      ['red', 'blue'].forEach(function(color) {
+      function applyImportedSpawns(color) {
+        var spawnType = color === 'red' ? redSpawnType : blueSpawnType;
         (spawnPoints[color] || []).forEach(function(pt) {
-          var tile = (tiles[pt.x] || [])[pt.y];
+          var x = parseInt(pt.x, 10) + deltaX;
+          var y = parseInt(pt.y, 10) + deltaY;
+          var tile = (tiles[x] || [])[y];
           if (!tile) return;
-          if (pt.radius != undefined) tile.radius = pt.radius;
-          if (pt.weight != undefined) tile.weight = pt.weight;
+          var under = tile.type;
+          if (under !== floorType && under !== redFloorType && under !== blueFloorType && under !== spawnType) return;
+          var changes = { type: spawnType };
+          if (pt.radius != undefined) changes.radius = pt.radius;
+          if (pt.weight != undefined) changes.weight = pt.weight;
+          new TileState(tile, changes).restoreInto(tile);
         });
-      });
+      }
+      applyImportedSpawns('red');
+      applyImportedSpawns('blue');
 
       savePoint();
       if (doHistoryClear) clearHistory();
@@ -2156,6 +2220,7 @@ $(function() {
     "300d": [6, 10],
     "000d": [5.5, 10]
   };
+  redrawPaletteTiles();
 
   function parseFortunateMapsId(input) {
     var s = String(input || '').trim();

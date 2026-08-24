@@ -260,6 +260,13 @@ html:not(.layout-desktop) #palette .tileTypeSelectionIndicator {
   height: 40px;
 }
 
+html.layout-mobile #palette .tileQuadrant,
+html:not(.layout-desktop) #palette .tileQuadrant {
+  width: 20px;
+  height: 20px;
+  background-size: 640px 440px;
+}
+
 html.layout-mobile #palette .tile,
 html:not(.layout-desktop) #palette .tile {
   background-size: 640px 440px;
@@ -615,6 +622,12 @@ html.layout-desktop #palette .palette-track {
 html.layout-desktop #palette .tilePaletteOption,
 html.layout-desktop #palette .tile {
   overflow: visible;
+  background-size: 640px 440px;
+}
+
+html.layout-desktop #palette .tileQuadrant {
+  width: 20px;
+  height: 20px;
   background-size: 640px 440px;
 }
 
