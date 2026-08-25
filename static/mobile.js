@@ -680,6 +680,7 @@ $(function() {
       left = Math.max(half + 8, Math.min(left, window.innerWidth - half - 8));
       top = Math.max(half + 8, Math.min(top, window.innerHeight - half - 8));
     }
+    if (clientX == null || clientY == null || isNaN(clientX) || isNaN(clientY)) return;
     $loupe.css({ left: left + 'px', top: top + 'px', width: LOUPE_SIZE + 'px', height: LOUPE_SIZE + 'px' });
   }
 
@@ -733,6 +734,10 @@ $(function() {
 
   function activateLoupeFollowFinger(clientX, clientY) {
     if (suppressLoupe) return;
+    if ((clientX == null || isNaN(clientX) || clientY == null || isNaN(clientY)) && holdStart) {
+      clientX = holdStart.clientX;
+      clientY = holdStart.clientY;
+    }
     if (!isPhoneLayout()) {
       loupeFollow = true;
       updateLoupe(clientX, clientY);
@@ -1203,10 +1208,13 @@ $(function() {
   }, true);
 
   $map.on('mousedown', function(e) {
+    if (!e.originalEvent) return;
     if (e.which !== 1) return;
     if (e.shiftKey) return;
     if (panMode) return;
     if (loupeVisible) return;
+    if (e.clientX == null || e.clientY == null) return;
+    if (painting) return;
     mouseLoupe = true;
     holdStart = { clientX: e.clientX, clientY: e.clientY };
     lastPointer = { x: e.clientX, y: e.clientY };
@@ -1223,7 +1231,9 @@ $(function() {
   $(document).on('mousemove', function(e) {
     var prevX = lastPointer.x;
     var prevY = lastPointer.y;
-    lastPointer = { x: e.clientX, y: e.clientY };
+    if (e.originalEvent && e.clientX != null && e.clientY != null) {
+      lastPointer = { x: e.clientX, y: e.clientY };
+    }
     if (loupePainting) {
       paintLoupeAt(e.clientX, e.clientY, 'move');
       return;
@@ -1269,7 +1279,8 @@ $(function() {
       }
     }
   });
-  $(document).on('mouseup', function() {
+  $(document).on('mouseup', function(e) {
+    if (!e.originalEvent) return;
     settingsPointerDown = false;
     if (loupePainting) {
       paintLoupeAt(0, 0, 'end');
