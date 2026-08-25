@@ -91,14 +91,29 @@ $(function() {
     applyTheme('light');
   });
 
+  var morePanelsEl = document.querySelector('.more-panels');
+  var moreNavEl = document.querySelector('.more-nav');
+  var moreDrag = null;
+  var moreIgnoreClickUntil = 0;
+  var moreSnapTimer = null;
+  var moreSnapToken = 0;
+
+  function isLandscapeChrome() {
+    var root = document.documentElement;
+    if (root.classList.contains('orient-landscape')) return true;
+    if (root.classList.contains('orient-portrait')) return false;
+    return !!(window.matchMedia && window.matchMedia('(orientation: landscape)').matches);
+  }
+
   function chromeChanged() {
     if (!window.TagproMap || !TagproMap.getSize || !TagproMap.fitView) return;
     if (TagproMap.getSize().zoom === 0) TagproMap.fitView();
   }
 
-  function setMorePanel(name) {
+  function setMorePanel(name, opts) {
+    opts = opts || {};
     var current = $moreSheet.attr('data-open') || '';
-    if (name && name === current) name = '';
+    if (name && name === current && !opts.keep) name = '';
     $moreSheet.attr('data-open', name);
     $('.more-nav-btn').removeClass('active').attr('aria-expanded', 'false');
     $('.more-panel').attr('hidden', true);
@@ -106,18 +121,42 @@ $(function() {
       $('.more-nav-btn[data-panel="' + name + '"]').addClass('active').attr('aria-expanded', 'true');
       $('.more-panel[data-panel="' + name + '"]').removeAttr('hidden');
     }
-    chromeChanged();
+    if (!isLandscapeChrome()) chromeChanged();
+  }
+
+  function clearMoreOverlayTransform() {
+    if (!morePanelsEl) return;
+    morePanelsEl.style.transition = '';
+    morePanelsEl.style.transform = '';
+  }
+
+  function syncLandscapeBackdrop() {
+    if (!isLandscapeChrome()) {
+      $moreBackdrop.css('bottom', '');
+      return;
+    }
+    var sheet = $moreSheet[0];
+    var h = sheet ? Math.round(sheet.getBoundingClientRect().height) : 0;
+    $moreBackdrop.css('bottom', h + 'px');
   }
 
   function closeMore() {
+    moreSnapToken += 1;
+    if (moreSnapTimer) {
+      clearTimeout(moreSnapTimer);
+      moreSnapTimer = null;
+    }
     setMorePanel('');
-    $moreSheet.removeClass('open');
+    $moreSheet.removeClass('open more-dragging');
     $moreBackdrop.removeClass('open').attr('hidden', true);
+    $moreBackdrop.css('bottom', '');
+    clearMoreOverlayTransform();
   }
 
   function openMore() {
-    $moreSheet.addClass('open');
+    $moreSheet.addClass('open').removeClass('more-dragging');
     $moreBackdrop.addClass('open').removeAttr('hidden');
+    syncLandscapeBackdrop();
     if (!$moreSheet.attr('data-open')) setMorePanel('file');
   }
 
@@ -126,8 +165,266 @@ $(function() {
     else openMore();
   });
   $('#moreClose, #moreBackdrop').on('click', closeMore);
-  $('.more-nav-btn').on('click', function() {
+  $('.more-nav-btn').on('click', function(e) {
+    if (isLandscapeChrome() || Date.now() < moreIgnoreClickUntil) {
+      e.preventDefault();
+      return;
+    }
     setMorePanel($(this).attr('data-panel'));
+  });
+
+  function moreEventPoint(e) {
+    if (e.touches && e.touches[0]) return e.touches[0];
+    if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0];
+    return e;
+  }
+
+  function moreIgnoreTarget(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest('input, textarea, select, a, button');
+  }
+
+  function morePanelNameFromEvent(e) {
+    var el = e.target;
+    if (!el || !el.closest) return '';
+    var btn = el.closest('.more-nav-btn');
+    return btn ? (btn.getAttribute('data-panel') || '') : '';
+  }
+
+  function moreOverlayHeight() {
+    if (!morePanelsEl) return 220;
+    var h = morePanelsEl.getBoundingClientRect().height;
+    return h > 0 ? h : 220;
+  }
+
+  function setMoreOverlayY(y, dragging) {
+    if (!morePanelsEl) return;
+    if (dragging) {
+      morePanelsEl.style.transition = 'none';
+      morePanelsEl.style.transform = 'translateY(' + y + 'px)';
+      return;
+    }
+    morePanelsEl.style.transition = 'transform 180ms ease-out';
+    morePanelsEl.style.transform = 'translateY(' + y + 'px)';
+  }
+
+  function finishMoreOverlay(open, height) {
+    if (!height) height = moreOverlayHeight();
+    var token = ++moreSnapToken;
+    $moreSheet.addClass('more-dragging');
+    setMoreOverlayY(open ? 0 : height, false);
+    function done() {
+      if (token !== moreSnapToken) return;
+      moreSnapToken += 1;
+      if (moreSnapTimer) {
+        clearTimeout(moreSnapTimer);
+        moreSnapTimer = null;
+      }
+      if (morePanelsEl) morePanelsEl.removeEventListener('transitionend', done);
+      if (open) {
+        openMore();
+        clearMoreOverlayTransform();
+      } else {
+        closeMore();
+      }
+    }
+    if (morePanelsEl) morePanelsEl.addEventListener('transitionend', done);
+    moreSnapTimer = setTimeout(done, 220);
+  }
+
+  function attachMoreFollow(kind) {
+    function onMove(e) { moveMoreDrag(e); }
+    function onFinish(e) { endMoreDrag(e); }
+    moreDrag.onMove = onMove;
+    moreDrag.onFinish = onFinish;
+    moreDrag.kind = kind;
+    if (kind === 'pointer') {
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onFinish, true);
+      document.addEventListener('pointercancel', onFinish, true);
+    } else if (kind === 'touch') {
+      document.addEventListener('touchmove', onMove, { capture: true, passive: false });
+      document.addEventListener('touchend', onFinish, true);
+      document.addEventListener('touchcancel', onFinish, true);
+    } else {
+      document.addEventListener('mousemove', onMove, true);
+      document.addEventListener('mouseup', onFinish, true);
+    }
+  }
+
+  function detachMoreFollow() {
+    if (!moreDrag || !moreDrag.onMove) return;
+    var kind = moreDrag.kind;
+    var onMove = moreDrag.onMove;
+    var onFinish = moreDrag.onFinish;
+    if (kind === 'pointer') {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onFinish, true);
+      document.removeEventListener('pointercancel', onFinish, true);
+    } else if (kind === 'touch') {
+      document.removeEventListener('touchmove', onMove, true);
+      document.removeEventListener('touchend', onFinish, true);
+      document.removeEventListener('touchcancel', onFinish, true);
+    } else {
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseup', onFinish, true);
+    }
+  }
+
+  function beginMoreDrag(e, origin, panelName) {
+    if (e.touches && e.touches.length > 1) return;
+    if ($('.modal.in:visible').length) return;
+    var pt = moreEventPoint(e);
+    moreDrag = {
+      origin: origin,
+      panelName: panelName || '',
+      startX: pt.clientX,
+      startY: pt.clientY,
+      lastY: pt.clientY,
+      lastT: Date.now(),
+      vy: 0,
+      moved: false,
+      wasOpen: $moreSheet.hasClass('open'),
+      startTranslate: 0,
+      height: 0,
+      pointerId: e.pointerId,
+      captureEl: e.currentTarget
+    };
+  }
+
+  function moveMoreDrag(e) {
+    if (!moreDrag) return;
+    if (e.touches && e.touches.length > 1) return;
+    var pt = moreEventPoint(e);
+    var dx = pt.clientX - moreDrag.startX;
+    var dy = pt.clientY - moreDrag.startY;
+    var now = Date.now();
+    var dt = now - moreDrag.lastT;
+    if (dt > 0) moreDrag.vy = (pt.clientY - moreDrag.lastY) / dt;
+    moreDrag.lastY = pt.clientY;
+    moreDrag.lastT = now;
+
+    if (!moreDrag.moved) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dy) <= Math.abs(dx)) {
+        detachMoreFollow();
+        moreDrag = null;
+        return;
+      }
+      if (moreDrag.origin === 'panel') {
+        var scroller = morePanelsEl;
+        if (scroller) {
+          if (dy > 2 && scroller.scrollTop > 1) {
+            detachMoreFollow();
+            moreDrag = null;
+            return;
+          }
+          if (dy < -2 && scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1) {
+            detachMoreFollow();
+            moreDrag = null;
+            return;
+          }
+        }
+      }
+      moreDrag.moved = true;
+      var name = moreDrag.panelName || $moreSheet.attr('data-open') || 'file';
+      setMorePanel(name, { keep: true });
+      $moreSheet.addClass('more-dragging');
+      $moreBackdrop.addClass('open').removeAttr('hidden');
+      syncLandscapeBackdrop();
+      moreDrag.height = moreOverlayHeight();
+      moreDrag.startTranslate = moreDrag.wasOpen ? 0 : moreDrag.height;
+    }
+    if (e.cancelable) e.preventDefault();
+    var y = moreDrag.startTranslate + dy;
+    if (y < 0) y = 0;
+    if (y > moreDrag.height) y = moreDrag.height;
+    moreDrag.translateY = y;
+    setMoreOverlayY(y, true);
+  }
+
+  function endMoreDrag(e) {
+    if (!moreDrag) return;
+    var drag = moreDrag;
+    detachMoreFollow();
+    moreDrag = null;
+    if (drag.captureEl && drag.pointerId != null && drag.captureEl.releasePointerCapture) {
+      try { drag.captureEl.releasePointerCapture(drag.pointerId); } catch (err) {}
+    }
+    if (!drag.moved) {
+      $moreSheet.removeClass('more-dragging');
+      if (!drag.wasOpen) $moreBackdrop.removeClass('open').attr('hidden', true);
+      return;
+    }
+    moreIgnoreClickUntil = Date.now() + 350;
+    ignorePaintUntil = Date.now() + 350;
+    if (e && e.cancelable) e.preventDefault();
+    var pt = moreEventPoint(e);
+    var dy = pt.clientY - drag.startY;
+    var y = drag.translateY;
+    if (y == null) y = drag.startTranslate + dy;
+    var height = drag.height || moreOverlayHeight();
+    var threshold = Math.max(40, height * 0.3);
+    var open;
+    if (drag.vy < -0.4) open = true;
+    else if (drag.vy > 0.4) open = false;
+    else if (drag.wasOpen) open = y < threshold;
+    else open = (height - y) > threshold;
+    finishMoreOverlay(open, height);
+  }
+
+  function bindMoreOverlayDrag() {
+    if (!moreNavEl || !morePanelsEl) return;
+
+    function onStart(origin) {
+      return function(e) {
+        if (!isLandscapeChrome()) return;
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        if (e.type === 'pointerdown' && e.button !== 0 && e.pointerType === 'mouse') return;
+        if (origin === 'panel' && !$moreSheet.hasClass('open')) return;
+        if (origin === 'panel' && moreIgnoreTarget(e.target)) return;
+        var name = origin === 'nav' ? morePanelNameFromEvent(e) : ($moreSheet.attr('data-open') || '');
+        if (origin === 'nav' && !name) return;
+        beginMoreDrag(e, origin, name);
+        if (!moreDrag) return;
+        if (e.type.indexOf('pointer') === 0) {
+          if (e.currentTarget && e.currentTarget.setPointerCapture && e.pointerId != null) {
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+          }
+          attachMoreFollow('pointer');
+        } else if (e.type.indexOf('touch') === 0) {
+          attachMoreFollow('touch');
+        } else {
+          attachMoreFollow('mouse');
+        }
+      };
+    }
+
+    if ('onpointerdown' in window) {
+      moreNavEl.addEventListener('pointerdown', onStart('nav'));
+      morePanelsEl.addEventListener('pointerdown', onStart('panel'));
+    } else {
+      moreNavEl.addEventListener('mousedown', onStart('nav'));
+      moreNavEl.addEventListener('touchstart', onStart('nav'), { passive: true });
+      morePanelsEl.addEventListener('mousedown', onStart('panel'));
+      morePanelsEl.addEventListener('touchstart', onStart('panel'), { passive: true });
+    }
+  }
+
+  bindMoreOverlayDrag();
+
+  document.addEventListener('click', function(e) {
+    if (Date.now() >= moreIgnoreClickUntil) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  $(document).on('keydown', function(e) {
+    if (e.which !== 27) return;
+    if (!$moreSheet.hasClass('open') && !$moreSheet.hasClass('more-dragging')) return;
+    if ($('.modal.in:visible').length) return;
+    e.preventDefault();
+    closeMore();
   });
 
   function setPanMode(on) {

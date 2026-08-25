@@ -900,7 +900,7 @@ html:not(.layout-desktop).orient-landscape #tools {
 html.layout-mobile.orient-landscape #moreSheet,
 html:not(.layout-desktop).orient-landscape #moreSheet {
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   grid-column: 1 / -1;
   grid-row: 3;
   position: relative;
@@ -910,7 +910,7 @@ html:not(.layout-desktop).orient-landscape #moreSheet {
   right: auto;
   max-height: none;
   overflow: visible;
-  z-index: 6;
+  z-index: 20;
   background: #1a1d23;
   padding: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -920,13 +920,192 @@ html:not(.layout-desktop).orient-landscape #moreSheet {
 
 html.layout-mobile.orient-landscape .more-sheet-header,
 html:not(.layout-desktop).orient-landscape .more-sheet-header,
-html.layout-mobile.orient-landscape .more-backdrop,
-html:not(.layout-desktop).orient-landscape .more-backdrop,
 html.layout-mobile.orient-landscape #moreClose,
 html:not(.layout-desktop).orient-landscape #moreClose,
 html.layout-mobile.orient-landscape #moreToggle,
 html:not(.layout-desktop).orient-landscape #moreToggle {
   display: none !important;
+}
+
+html.layout-mobile.orient-landscape .more-backdrop,
+html:not(.layout-desktop).orient-landscape .more-backdrop {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+html.layout-mobile.orient-landscape .more-backdrop.open,
+html:not(.layout-desktop).orient-landscape .more-backdrop.open {
+  display: block;
+  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+}
+
+html.layout-mobile.orient-landscape .more-nav,
+html:not(.layout-desktop).orient-landscape .more-nav {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #2c313a;
+  border-radius: 0;
+  overflow: visible;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn,
+html:not(.layout-desktop).orient-landscape .more-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  padding: 4px 2px 7px;
+  border: 0;
+  border-right: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #b4b8c0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn::before {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 2px auto 4px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 6px solid #6a7180;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn.active,
+html:not(.layout-desktop).orient-landscape .more-nav-btn.active {
+  background: transparent;
+  color: #fff;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn.active::before,
+html:not(.layout-desktop).orient-landscape .more-nav-btn.active::before {
+  border-bottom-color: #e6e8ee;
+}
+
+html.layout-mobile.orient-landscape .more-panels,
+html:not(.layout-desktop).orient-landscape .more-panels {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  max-height: min(40vh, 280px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #1e2229;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+  transform: translateY(100%);
+  pointer-events: none;
+  visibility: hidden;
+  z-index: 1;
+  transition: transform 180ms ease-out, visibility 0s linear 180ms;
+}
+
+html.layout-mobile.orient-landscape #moreSheet.open .more-panels,
+html.layout-mobile.orient-landscape #moreSheet.more-dragging .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.more-dragging .more-panels {
+  visibility: visible;
+  transition: transform 180ms ease-out, visibility 0s;
+}
+
+html.layout-mobile.orient-landscape #moreSheet.open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.open .more-panels {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+html.layout-mobile.orient-landscape .more-panel,
+html:not(.layout-desktop).orient-landscape .more-panel {
+  padding: 8px 10px 10px;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+}
+
+html.layout-mobile.orient-landscape .more-help,
+html:not(.layout-desktop).orient-landscape .more-help,
+html.layout-mobile.orient-landscape .source-link,
+html:not(.layout-desktop).orient-landscape .source-link {
+  display: none;
+}
+
+html.layout-mobile.orient-landscape .more-panel[data-panel="file"],
+html:not(.layout-desktop).orient-landscape .more-panel[data-panel="file"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+
+html.layout-mobile.orient-landscape .more-panel[data-panel="file"] .form-group,
+html:not(.layout-desktop).orient-landscape .more-panel[data-panel="file"] .form-group {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+html.layout-mobile.orient-landscape #moreSheet .btn,
+html.layout-mobile.orient-landscape #moreSheet .form-control,
+html:not(.layout-desktop).orient-landscape #moreSheet .btn,
+html:not(.layout-desktop).orient-landscape #moreSheet .form-control {
+  min-height: 36px;
+}
+
+html.layout-mobile.orient-landscape #collabUsername,
+html:not(.layout-desktop).orient-landscape #collabUsername {
+  min-height: 28px;
+  height: 28px;
+}
+
+html.layout-mobile.orient-landscape .collab-identity,
+html:not(.layout-desktop).orient-landscape .collab-identity {
+  flex: 1 1 100%;
+  width: 100%;
+  align-items: center;
+}
+
+html.layout-mobile.orient-landscape .collab-identity #collabUsername,
+html:not(.layout-desktop).orient-landscape .collab-identity #collabUsername {
+  width: auto;
+  flex: 1 1 0%;
+  min-width: 0;
+  margin-top: 0;
+}
+
+html.layout-mobile.orient-landscape .collab-identity .collab-colors,
+html:not(.layout-desktop).orient-landscape .collab-identity .collab-colors {
+  margin-top: 0;
+  flex: 0 1 auto;
 }
 
 html.layout-mobile .dock-btn .dock-flip,
@@ -1028,8 +1207,6 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
 
   html.layout-mobile .more-sheet-header,
   html:not(.layout-desktop) .more-sheet-header,
-  html.layout-mobile .more-backdrop,
-  html:not(.layout-desktop) .more-backdrop,
   html.layout-mobile #moreClose,
   html:not(.layout-desktop) #moreClose,
   html.layout-mobile #moreToggle,
@@ -1037,10 +1214,28 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
     display: none !important;
   }
 
+  html.layout-mobile .more-backdrop,
+  html:not(.layout-desktop) .more-backdrop {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 10;
+  }
+
+  html.layout-mobile .more-backdrop.open,
+  html:not(.layout-desktop) .more-backdrop.open {
+    display: block !important;
+    bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  }
+
   html.layout-mobile #moreSheet,
   html:not(.layout-desktop) #moreSheet {
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: column;
     grid-column: 1 / -1;
     grid-row: 3;
     position: relative;
@@ -1050,7 +1245,7 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
     right: auto;
     max-height: none;
     overflow: visible;
-    z-index: 6;
+    z-index: 20;
     background: #1a1d23;
     padding: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -1065,25 +1260,101 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
 
   html.layout-mobile .more-nav,
   html:not(.layout-desktop) .more-nav {
+    position: relative;
+    z-index: 2;
     margin: 0;
     border: 0;
     border-top: 1px solid #2c313a;
     border-radius: 0;
+    overflow: visible;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   html.layout-mobile .more-nav-btn,
   html:not(.layout-desktop) .more-nav-btn {
-    min-height: 32px;
-    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 36px;
+    padding: 4px 2px 7px;
+    border: 0;
+    border-right: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #b4b8c0;
+    font-size: 11px;
+    font-weight: 600;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  html.layout-mobile .more-nav-btn::before,
+  html:not(.layout-desktop) .more-nav-btn::before {
+    content: "";
+    display: block;
+    width: 0;
+    height: 0;
+    margin: 2px auto 4px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 6px solid #6a7180;
+  }
+
+  html.layout-mobile .more-nav-btn.active,
+  html:not(.layout-desktop) .more-nav-btn.active {
+    background: transparent;
+    color: #fff;
+  }
+
+  html.layout-mobile .more-nav-btn.active::before,
+  html:not(.layout-desktop) .more-nav-btn.active::before {
+    border-bottom-color: #e6e8ee;
+  }
+
+  html.layout-mobile .more-panels,
+  html:not(.layout-desktop) .more-panels {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    max-height: min(40vh, 280px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: #1e2229;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+    transform: translateY(100%);
+    pointer-events: none;
+    visibility: hidden;
+    z-index: 1;
+    transition: transform 180ms ease-out, visibility 0s linear 180ms;
+  }
+
+  html.layout-mobile #moreSheet.open .more-panels,
+  html.layout-mobile #moreSheet.more-dragging .more-panels,
+  html:not(.layout-desktop) #moreSheet.open .more-panels,
+  html:not(.layout-desktop) #moreSheet.more-dragging .more-panels {
+    visibility: visible;
+    transition: transform 180ms ease-out, visibility 0s;
+  }
+
+  html.layout-mobile #moreSheet.open .more-panels,
+  html:not(.layout-desktop) #moreSheet.open .more-panels {
+    transform: translateY(0);
+    pointer-events: auto;
   }
 
   html.layout-mobile .more-panel,
   html:not(.layout-desktop) .more-panel {
     padding: 8px 10px 10px;
-    max-height: min(32vh, 220px);
-    overflow-x: hidden;
-    overflow-y: auto;
-    border-top: 1px solid #2c313a;
+    max-height: none;
+    overflow: visible;
+    border: 0;
   }
 
   html.layout-mobile .more-help,
@@ -1139,6 +1410,33 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
   html:not(.layout-desktop) .collab-identity .collab-colors {
     margin-top: 0;
     flex: 0 1 auto;
+  }
+
+  html.theme-light.layout-mobile .more-panels,
+  html.theme-light:not(.layout-desktop) .more-panels {
+    background: #f7f7f8;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn,
+  html.theme-light:not(.layout-desktop) .more-nav-btn {
+    color: #444;
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn::before,
+  html.theme-light:not(.layout-desktop) .more-nav-btn::before {
+    border-bottom-color: #9a9aa2;
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn.active,
+  html.theme-light:not(.layout-desktop) .more-nav-btn.active {
+    background: transparent;
+    color: #111;
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn.active::before,
+  html.theme-light:not(.layout-desktop) .more-nav-btn.active::before {
+    border-bottom-color: #333;
   }
 }
 
@@ -1375,6 +1673,33 @@ html.theme-light:not(.layout-desktop) .more-nav-btn.active {
 html.theme-light.layout-mobile .more-panel,
 html.theme-light:not(.layout-desktop) .more-panel {
   border-top-color: #d0d0d4;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-panels,
+html.theme-light:not(.layout-desktop).orient-landscape .more-panels {
+  background: #f7f7f8;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn {
+  color: #444;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn::before,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn::before {
+  border-bottom-color: #9a9aa2;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn.active,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn.active {
+  background: transparent;
+  color: #111;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn.active::before,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn.active::before {
+  border-bottom-color: #333;
 }
 
 html.theme-light.layout-mobile body,
