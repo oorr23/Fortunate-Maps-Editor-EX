@@ -130,6 +130,16 @@ $(function() {
     morePanelsEl.style.transform = '';
   }
 
+  function syncLandscapeBackdrop() {
+    if (!isLandscapeChrome()) {
+      $moreBackdrop.css('bottom', '');
+      return;
+    }
+    var sheet = $moreSheet[0];
+    var h = sheet ? Math.round(sheet.getBoundingClientRect().height) : 0;
+    $moreBackdrop.css('bottom', h + 'px');
+  }
+
   function closeMore() {
     moreSnapToken += 1;
     if (moreSnapTimer) {
@@ -139,12 +149,14 @@ $(function() {
     setMorePanel('');
     $moreSheet.removeClass('open more-dragging');
     $moreBackdrop.removeClass('open').attr('hidden', true);
+    $moreBackdrop.css('bottom', '');
     clearMoreOverlayTransform();
   }
 
   function openMore() {
     $moreSheet.addClass('open').removeClass('more-dragging');
     $moreBackdrop.addClass('open').removeAttr('hidden');
+    syncLandscapeBackdrop();
     if (!$moreSheet.attr('data-open')) setMorePanel('file');
   }
 
@@ -319,6 +331,7 @@ $(function() {
       setMorePanel(name, { keep: true });
       $moreSheet.addClass('more-dragging');
       $moreBackdrop.addClass('open').removeAttr('hidden');
+      syncLandscapeBackdrop();
       moreDrag.height = moreOverlayHeight();
       moreDrag.startTranslate = moreDrag.wasOpen ? 0 : moreDrag.height;
     }

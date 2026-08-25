@@ -942,6 +942,7 @@ html:not(.layout-desktop).orient-landscape .more-backdrop {
 html.layout-mobile.orient-landscape .more-backdrop.open,
 html:not(.layout-desktop).orient-landscape .more-backdrop.open {
   display: block;
+  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
 }
 
 html.layout-mobile.orient-landscape .more-nav,
@@ -1228,6 +1229,7 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
   html.layout-mobile .more-backdrop.open,
   html:not(.layout-desktop) .more-backdrop.open {
     display: block !important;
+    bottom: calc(36px + env(safe-area-inset-bottom, 0px));
   }
 
   html.layout-mobile #moreSheet,
