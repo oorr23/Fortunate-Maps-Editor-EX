@@ -40,7 +40,7 @@ The original README said `npm main`; the start command is `node main.js` (also a
 2. Press F12, then Ctrl+Shift+M (Device toolbar)
 3. Pick a portrait phone (e.g. iPhone 12 / 390x844) and reload
 4. You should see the bottom dock (`html` has class `layout-mobile`)
-5. Tap a tile, paint on the map, long-press or drag for the loupe
+5. Tap a tile, paint on the map, long-press to open the loupe under your finger
 
 **Wide desktop window:**
 
@@ -61,7 +61,7 @@ The original README said `npm main`; the start command is `node main.js` (also a
 - Tap targets are at least ~44px
 - Clear / Save / Test / import-export / resize / symmetry live in a collapsible More sheet
 - One finger paints without scrolling the page
-- Long-press (~280ms) or drag-paint shows a circular loupe above the finger (about 2.5x)
+- Long-press (~280ms) or drag-paint shows a magnifier centered on the finger (about 2.5x); drag across magnified cells to move the focus
 - Two-finger drag pans; pinch changes zoom; the hand button is one-finger pan
 
 ## License
