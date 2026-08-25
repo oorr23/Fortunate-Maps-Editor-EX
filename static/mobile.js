@@ -306,6 +306,7 @@ $(function() {
           "<div class='tileQuadrant nestedSquareBR'></div>" +
           "<div class='tileQuadrant nestedSquareBL'></div>" +
           "<div class='tileQuadrant nestedSquareTL'></div>" +
+          "<div class='topSquare nestedSquare'></div>" +
           "<div class='selectionIndicator nestedSquare'></div>" +
           "<div class='potentialHighlight nestedSquare'></div></div>";
         row.appendChild(bg);

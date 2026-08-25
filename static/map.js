@@ -8,8 +8,10 @@ $(function() {
   var tileSheetWidth = 16;
   var tileSheetHeight = 11;
   
-  function positionCss(x, y) {
-    return -x*tileSize + 'px ' + -y*tileSize + 'px';
+  function positionCss(x, y, mult) {
+    mult = (mult == null) ? 1 : mult;
+    var shift = (mult !== 1) ? (tileSize * (1 - mult) / 2) : 0;
+    return (-x * tileSize * mult + shift) + 'px ' + (-y * tileSize * mult + shift) + 'px';
   }
   function TileType(name, sheetX, sheetY, r,g,b, toolTipText, extra) {
     this.name = name;
@@ -21,6 +23,7 @@ $(function() {
     this.image = extra&&extra.image;
     this.imageTileWidth = extra&&extra.imageTileWidth||5;
     this.imageTileHeight = extra&&extra.imageTileHeight||1;
+    this.multiplier = extra&&extra.multiplier||1;
     this.wallSolids = (extra&&extra.wallSolids)|0;
     this.rgb = r | (g<<8) | (b<<16);
     this.opposite = this; // What it switches to when mirrored
@@ -34,7 +37,7 @@ $(function() {
     return !!this.wallSolids;
   }
   TileType.prototype.positionCss = function() {
-    return positionCss(this.sheetX, this.sheetY)
+    return positionCss(this.sheetX, this.sheetY, this.multiplier);
   }
   function textureSrcFor(type) {
     if (window.TagproTextures && TagproTextures.urlFor) return TagproTextures.urlFor(type);
@@ -50,28 +53,34 @@ $(function() {
       node.styleUrl = node.styleBackgroundSize = node.styleBgColor = undefined;
     }
   }
-  TileType.prototype.drawOn = function($elem, tile) {
+  TileType.prototype.drawOn = function($elem, tile, onTop) {
+    var $target = (onTop && tile && tile.topSquare) ? $(tile.topSquare) : $elem;
     var styleBgColor = '';
     var src = this.name == 'empty' ? '' : textureSrcFor(this);
     var styleUrl = src ? 'url("' + src + '")' : '';
-    var styleBackgroundSize = this.image ? (this.imageTileWidth*tileSize+'px ' + this.imageTileHeight*tileSize + 'px') : (tileSheetWidth*tileSize + 'px ' + tileSheetHeight*tileSize + 'px');
+    var styleBackgroundSize = this.image
+      ? (this.imageTileWidth*tileSize+'px ' + this.imageTileHeight*tileSize + 'px')
+      : (tileSheetWidth*tileSize*this.multiplier + 'px ' + tileSheetHeight*tileSize*this.multiplier + 'px');
     if (this.name == 'empty') {
       styleBgColor = 'black';
       styleUrl = '';
     }
-    if (styleBgColor != $elem.styleBgColor) {
-      $elem.css('background-color', styleBgColor);
-      $elem.styleBgColor = styleBgColor;
+    if (onTop || styleBgColor != $elem.styleBgColor) {
+      $target.css('background-color', styleBgColor);
+      if (!onTop) $elem.styleBgColor = styleBgColor;
     }
-    if (styleBackgroundSize != $elem.styleBackgroundSize) {
-      $elem.css('background-size', styleBackgroundSize);
-      $elem.styleBackgroundSize = styleBackgroundSize;
+    if (onTop || styleBackgroundSize != $elem.styleBackgroundSize) {
+      $target.css('background-size', styleBackgroundSize);
+      if (!onTop) $elem.styleBackgroundSize = styleBackgroundSize;
     }
-    if (styleUrl != $elem.styleUrl) {
+    if (!onTop && styleUrl != $elem.styleUrl) {
       $elem.css('background-image', styleUrl)
       $elem.styleUrl = styleUrl;
     }
-    if (tile && tile.quadrantElems) {
+    if (onTop) {
+      $target.css('background-image', styleUrl);
+    }
+    if (!onTop && tile && tile.quadrantElems) {
       if (this.isWall()) {
         var x = tile.x, y = tile.y;
         // Beware: dragons
@@ -151,12 +160,14 @@ $(function() {
             tile.quadrantElems[q].style.display='none';
           }
         }
-        $elem.css('background-position', this.positionCss())
+        $target.css('background-position', this.positionCss())
       }
     } else {
-      $elem.css('background-position', this.positionCss())
+      $target.css('background-position', this.positionCss())
     }
-    
+    if (onTop) {
+      $target.css({ position: 'absolute', display: 'inline-block' });
+    }
   }
 
 
@@ -483,15 +494,13 @@ $(function() {
     speculateUp: function(x,y) {
       var tile = tiles[x][y];
       var change = null;
-      if (tile.type == portalType) {
-        if (this.selectedSwitch && this.selectedSwitch.type == portalType) {
-          change = new TileState(this.selectedSwitch, {destination: tile})
-          console.log('making destination action to', xy(tile));
-          this.selectedSwitch = null;
-        } else {
-          this.selectedSwitch = tile;
-          console.log('selected ', xy(this.selectedSwitch));
-        }
+      if (isAnyPortal(tile.type) && this.selectedSwitch && isEnterablePortal(this.selectedSwitch.type)) {
+        change = new TileState(this.selectedSwitch, {destination: tile})
+        console.log('making destination action to', xy(tile));
+        this.selectedSwitch = null;
+      } else if (isEnterablePortal(tile.type)) {
+        this.selectedSwitch = tile;
+        console.log('selected ', xy(this.selectedSwitch));
       } else if (tile.type == switchType) {
         this.selectedSwitch = tile;
       } else if (this.selectedSwitch && this.selectedSwitch.type == switchType) {
@@ -513,7 +522,7 @@ $(function() {
     clearHighlights();
     if (this.selectedSwitch) {
       this.selectedSwitch.highlight(true);
-      if (this.selectedSwitch.type == portalType) {
+      if (isEnterablePortal(this.selectedSwitch.type)) {
         if (this.selectedSwitch.destination) {
           this.selectedSwitch.destination.highlight(true);
         }
@@ -652,11 +661,30 @@ $(function() {
     if (a.x != b.x) return a.x - b.x;
     return a.y - b.y;
   }
+  var marsBallCount = 0;
+  function tileStateChangesEmpty(changes) {
+    for (var key in changes) {
+      if (Object.prototype.hasOwnProperty.call(changes, key)) return false;
+    }
+    return true;
+  }
   function TileState(source, changes) {
     changes = changes || {};
     this.x = changes.x || source.x 
     this.y = changes.y || source.y;
-    this.type = changes.type || source.type;
+    var placingMars = changes.type == marsBallType
+      || (tileStateChangesEmpty(changes) && source.topType == marsBallType);
+    if (placingMars) {
+      this.topType = changes.type || source.topType;
+      if (changes.type && this.topType != changes.type) this.type = changes.type;
+      else if (this.topType != source.type) this.type = source.type;
+    } else {
+      this.type = changes.type || source.type;
+      if (changes.topType) this.topType = changes.topType;
+      else if (source.topType && (changes.mirror || 'radius' in changes || 'weight' in changes)) {
+        this.topType = source.topType;
+      }
+    }
     this.affected = [];
     var affectedMap = changes.affected || source.affected || {};
     for (var key in affectedMap) {
@@ -674,6 +702,7 @@ $(function() {
     if (this.x!=other.x
       || this.y!=other.y
       || this.type!=other.type
+      || this.topType!=other.topType
       || Point.cmp(this.destination, other.destination)
       || this.affected.length != other.affected.length
       || (''+this.cooldown) != (''+other.cooldown)
@@ -686,7 +715,21 @@ $(function() {
     return true;
   }
   TileState.prototype.restoreInto = function(tile) {
-    tile.setType(this.type);
+    if (this.topType == marsBallType) {
+      if (tile.topType != marsBallType) {
+        marsBallCount++;
+        if (marsBallCount > 2) {
+          marsBallCount--;
+          alert('Only 2 mars balls are allowed per map');
+          if (tile.topType) this.topType = tile.topType;
+          else delete this.topType;
+        }
+      }
+    } else if (tile.topType == marsBallType) {
+      marsBallCount--;
+    }
+    tile.setType(this.type || tile.type);
+    tile.setTopType(this.topType);
     tile.affected = {};
     for (var i=0; i<this.affected.length; i++) {
       var a = this.affected[i];
@@ -851,6 +894,12 @@ $(function() {
       cooldown: (tile.cooldown != undefined) ? tile.cooldown : defaultPortalCooldown
     };
   }
+  function exportExitPortal(logic, tile) {
+    logic.portals[tile.x + ',' + tile.y] = {};
+  }
+  function exportMarsBall(logic, tile) {
+    logic.marsballs.push({y: tile.y, x: tile.x});
+  }
   function exportSpawn(logic, tile) {
     var color = (tile.type == redSpawnType) ? 'red' : 'blue';
     if (!logic.spawnPoints[color]) logic.spawnPoints[color] = [];
@@ -870,9 +919,10 @@ $(function() {
   var floorType, emptyType, 
     wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType,
     blueFlagType, redFlagType, switchType, bombType, onFieldType, offFieldType,
-    redFieldType, blueFieldType, portalType, redSpawnType, blueSpawnType, redSpeedPadType, blueSpeedpadType, redFloorType, blueFloorType,
+    redFieldType, blueFieldType, portalType, exitPortalType, redPortalType, bluePortalType,
+    redSpawnType, blueSpawnType, redSpeedPadType, blueSpeedpadType, yellowFloorType, redFloorType, blueFloorType,
     spikeType, powerupType, speedpadType,
-    yellowFlagType, redEndzoneType, blueEndzoneType;
+    yellowFlagType, redEndzoneType, blueEndzoneType, gravityWellType, marsBallType;
   
   var tileTypes = [
     emptyType = new TileType('empty', 13,5, 0,0,0, "Background"),
@@ -889,6 +939,7 @@ $(function() {
     speedpadType = new TileType('speedpad', 0,0, 255,255,0, "Boost", {image: 'speedpad'}),
     blueSpeedpadType = new TileType('blueSpeedpad', 0,0, 115,115,255, "Blue Team Boost", {image: 'speedpadblue'}),
     redSpeedPadType = new TileType('redSpeedpad', 0,0, 255,115,115, "Red Team Boost", {image: 'speedpadred'}),
+    yellowFloorType = new TileType('yellowFloor', 13,5, 220,220,186, "Yellow Speed Tile - Increases speed for non-flag-carriers."),
     redFloorType = new TileType('redFloor', 14,4, 220,186,186, "Red Speed Tile - Increases speed for non-flag-carriers."),
     blueFloorType = new TileType('blueFloor', 15,4, 187,184,221, "Blue Speed Tile - Increases speed for non-flag-carriers."),
     offFieldType = new TileType('offField', 12,3, 0,117,0, "Gate - Default Off", {logicFn: setFieldFn('off')}),
@@ -896,6 +947,9 @@ $(function() {
     redFieldType = new TileType('redField', 14,3, 0,117,0, "Gate - Default Red", {logicFn: setFieldFn('red')}),
     blueFieldType = new TileType('blueField', 15,3, 0,117,0, "Gate - Default Blue", {logicFn: setFieldFn('blue')}),
     portalType = new TileType('portal', 0,0, 202, 192,0, "Portal - Link two portals using the wire tool.", {image: 'portal', logicFn: exportPortal}),
+    exitPortalType = new TileType('exitPortal', 4,0, 202, 192,0, "Exit Portal - Can be linked as destination for other portals.", {image: 'portal', logicFn: exportExitPortal}),
+    redPortalType = new TileType('redPortal', 0, 0, 204, 51, 0, "Red Portal - Can be used by red balls.", {image: 'portalred', logicFn: exportPortal}),
+    bluePortalType = new TileType('bluePortal', 0,0, 0, 102, 204, "Blue Portal - Can be used by blue balls.", {image: 'portalblue', logicFn: exportPortal}),
     redFlagType = new TileType('redFlag', 14,1, 255,0,0, "Red Flag"),
     blueFlagType = new TileType('blueFlag', 15,1, 0,0,255, "Blue Flag"),
     redSpawnType = new TileType('redSpawn', 14,0, 155,0,0, "Red Spawn Tile - Red balls will spawn within a certain radius of this tile.", {logicFn: exportSpawn}),
@@ -903,8 +957,28 @@ $(function() {
     yellowFlagType = new TileType('yellowFlag', 13,1, 128,128,0, "Yellow Flag - Bring this neutral flag to your zone to score."),
     redEndzoneType = new TileType('redEndzone', 14,5, 185,0,0, "Red Endzone - Bring a neutral (yellow) flag to this zone to score."),
     blueEndzoneType = new TileType('blueEndzone', 15,5, 25,0,148, "Blue Endzone - Bring a neutral (yellow) flag to this zone to score."),
-    gravityWellType = new TileType('gravityWell', 13, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat.")
+    gravityWellType = new TileType('gravityWell', 13, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat."),
+    marsBallType = new TileType('marsBall', 12,9, 256,256,256, "Mars Ball - Push into own endzone or opponent flag to win.", {logicFn: exportMarsBall, multiplier: 0.5})
   ];
+
+  function isEnterablePortal(type) {
+    return type === portalType || type === redPortalType || type === bluePortalType;
+  }
+  function isAnyPortal(type) {
+    return isEnterablePortal(type) || type === exitPortalType;
+  }
+  function isSpeedFloor(type) {
+    return type === floorType || type === yellowFloorType || type === redFloorType || type === blueFloorType;
+  }
+  function recountMarsBalls() {
+    marsBallCount = 0;
+    if (!tiles) return;
+    for (var x = 0; x < tiles.length; x++) {
+      for (var y = 0; y < tiles[x].length; y++) {
+        if (tiles[x][y].topType == marsBallType) marsBallCount++;
+      }
+    }
+  }
 
   function areOpposites(t1, t2) {
     t1.opposite = t2;
@@ -930,6 +1004,7 @@ $(function() {
   areOpposites(redFlagType, blueFlagType);
   areOpposites(redSpawnType, blueSpawnType);
   areOpposites(redEndzoneType, blueEndzoneType);
+  areOpposites(redPortalType, bluePortalType);
   areHorizontalMirrors(wallBottomLeftType, wallBottomRightType);
   areHorizontalMirrors(wallTopLeftType, wallTopRightType);
   areVerticalMirrors(wallBottomLeftType, wallTopLeftType);
@@ -955,8 +1030,9 @@ $(function() {
       // clockwise from noon: TR, BR, BL, TL
       this.quadrantElems = [domElem.children[0], domElem.children[1], domElem.children[2],domElem.children[3]];
       
-      this.selectionIndicator = domElem.children[4];
-      this.affectedIndicator = domElem.children[5];
+      this.topSquare = domElem.children[4];
+      this.selectionIndicator = domElem.children[5];
+      this.affectedIndicator = domElem.children[6];
     }
   }
   Tile.prototype.set = function(options) {
@@ -981,6 +1057,24 @@ $(function() {
       for (var dy=-1; dy<=1; dy++) {
         maybeIsDirtyWall(this.x+dx, this.y+dy);
       }
+    }
+    mayHaveChanged(this);
+  }
+  Tile.prototype.setTopType = function(topType) {
+    if (!this.topSquare) {
+      if (!topType) delete this.topType;
+      else this.topType = topType;
+      return;
+    }
+    if (!topType) {
+      delete this.topType;
+      this.topSquare.style.display = 'none';
+      return;
+    }
+    this.topType = topType;
+    topType.drawOn(this.elem, this, true);
+    if (topType.postPlaceFn) {
+      topType.postPlaceFn.call(topType, this.x, this.y);
     }
     mayHaveChanged(this);
   }
@@ -1049,6 +1143,7 @@ $(function() {
   function buildTilesWith(types) {
     width = types.length;
     height = types[0].length;
+    marsBallCount = 0;
 
     var html = '';
     var row = "<div class='tileRow'>";
@@ -1060,6 +1155,7 @@ $(function() {
         "<div class='tileQuadrant nestedSquareBR'></div>" +
         "<div class='tileQuadrant nestedSquareBL'></div>" +
         "<div class='tileQuadrant nestedSquareTL'></div>" +
+        "<div class='topSquare nestedSquare'></div>" +
         "<div class='selectionIndicator nestedSquare'></div><div class='potentialHighlight nestedSquare'></div><div class='potentialHighlightOther nestedSquare'></div></div></div>";
     }
     row += "</div>"
@@ -1115,6 +1211,7 @@ $(function() {
         }
         snap[x][y] = {
           type: t.type,
+          topType: t.topType || null,
           cooldown: t.cooldown,
           timer: t.timer,
           radius: t.radius,
@@ -1138,6 +1235,7 @@ $(function() {
         tile.timer = s.timer;
         tile.radius = s.radius;
         tile.weight = s.weight;
+        if (s.topType) tile.setTopType(s.topType);
         if (s.dest) {
           var nd = destOf(s.dest.x, s.dest.y);
           if (nd && tiles[nd.x]) tile.destination = tiles[nd.x][nd.y];
@@ -1188,6 +1286,7 @@ $(function() {
     buildTilesWith(types);
     applyMappedProps(snap, oldW, oldH, destOf);
     if (opts.copyOf) applyMappedProps(snap, oldW, oldH, opts.copyOf);
+    recountMarsBalls();
     cleanDirtyWalls();
     savePoint();
     persistMap();
@@ -1447,14 +1546,14 @@ $(function() {
     var tile = tiles && tiles[x] && tiles[x][y];
     if (!tile || !tile.type) return false;
     var t = tile.type;
-    return t === portalType || t === switchType || t === redSpawnType || t === blueSpawnType;
+    return isEnterablePortal(t) || t === switchType || t === redSpawnType || t === blueSpawnType;
   }
 
   function openTileSettings(x, y) {
     var tile = tiles && tiles[x] && tiles[x][y];
     if (!tile || !tile.type) return false;
     var t = tile.type;
-    if (t === portalType) {
+    if (isEnterablePortal(t)) {
       var cooldown = (tile.cooldown != undefined) ? tile.cooldown : defaultPortalCooldown;
       $('#portalCooldown').val('').attr('placeholder', cooldown);
       $('#portalOptions').modal('show');
@@ -1555,7 +1654,7 @@ $(function() {
         var x = $(this).data('x');
         var y = $(this).data('y');
         
-        if (tiles[x][y].type == portalType) {
+        if (isEnterablePortal(tiles[x][y].type)) {
           var cooldown = parseFloat(prompt("Cooldown time (in milliseconds):", tiles[x][y].cooldown || 0));
           if (!(cooldown>=0)) return;
           
@@ -1649,13 +1748,17 @@ $(function() {
       switches: {},
       fields: {},
       portals: {},
+      marsballs: [],
       spawnPoints: { red: [], blue: [] }
     };
 
     for (var x=0; x<width; x++) {
       for (var y=0; y<height; y++) {
         var fn = tiles[x][y].type.logicFn;
-        if (fn) fn(logic, tiles[x][y])
+        if (fn) fn(logic, tiles[x][y]);
+        if (tiles[x][y].topType && tiles[x][y].topType.logicFn) {
+          tiles[x][y].topType.logicFn(logic, tiles[x][y]);
+        }
       }
     }
     return logic;
@@ -1669,7 +1772,7 @@ $(function() {
       for (var x=0; x<width; x++) {
         var tile = tiles[x][y];
         var cell;
-        if (tile.type == portalType) {
+        if (isEnterablePortal(tile.type)) {
           cell = {
             type: tile.type.name,
             destination: tile.destination ? [tile.destination.x, tile.destination.y] : [x,y]
@@ -1683,6 +1786,11 @@ $(function() {
           cell = {
             type: tile.type.name,
             targets: targets
+          }
+        } else if (tile.topType == marsBallType) {
+          cell = {
+            type: tile.type.name,
+            topType: 'marsBall'
           }
         } else {
           cell = tile.type.name;
@@ -1711,9 +1819,11 @@ $(function() {
     for (var key in portals) {
       var xy = key.split(',');
       var tile = (tiles[xy[0]] || [])[xy[1]];
-      if (tile && tile.type == portalType) {
+      if (tile && isEnterablePortal(tile.type)) {
         var dest = portals[key].destination || {};
-        if (!tile.destination && dest) tile.destination = (tiles[dest.x] || [])[dest.y];
+        if (dest && dest.x != undefined && dest.y != undefined && !tile.destination) {
+          tile.destination = (tiles[dest.x] || [])[dest.y];
+        }
         if (portals[key].cooldown != undefined) tile.cooldown = portals[key].cooldown;
       }
     }
@@ -1746,6 +1856,18 @@ $(function() {
     }
     applySpawnMeta('red');
     applySpawnMeta('blue');
+    applyMarsBalls(json, 0, 0);
+  }
+
+  function applyMarsBalls(json, deltaX, deltaY) {
+    if (!json) return;
+    var marsballs = json.marsballs || [];
+    for (var i = 0; i < marsballs.length; i++) {
+      var x = parseInt(marsballs[i].x, 10) + (deltaX || 0);
+      var y = parseInt(marsballs[i].y, 10) + (deltaY || 0);
+      var tile = (tiles[x] || [])[y];
+      if (tile) new TileState(tile, {type: marsBallType}).restoreInto(tile);
+    }
   }
 
   function restoreFromExtractedMap(extracted, jsonString, doHistoryClear) {
@@ -1761,7 +1883,7 @@ $(function() {
       for (y = 0; y < heightRows; y++) {
         cell = (rows[y] || [])[x];
         name = (cell && typeof cell === 'object') ? cell.type : cell;
-        cols[x][y] = byName[name] || emptyType;
+        cols[x][y] = (name === 'marsBall' ? floorType : (byName[name] || emptyType));
       }
     }
     if (applyingRemote && persistTimer) {
@@ -1774,8 +1896,13 @@ $(function() {
       for (x = 0; x < widthCols; x++) {
         cell = (rows[y] || [])[x];
         var tile = tiles[x] && tiles[x][y];
-        if (!tile || !cell || typeof cell !== 'object') continue;
-        if (cell.type === 'portal' && cell.destination) {
+        if (!tile) continue;
+        name = (cell && typeof cell === 'object') ? cell.type : cell;
+        if (name === 'marsBall' || (cell && typeof cell === 'object' && cell.topType === 'marsBall')) {
+          new TileState(tile, {type: marsBallType}).restoreInto(tile);
+        }
+        if (!cell || typeof cell !== 'object') continue;
+        if (isEnterablePortal(tile.type) && cell.destination) {
           tile.destination = (tiles[cell.destination[0]] || [])[cell.destination[1]];
         } else if (cell.type === 'switch' && cell.targets) {
           tile.affected = {};
@@ -1794,6 +1921,7 @@ $(function() {
       json = jsonString;
     }
     applyJsonMetadata(json);
+    recountMarsBalls();
 
     savePoint();
     if (doHistoryClear) clearHistory();
@@ -1901,9 +2029,10 @@ $(function() {
   var paletteOrder = [
     bombType, emptyType,
     wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType, floorType,
-    spikeType, powerupType, portalType, gravityWellType,
+    spikeType, powerupType, gravityWellType, marsBallType,
+    portalType, exitPortalType, redPortalType, bluePortalType,
     redFlagType, blueFlagType, redSpawnType, blueSpawnType, redEndzoneType, blueEndzoneType, yellowFlagType,
-    speedpadType, redSpeedPadType, blueSpeedpadType, redFloorType, blueFloorType,
+    speedpadType, redSpeedPadType, blueSpeedpadType, redFloorType, blueFloorType, yellowFloorType,
     switchType, offFieldType, onFieldType, redFieldType, blueFieldType
   ];
 
@@ -1915,8 +2044,10 @@ $(function() {
     var sheetCss = (tileSheetWidth * cell) + 'px ' + (tileSheetHeight * cell) + 'px';
     var imageCss = type.image
       ? (type.imageTileWidth * cell + 'px ' + type.imageTileHeight * cell + 'px')
-      : sheetCss;
-    var pos = '-' + (type.sheetX * cell) + 'px -' + (type.sheetY * cell) + 'px';
+      : ((tileSheetWidth * cell * (type.multiplier || 1)) + 'px ' + (tileSheetHeight * cell * (type.multiplier || 1)) + 'px');
+    var mult = type.multiplier || 1;
+    var shift = (mult !== 1) ? (cell * (1 - mult) / 2) : 0;
+    var pos = (-type.sheetX * cell * mult + shift) + 'px ' + (-type.sheetY * cell * mult + shift) + 'px';
     var floorPos = '-' + (floorType.sheetX * cell) + 'px -' + (floorType.sheetY * cell) + 'px';
     $button.css({
       width: sizeCss,
@@ -2180,6 +2311,7 @@ $(function() {
       })
 
       var fields = json.fields || {};
+      var portals = json.portals || {};
       if (!json.spawnPoints) json.spawnPoints = { red: [], blue: [] };
       if (!json.spawnPoints.red) json.spawnPoints.red = [];
       if (!json.spawnPoints.blue) json.spawnPoints.blue = [];
@@ -2200,6 +2332,9 @@ $(function() {
             } else if (type == blueSpawnType) {
               type = floorType;
               json.spawnPoints.blue.push({x: destX, y: destY});
+            } else if (type == portalType || type == exitPortalType) {
+              var hasDestination = !!(portals[sourceX + ',' + sourceY] || {}).destination;
+              type = hasDestination ? portalType : exitPortalType;
             } else if (type == onFieldType || type==offFieldType || type==redFieldType || type==blueFieldType) {
               type = {on: onFieldType, off: offFieldType, red: redFieldType, blue: blueFieldType
               }[(fields[sourceX+','+sourceY]||{}).defaultState] || offFieldType;
@@ -2217,14 +2352,17 @@ $(function() {
       $('#mapName').val(info.name || '');
       $('#author').val(info.author || '');
 
-      var portals = json.portals || {};
       for (var key in portals) {
         var xy = key.split(',');
-        var tile = (tiles[xy[0]]||[])[xy[1]];
-        if (tile && tile.type==portalType) {
-          var dest = portals[key].destination||{};
-          tile.destination = (tiles[dest.x]||[])[dest.y];
-          tile.cooldown = portals[key].cooldown;
+        var portalX = parseInt(xy[0], 10) + deltaX;
+        var portalY = parseInt(xy[1], 10) + deltaY;
+        var tile = (tiles[portalX]||[])[portalY];
+        if (tile && isEnterablePortal(tile.type)) {
+          var dest = portals[key].destination || {};
+          if (dest && dest.x != undefined && dest.y != undefined) {
+            tile.destination = (tiles[parseInt(dest.x, 10) + deltaX]||[])[parseInt(dest.y, 10) + deltaY];
+          }
+          if (portals[key].cooldown != undefined) tile.cooldown = portals[key].cooldown;
         }
       }
 
@@ -2253,7 +2391,7 @@ $(function() {
           var tile = (tiles[x] || [])[y];
           if (!tile) return;
           var under = tile.type;
-          if (under !== floorType && under !== redFloorType && under !== blueFloorType && under !== spawnType) return;
+          if (under !== floorType && under !== yellowFloorType && under !== redFloorType && under !== blueFloorType && under !== spawnType) return;
           var changes = { type: spawnType };
           if (pt.radius != undefined) changes.radius = pt.radius;
           if (pt.weight != undefined) changes.weight = pt.weight;
@@ -2262,6 +2400,8 @@ $(function() {
       }
       applyImportedSpawns('red');
       applyImportedSpawns('blue');
+      applyMarsBalls(json, deltaX, deltaY);
+      recountMarsBalls();
 
       savePoint();
       if (doHistoryClear) clearHistory();
@@ -2395,6 +2535,7 @@ $(function() {
         }
         applySize(tile.affectedIndicator);
         applySize(tile.selectionIndicator);
+        if (tile.topSquare) applySize(tile.topSquare);
         tile.selectionIndicator.style.backgroundSize = singleTileBackgroundSize;
         applySize(tile.elem[0]);
         applySize(tile.background[0]);
@@ -2404,6 +2545,7 @@ $(function() {
           applyQuadrantSize(tile.quadrantElems[q], q & 2, (q + 1) & 2);
         }
         tile.type.drawOn(tile.elem, tile);
+        if (tile.topType) tile.topType.drawOn(tile.elem, tile, true);
         floorType.drawOn(tile.background, null);
       }
     }
@@ -2888,9 +3030,15 @@ $(function() {
       kids[q].style.position = 'absolute';
       kids[q].style.backgroundSize = sheetSize;
     }
-    if (kids[4]) kids[4].style.display = 'none';
-    if (kids[5]) kids[5].style.display = 'none';
-    if (kids[6]) kids[6].style.display = 'none';
+    for (var hi = 0; hi < kids.length; hi++) {
+      if (!kids[hi]) continue;
+      if (/selectionIndicator|potentialHighlight/.test(kids[hi].className || '')) {
+        kids[hi].style.display = 'none';
+      }
+      if (/topSquare/.test(kids[hi].className || '')) {
+        kids[hi].style.display = 'none';
+      }
+    }
     bustDrawCache($bg);
     bustDrawCache($tile);
     var saved = tileSize;
@@ -2907,10 +3055,12 @@ $(function() {
       var fake = {
         x: x,
         y: y,
-        quadrantElems: [kids[0], kids[1], kids[2], kids[3]]
+        quadrantElems: [kids[0], kids[1], kids[2], kids[3]],
+        topSquare: tileEl.querySelector('.topSquare') || kids[4]
       };
       floorType.drawOn($bg, null);
       src.type.drawOn($tile, fake);
+      if (src.topType) src.topType.drawOn($tile, fake, true);
     }
     tileSize = saved;
   }
@@ -2942,6 +3092,26 @@ $(function() {
     rotateCw: function() { rotateMap(90); },
     rotateCcw: function() { rotateMap(-90); },
     flipH: function() { flipMap('h'); },
-    flipV: function() { flipMap('v'); }
+    flipV: function() { flipMap('v'); },
+    paletteNames: function() {
+      return paletteOrder.map(function(t) { return t.name; });
+    },
+    inspectTile: function(x, y) {
+      var t = tiles[x] && tiles[x][y];
+      if (!t) return null;
+      return {
+        type: t.type && t.type.name,
+        topType: t.topType && t.topType.name,
+        destination: t.destination ? { x: t.destination.x, y: t.destination.y } : null
+      };
+    },
+    setTile: function(x, y, typeName) {
+      var type = typeByNameMap()[typeName];
+      if (!type || !tiles[x] || !tiles[x][y]) return false;
+      applyStep(new UndoStep([new TileState(tiles[x][y], { type: type })]));
+      savePoint();
+      return true;
+    },
+    marsBallCount: function() { return marsBallCount; }
   };
 });
