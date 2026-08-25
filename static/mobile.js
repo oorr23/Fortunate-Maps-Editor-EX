@@ -2,7 +2,6 @@ $(function() {
   var LOUPE_TILES = 11;
   var LOUPE_CELL = 24;
   var LOUPE_SIZE = LOUPE_TILES * LOUPE_CELL;
-  var LOUPE_LIFT = LOUPE_SIZE + 28;
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
@@ -564,7 +563,7 @@ $(function() {
 
   function showLoupe() {
     loupeVisible = true;
-    $loupe.toggleClass('follow-finger', !!(loupeFollow && isPhoneLayout()));
+    $loupe.toggleClass('follow-finger', !!loupeFollow);
     $loupe.addClass('visible').attr('aria-hidden', 'false');
   }
 
@@ -671,31 +670,18 @@ $(function() {
   }
 
   function positionLoupe(clientX, clientY) {
-    var left = clientX;
-    var top = clientY;
-    var followFinger = loupeFollow && isPhoneLayout();
-    if (!followFinger) {
-      top = clientY - LOUPE_LIFT;
-      var half = LOUPE_SIZE / 2;
-      left = Math.max(half + 8, Math.min(left, window.innerWidth - half - 8));
-      top = Math.max(half + 8, Math.min(top, window.innerHeight - half - 8));
-    }
     if (clientX == null || clientY == null || isNaN(clientX) || isNaN(clientY)) return;
-    $loupe.css({ left: left + 'px', top: top + 'px', width: LOUPE_SIZE + 'px', height: LOUPE_SIZE + 'px' });
+    $loupe.css({
+      left: clientX + 'px',
+      top: clientY + 'px',
+      width: LOUPE_SIZE + 'px',
+      height: LOUPE_SIZE + 'px'
+    });
   }
 
-  function updateLoupe(clientX, clientY) {
-    var $tile = tileFromPoint(clientX, clientY);
-    if ($tile.length) {
-      var x = $tile.data('x');
-      var y = $tile.data('y');
-      if (x != null && y != null && !isNaN(x) && !isNaN(y)) {
-        loupeCenterX = x;
-        loupeCenterY = y;
-      }
-    }
-    if (loupeFollow) positionLoupe(clientX, clientY);
-    requestLoupeStamp();
+  function followLoupePointer(clientX, clientY, prevX, prevY) {
+    accumulateLoupeFollow(clientX - prevX, clientY - prevY);
+    positionLoupe(clientX, clientY);
   }
 
   function syncPaintToLoupeCenter() {
@@ -737,11 +723,6 @@ $(function() {
     if ((clientX == null || isNaN(clientX) || clientY == null || isNaN(clientY)) && holdStart) {
       clientX = holdStart.clientX;
       clientY = holdStart.clientY;
-    }
-    if (!isPhoneLayout()) {
-      loupeFollow = true;
-      updateLoupe(clientX, clientY);
-      return;
     }
     if (loupeVisible && loupeFollow) {
       positionLoupe(clientX, clientY);
@@ -1082,22 +1063,18 @@ $(function() {
           clearLongPress();
           if (!holdMovingLoupe) {
             beginHoldReposition(t.clientX, t.clientY);
-          } else if (isPhoneLayout()) {
-            accumulateLoupeFollow(t.clientX - prevX, t.clientY - prevY);
-            positionLoupe(t.clientX, t.clientY);
           } else {
-            updateLoupe(t.clientX, t.clientY);
+            followLoupePointer(t.clientX, t.clientY, prevX, prevY);
           }
         }
       }
       return;
     }
     e.preventDefault();
-    if (isPhoneLayout() && !suppressLoupe && ((loupeFollow && loupeVisible) || movedPastSlop(t.clientX, t.clientY))) {
+    if (!suppressLoupe && ((loupeFollow && loupeVisible) || movedPastSlop(t.clientX, t.clientY))) {
       clearLongPress();
       if (loupeVisible && loupeFollow) {
-        accumulateLoupeFollow(t.clientX - prevX, t.clientY - prevY);
-        positionLoupe(t.clientX, t.clientY);
+        followLoupePointer(t.clientX, t.clientY, prevX, prevY);
       } else {
         activateLoupeFollowFinger(t.clientX, t.clientY);
       }
@@ -1115,8 +1092,7 @@ $(function() {
     if (movedPastSlop(t.clientX, t.clientY) || loupeVisible) {
       if (suppressLoupe) return;
       clearLongPress();
-      loupeFollow = true;
-      updateLoupe(t.clientX, t.clientY);
+      activateLoupeFollowFinger(t.clientX, t.clientY);
     }
   }, { passive: false });
 
@@ -1254,29 +1230,20 @@ $(function() {
         clearLongPress();
         if (!holdMovingLoupe) {
           beginHoldReposition(e.clientX, e.clientY);
-        } else if (isPhoneLayout()) {
-          accumulateLoupeFollow(e.clientX - prevX, e.clientY - prevY);
-          positionLoupe(e.clientX, e.clientY);
         } else {
-          updateLoupe(e.clientX, e.clientY);
+          followLoupePointer(e.clientX, e.clientY, prevX, prevY);
         }
       }
       return;
     }
     if (!mouseLoupe || panMode) return;
-    if (isPhoneLayout() && loupeVisible && loupeFollow) {
-      accumulateLoupeFollow(e.clientX - prevX, e.clientY - prevY);
-      positionLoupe(e.clientX, e.clientY);
+    if (loupeVisible && loupeFollow) {
+      followLoupePointer(e.clientX, e.clientY, prevX, prevY);
       return;
     }
     if (movedPastSlop(e.clientX, e.clientY) || loupeVisible) {
       clearLongPress();
-      if (isPhoneLayout()) {
-        activateLoupeFollowFinger(e.clientX, e.clientY);
-      } else {
-        loupeFollow = true;
-        updateLoupe(e.clientX, e.clientY);
-      }
+      activateLoupeFollowFinger(e.clientX, e.clientY);
     }
   });
   $(document).on('mouseup', function(e) {
