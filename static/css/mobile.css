@@ -338,6 +338,7 @@ html:not(.layout-desktop) #tools .btn-group-justified {
   align-items: center;
   width: max-content;
   min-width: 0;
+  flex: 0 0 auto;
   gap: 8.4px;
   padding: 8px 10px 10px;
 }

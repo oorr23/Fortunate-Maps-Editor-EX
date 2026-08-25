@@ -1090,9 +1090,8 @@ $(function() {
     function centerOnActive(animate) {
       var active = el.querySelector('.btn.active');
       if (!active) return;
-      var group = el.querySelector('.btn-group-justified');
       // When the row fits, CSS spacers center it — don't fight that with scroll.
-      if (group && group.offsetWidth <= el.clientWidth) {
+      if (el.scrollWidth <= el.clientWidth) {
         el.scrollLeft = 0;
         return;
       }
