@@ -48,6 +48,17 @@ html, body {
   pointer-events: auto;
 }
 
+/* Follow-finger hold: keep map hit-testing punching through, and
+   hide the iOS-style stem so the widget does not look lifted. */
+.loupe.visible.follow-finger,
+.loupe.visible.follow-finger .loupe-inner {
+  pointer-events: none;
+}
+
+.loupe.follow-finger .loupe-stem {
+  display: none;
+}
+
 .loupe-inner {
   position: absolute;
   left: 0;
