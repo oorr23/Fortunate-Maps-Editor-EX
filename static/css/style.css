@@ -98,16 +98,34 @@ div.potentialHighlightOther {
     display:none;
     pointer-events: none;
 }
+.collab-identity {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    width: 100%;
+}
+.collab-identity #collabUsername {
+    flex: 1 1 0%;
+    min-width: 0;
+    width: auto;
+    margin-top: 0;
+}
 .collab-colors {
     display: flex;
     flex-wrap: wrap;
+    flex: 0 1 auto;
     gap: 4px;
-    margin-top: 6px;
+    margin-top: 0;
     align-items: center;
+    justify-content: flex-end;
+    max-width: 50%;
 }
 .highlight-color {
     height: 20px;
     width: 20px;
+    flex: 0 0 20px;
     box-sizing: border-box;
     cursor: pointer;
     border: 1px solid rgba(0,0,0,0.25);
@@ -132,7 +150,6 @@ div.potentialHighlightOther {
 .pink { background-color: #ffb8e8; }
 .brown { background-color: #816040; }
 #collabUsername {
-    margin-top: 6px;
     font-size: 12px;
     height: 28px;
     min-height: 28px;
@@ -162,4 +179,135 @@ a.selectedTool {
 }
 #resizeWidth, #resizeHeight {
     padding-right: 0px;
+}
+
+.instructions-body p,
+.instructions-body ul {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+.instructions-body ul {
+    padding-left: 18px;
+}
+
+.collab-chat-edge {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 22px;
+    height: 100%;
+    z-index: 5;
+    pointer-events: auto;
+    touch-action: none;
+    background: linear-gradient(to left, rgba(255,255,255,0.1), transparent 70%);
+}
+.collab-chat-edge.has-unread {
+    background: linear-gradient(to left, rgba(110, 180, 255, 0.55), transparent 85%);
+    box-shadow: -3px 0 14px rgba(90, 170, 255, 0.55);
+}
+html.collab-chat-open .collab-chat-edge {
+    pointer-events: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.collab-chat-backdrop {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 29;
+    background: rgba(0, 0, 0, 0.22);
+}
+.collab-chat-backdrop[hidden] {
+    display: none !important;
+}
+
+.collab-chat {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(280px, 70vw);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    background: rgba(16, 18, 22, 0.88);
+    color: #eee;
+    box-shadow: -4px 0 18px rgba(0, 0, 0, 0.35);
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+    pointer-events: none;
+    box-sizing: border-box;
+}
+.collab-chat.is-open,
+.collab-chat.is-dragging {
+    pointer-events: auto;
+}
+.collab-chat.is-open {
+    transform: translateX(0);
+}
+.collab-chat.is-dragging {
+    transition: none;
+}
+.collab-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    font-weight: 600;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.collab-chat-close {
+    background: transparent;
+    border: 0;
+    color: #eee;
+    font-size: 22px;
+    line-height: 1;
+    padding: 0 4px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+.collab-chat-log {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.35;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+.collab-chat-system {
+    color: #9aa0a6;
+    font-style: italic;
+    margin: 4px 0;
+}
+.collab-chat-line {
+    margin: 4px 0;
+}
+.collab-chat-log a {
+    color: #8ec8ff;
+    word-break: break-all;
+}
+.collab-chat-form {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 8px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+}
+.collab-chat-form .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 32px;
+    min-height: 32px;
+    font-size: 13px;
+}
+.collab-chat-form .btn {
+    flex: 0 0 auto;
 }

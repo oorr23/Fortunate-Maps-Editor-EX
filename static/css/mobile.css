@@ -315,6 +315,16 @@ html:not(.layout-desktop) #tools {
   scrollbar-width: none;
 }
 
+/* Flex spacers center the icon cluster when it fits; they collapse when it overflows. */
+html.layout-mobile #tools::before,
+html.layout-mobile #tools::after,
+html:not(.layout-desktop) #tools::before,
+html:not(.layout-desktop) #tools::after {
+  content: '';
+  flex: 1 0 0;
+  min-width: 0;
+}
+
 html.layout-mobile #tools::-webkit-scrollbar,
 html:not(.layout-desktop) #tools::-webkit-scrollbar {
   display: none;
@@ -328,6 +338,7 @@ html:not(.layout-desktop) #tools .btn-group-justified {
   align-items: center;
   width: max-content;
   min-width: 0;
+  flex: 0 0 auto;
   gap: 8.4px;
   padding: 8px 10px 10px;
 }
@@ -1108,6 +1119,27 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
     min-height: 28px;
     height: 28px;
   }
+
+  html.layout-mobile .collab-identity,
+  html:not(.layout-desktop) .collab-identity {
+    flex: 1 1 100%;
+    width: 100%;
+    align-items: center;
+  }
+
+  html.layout-mobile .collab-identity #collabUsername,
+  html:not(.layout-desktop) .collab-identity #collabUsername {
+    width: auto;
+    flex: 1 1 0%;
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  html.layout-mobile .collab-identity .collab-colors,
+  html:not(.layout-desktop) .collab-identity .collab-colors {
+    margin-top: 0;
+    flex: 0 1 auto;
+  }
 }
 
 /* ===== DESKTOP (exception) ===== */
@@ -1271,7 +1303,9 @@ html.theme-dark #moreSheet .form-control,
 html.theme-dark #moreSheet .input-group-addon,
 html.theme-dark #moreSheet select,
 html.theme-dark #importExport .modal-content,
-html.theme-dark #importExport .form-control {
+html.theme-dark #importExport .form-control,
+html.theme-dark #instructionsModal .modal-content,
+html.theme-dark #instructionsModal .form-control {
   background-color: #2a2f38;
   border-color: #3a3f4a;
   color: #f2f2f2;
@@ -1281,7 +1315,8 @@ html.theme-dark #moreSheet .help-block,
 html.theme-dark #moreSheet .source-link,
 html.theme-dark #moreSheet .source-link a,
 html.theme-dark #moreSheet .help-block a,
-html.theme-dark #importExport {
+html.theme-dark #importExport,
+html.theme-dark #instructionsModal {
   color: #c8c8c8;
 }
 
@@ -1290,17 +1325,21 @@ html.theme-dark .highlight-color:hover {
   border-color: #fff;
 }
 
-html.theme-dark #importExport .modal-content {
+html.theme-dark #importExport .modal-content,
+html.theme-dark #instructionsModal .modal-content {
   background: #1e2229;
   color: #eee;
 }
 
 html.theme-dark #importExport .modal-header,
-html.theme-dark #importExport .modal-footer {
+html.theme-dark #importExport .modal-footer,
+html.theme-dark #instructionsModal .modal-header,
+html.theme-dark #instructionsModal .modal-footer {
   border-color: #3a3f4a;
 }
 
-html.theme-dark #importExport .close {
+html.theme-dark #importExport .close,
+html.theme-dark #instructionsModal .close {
   color: #fff;
   opacity: 0.8;
 }

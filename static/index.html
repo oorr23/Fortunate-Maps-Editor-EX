@@ -66,19 +66,26 @@
                   <span class="glyphicon glyphicon-link"></span> Collab
                 </button>
               </div>
+              <div class="btn-group">
+                <button type="button" id="instructions" class="btn btn-default" title="Instructions" data-toggle="modal" data-target="#instructionsModal">
+                  <span class="glyphicon glyphicon-info-sign"></span> Instructions
+                </button>
+              </div>
             </div>
             <p class="help-block" id="collabStatus" style="margin:8px 0 0;font-size:12px;"></p>
-            <input type="text" id="collabUsername" class="form-control" placeholder="Name" maxlength="32" autocomplete="nickname">
-            <div id="collabColors" class="collab-colors" role="group" aria-label="Cursor color">
-              <div data-color="green" class="highlight-color highlight-green green" title="Green"></div>
-              <div data-color="blue" class="highlight-color highlight-blue blue" title="Blue"></div>
-              <div data-color="red" class="highlight-color highlight-red red" title="Red"></div>
-              <div data-color="purple" class="highlight-color highlight-purple purple" title="Purple"></div>
-              <div data-color="orange" class="highlight-color highlight-orange orange" title="Orange"></div>
-              <div data-color="yellow" class="highlight-color highlight-yellow yellow" title="Yellow"></div>
-              <div data-color="turquoise" class="highlight-color highlight-turquoise turquoise" title="Turquoise"></div>
-              <div data-color="pink" class="highlight-color highlight-pink pink" title="Pink"></div>
-              <div data-color="brown" class="highlight-color highlight-brown brown" title="Brown"></div>
+            <div class="collab-identity">
+              <input type="text" id="collabUsername" class="form-control" placeholder="Name" maxlength="32" autocomplete="nickname">
+              <div id="collabColors" class="collab-colors" role="group" aria-label="Cursor color">
+                <div data-color="green" class="highlight-color highlight-green green" title="Green"></div>
+                <div data-color="blue" class="highlight-color highlight-blue blue" title="Blue"></div>
+                <div data-color="red" class="highlight-color highlight-red red" title="Red"></div>
+                <div data-color="purple" class="highlight-color highlight-purple purple" title="Purple"></div>
+                <div data-color="orange" class="highlight-color highlight-orange orange" title="Orange"></div>
+                <div data-color="yellow" class="highlight-color highlight-yellow yellow" title="Yellow"></div>
+                <div data-color="turquoise" class="highlight-color highlight-turquoise turquoise" title="Turquoise"></div>
+                <div data-color="pink" class="highlight-color highlight-pink pink" title="Pink"></div>
+                <div data-color="brown" class="highlight-color highlight-brown brown" title="Brown"></div>
+              </div>
             </div>
             <div id="collabUsers" class="collab-users"></div>
           </div>
@@ -394,6 +401,47 @@
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="instructionsModal" tabindex="-1" role="dialog" aria-labelledby="instructionsLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+          <h4 class="modal-title" id="instructionsLabel">Instructions</h4>
+        </div>
+        <div class="modal-body instructions-body">
+          <p><strong>Draw.</strong> Pick a tile from the palette carousel, then tap or drag on the map. Dock tools (brush, line, fill, and the rest) paint many tiles at once.</p>
+          <p><strong>Tile settings.</strong> Portals, buttons, and team spawns have extra options. Shift-click or double-click a tile; on a phone, long-press or double-tap.</p>
+          <ul>
+            <li>Portal: cooldown in milliseconds (0 = none).</li>
+            <li>Button: timer in seconds (0 = off when you leave; negative = stays on).</li>
+            <li>Spawn: radius in tiles and weight (how often it is chosen).</li>
+          </ul>
+          <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
+          <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row. Undo/redo with the dock buttons or Z / Y.</p>
+          <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe in from the right edge of the screen for room chat (join/leave lines and messages). Esc, a swipe back, or a tap outside closes it.</p>
+          <p>Happy map making.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="collabChatEdge" class="collab-chat-edge" aria-hidden="true" title="Swipe in from the right for chat"></div>
+  <div id="collabChatBackdrop" class="collab-chat-backdrop" hidden></div>
+  <aside id="collabChat" class="collab-chat" aria-hidden="true" aria-label="Collab chat">
+    <div class="collab-chat-header">
+      <span>Chat</span>
+      <button type="button" id="collabChatClose" class="collab-chat-close" title="Close chat" aria-label="Close chat">&times;</button>
+    </div>
+    <div id="collabChatLog" class="collab-chat-log"></div>
+    <form id="collabChatForm" class="collab-chat-form" action="#">
+      <input type="text" id="collabChatInput" class="form-control" maxlength="300" placeholder="Message" autocomplete="off">
+      <button type="submit" class="btn btn-default btn-sm">Send</button>
+    </form>
+  </aside>
   
   <script type="text/javascript" src="map.js"></script>
   <script type="text/javascript" src="collab.js"></script>

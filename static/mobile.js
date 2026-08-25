@@ -1090,6 +1090,11 @@ $(function() {
     function centerOnActive(animate) {
       var active = el.querySelector('.btn.active');
       if (!active) return;
+      // When the row fits, CSS spacers center it — don't fight that with scroll.
+      if (el.scrollWidth <= el.clientWidth) {
+        el.scrollLeft = 0;
+        return;
+      }
       var left = active.offsetLeft - (el.clientWidth / 2) + (active.offsetWidth / 2);
       if (left < 0) left = 0;
       var max = Math.max(0, el.scrollWidth - el.clientWidth);
