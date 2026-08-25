@@ -315,6 +315,16 @@ html:not(.layout-desktop) #tools {
   scrollbar-width: none;
 }
 
+/* Flex spacers center the icon cluster when it fits; they collapse when it overflows. */
+html.layout-mobile #tools::before,
+html.layout-mobile #tools::after,
+html:not(.layout-desktop) #tools::before,
+html:not(.layout-desktop) #tools::after {
+  content: '';
+  flex: 1 0 0;
+  min-width: 0;
+}
+
 html.layout-mobile #tools::-webkit-scrollbar,
 html:not(.layout-desktop) #tools::-webkit-scrollbar {
   display: none;
@@ -328,6 +338,7 @@ html:not(.layout-desktop) #tools .btn-group-justified {
   align-items: center;
   width: max-content;
   min-width: 0;
+  flex: 0 0 auto;
   gap: 8.4px;
   padding: 8px 10px 10px;
 }
