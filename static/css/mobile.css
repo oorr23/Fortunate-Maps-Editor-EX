@@ -624,6 +624,20 @@ html:not(.layout-desktop) #moreSheet .dropdown-menu {
   margin-bottom: 4px;
 }
 
+html.layout-mobile #moreSheet #collab,
+html:not(.layout-desktop) #moreSheet #collab {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+html.layout-mobile #moreSheet .collab-colors,
+html:not(.layout-desktop) #moreSheet .collab-colors {
+  --collab-swatch: 44px;
+  justify-content: center;
+}
+
 html.layout-mobile #moreSheet .btn,
 html.layout-mobile #moreSheet .form-control,
 html.layout-mobile #moreSheet .input-group-addon,
@@ -1113,10 +1127,11 @@ html:not(.layout-desktop).orient-landscape .collab-identity #collabUsername {
   margin-top: 0;
 }
 
-html.layout-mobile.orient-landscape .collab-identity .collab-colors,
-html:not(.layout-desktop).orient-landscape .collab-identity .collab-colors {
-  margin-top: 0;
-  flex: 0 1 auto;
+html.layout-mobile.orient-landscape #moreSheet .collab-colors,
+html:not(.layout-desktop).orient-landscape #moreSheet .collab-colors {
+  --collab-swatch: 36px;
+  margin-top: 8px;
+  justify-content: center;
 }
 
 html.layout-mobile .dock-btn .dock-flip,
@@ -1417,10 +1432,11 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
     margin-top: 0;
   }
 
-  html.layout-mobile .collab-identity .collab-colors,
-  html:not(.layout-desktop) .collab-identity .collab-colors {
-    margin-top: 0;
-    flex: 0 1 auto;
+  html.layout-mobile #moreSheet .collab-colors,
+  html:not(.layout-desktop) #moreSheet .collab-colors {
+    --collab-swatch: 36px;
+    margin-top: 8px;
+    justify-content: center;
   }
 
   html.theme-light.layout-mobile .more-panels,
