@@ -2,10 +2,12 @@ $(function() {
   var LOUPE_TILES = 11;
   var LOUPE_CELL = 24;
   var LOUPE_SIZE = LOUPE_TILES * LOUPE_CELL;
-  // Square fisheye loupe: SVG displacement on .loupe-inner only.
-  // Set false to restore the regular grid (no filter).
+  // Fisheye loupe: SVG displacement on .loupe-inner only.
+  // Set LOUPE_FISHEYE false to restore the regular grid (no filter).
+  // LOUPE_FISHEYE_SHAPE: 'circle' (default) or 'square' (Chebyshev + rounded-square chrome).
   var LOUPE_FISHEYE = true;
   var LOUPE_FISHEYE_POWER = 0.66;
+  var LOUPE_FISHEYE_SHAPE = 'circle';
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
@@ -636,9 +638,14 @@ $(function() {
   }
 
   function fisheyeUnitScale(nx, ny, power) {
-    var m = Math.max(Math.abs(nx), Math.abs(ny));
-    if (m === 0) return 0;
-    return Math.pow(m, power - 1);
+    var r = LOUPE_FISHEYE_SHAPE === 'circle'
+      ? Math.hypot(nx, ny)
+      : Math.max(Math.abs(nx), Math.abs(ny));
+    if (r === 0) return 0;
+    // r = 1 at the inscribed circle (mid-sides). Outside it, identity — those
+    // pixels are clipped by the circular chrome.
+    if (LOUPE_FISHEYE_SHAPE === 'circle' && r > 1) return 1;
+    return Math.pow(r, power - 1);
   }
 
   function fisheyeInverse(nx, ny) {
@@ -684,6 +691,8 @@ $(function() {
 
   function applyLoupeFisheyeFilter() {
     if (!loupeInner) return;
+    var circleChrome = LOUPE_FISHEYE && LOUPE_FISHEYE_SHAPE === 'circle';
+    $loupe.toggleClass('loupe-circle', circleChrome);
     if (!LOUPE_FISHEYE) {
       loupeInner.classList.remove('fisheye');
       loupeInner.style.filter = 'none';
@@ -718,10 +727,10 @@ $(function() {
     var col;
     var row;
     if (LOUPE_FISHEYE) {
-      var mapped = fisheyeInverse(
-        (x / rect.width) * 2 - 1,
-        (y / rect.height) * 2 - 1
-      );
+      var nx = (x / rect.width) * 2 - 1;
+      var ny = (y / rect.height) * 2 - 1;
+      if (LOUPE_FISHEYE_SHAPE === 'circle' && Math.hypot(nx, ny) > 1) return null;
+      var mapped = fisheyeInverse(nx, ny);
       col = Math.floor((mapped.nx + 1) / 2 * LOUPE_TILES);
       row = Math.floor((mapped.ny + 1) / 2 * LOUPE_TILES);
     } else {
