@@ -60,32 +60,12 @@
                 </ul>
               </div>
             </div>
-            <div class="btn-group btn-group-justified" style="margin-top:8px">
-              <div class="btn-group">
-                <button type="button" id="collab" class="btn btn-default" title="Copy a live collab link">
-                  <span class="glyphicon glyphicon-link"></span> Collab
-                </button>
-              </div>
-              <div class="btn-group">
-                <button type="button" id="instructions" class="btn btn-default" title="Instructions" data-toggle="modal" data-target="#instructionsModal">
-                  <span class="glyphicon glyphicon-info-sign"></span> Instructions
-                </button>
-              </div>
-            </div>
+            <button type="button" id="collab" class="btn btn-default" title="Copy a live collab link" style="margin-top:8px">
+              <span class="glyphicon glyphicon-link"></span> Collab
+            </button>
             <p class="help-block" id="collabStatus" style="margin:8px 0 0;font-size:12px;"></p>
             <div class="collab-identity">
               <input type="text" id="collabUsername" class="form-control" placeholder="Name" maxlength="32" autocomplete="nickname">
-              <div id="collabColors" class="collab-colors" role="group" aria-label="Cursor color">
-                <div data-color="green" class="highlight-color highlight-green green" title="Green"></div>
-                <div data-color="blue" class="highlight-color highlight-blue blue" title="Blue"></div>
-                <div data-color="red" class="highlight-color highlight-red red" title="Red"></div>
-                <div data-color="purple" class="highlight-color highlight-purple purple" title="Purple"></div>
-                <div data-color="orange" class="highlight-color highlight-orange orange" title="Orange"></div>
-                <div data-color="yellow" class="highlight-color highlight-yellow yellow" title="Yellow"></div>
-                <div data-color="turquoise" class="highlight-color highlight-turquoise turquoise" title="Turquoise"></div>
-                <div data-color="pink" class="highlight-color highlight-pink pink" title="Pink"></div>
-                <div data-color="brown" class="highlight-color highlight-brown brown" title="Brown"></div>
-              </div>
             </div>
             <div id="collabUsers" class="collab-users"></div>
           </div>
@@ -110,6 +90,20 @@
                 <button class="btn btn-default btn-block" title="Import or export map" data-target="#importExport" data-toggle="modal">
                   <span class="glyphicon glyphicon-import"></span> / <span class="glyphicon glyphicon-export"></span>
                 </button>
+                <button type="button" id="instructions" class="btn btn-default btn-block" title="Instructions" data-toggle="modal" data-target="#instructionsModal" style="margin-top:8px">
+                  <span class="glyphicon glyphicon-info-sign"></span> Instructions
+                </button>
+                <div id="collabColors" class="collab-colors" role="group" aria-label="Cursor color">
+                  <div data-color="green" class="highlight-color highlight-green green" title="Green"></div>
+                  <div data-color="blue" class="highlight-color highlight-blue blue" title="Blue"></div>
+                  <div data-color="red" class="highlight-color highlight-red red" title="Red"></div>
+                  <div data-color="purple" class="highlight-color highlight-purple purple" title="Purple"></div>
+                  <div data-color="orange" class="highlight-color highlight-orange orange" title="Orange"></div>
+                  <div data-color="yellow" class="highlight-color highlight-yellow yellow" title="Yellow"></div>
+                  <div data-color="turquoise" class="highlight-color highlight-turquoise turquoise" title="Turquoise"></div>
+                  <div data-color="pink" class="highlight-color highlight-pink pink" title="Pink"></div>
+                  <div data-color="brown" class="highlight-color highlight-brown brown" title="Brown"></div>
+                </div>
               </div>
             </div>
           </div>
