@@ -515,10 +515,13 @@ $(function() {
   var lastPointer = { x: 0, y: 0 };
   var loupeFocusTile = null;
   var loupeFollowAcc = { x: 0, y: 0 };
+  var loupeFollowOrigin = null;
+  var lastTouchAt = 0;
   var lastSettingsTap = null;
   var suppressLoupe = false;
   var pendingSettingsPaint = null;
   var settingsPaintTimer = null;
+  var parkedLoupePending = null;
 
   function clearSettingsPaint() {
     if (settingsPaintTimer) {
@@ -546,13 +549,18 @@ $(function() {
     loupeVisible = false;
     loupeFollow = false;
     loupePainting = false;
+    painting = false;
+    mouseLoupe = false;
     pendingDismiss = false;
     holdMovingLoupe = false;
     holdStart = null;
     suppressLoupe = false;
     loupeFocusTile = null;
+    lastTileEl = null;
+    parkedLoupePending = null;
     loupeFollowAcc.x = 0;
     loupeFollowAcc.y = 0;
+    loupeFollowOrigin = null;
     clearSettingsPaint();
     if (loupeRaf) {
       cancelAnimationFrame(loupeRaf);
@@ -563,14 +571,27 @@ $(function() {
 
   function showLoupe() {
     loupeVisible = true;
-    $loupe.toggleClass('follow-finger', !!loupeFollow);
+    $loupe.toggleClass('follow-finger', !!loupeFollow && !holdMovingLoupe);
     $loupe.addClass('visible').attr('aria-hidden', 'false');
   }
 
   function stopLoupeFollow() {
     loupeFollow = false;
     holdMovingLoupe = false;
+    loupeFollowOrigin = null;
     $loupe.removeClass('follow-finger');
+  }
+
+  function noteTouch() {
+    lastTouchAt = Date.now();
+  }
+
+  function isEmulatedMouse(e) {
+    if (!e) return Date.now() - lastTouchAt < 800;
+    var oe = e.originalEvent || e;
+    if (oe.sourceCapabilities && oe.sourceCapabilities.firesTouchEvents) return true;
+    if (oe.pointerType === 'touch') return true;
+    return Date.now() - lastTouchAt < 800;
   }
 
   function captureLoupeFocusTile($tile) {
@@ -589,10 +610,22 @@ $(function() {
   }
 
   function mapTileAt(x, y) {
+    if (window.TagproMap && TagproMap.tileElem) {
+      var $fromMap = TagproMap.tileElem(x, y);
+      if ($fromMap && $fromMap.length) return $fromMap;
+    }
     var rows = mapEl.querySelectorAll('.tileRow');
     var row = rows[y];
     if (!row || x < 0 || x >= row.children.length) return $();
     return $(row.children[x]).find('.tile').first();
+  }
+
+  function mapTileUnderPointer(clientX, clientY) {
+    var $tile = tileFromPoint(clientX, clientY);
+    if ($tile.length) return $tile;
+    var cell = loupeCellFromPoint(clientX, clientY);
+    if (!cell) return $();
+    return mapTileAt(cell.x, cell.y);
   }
 
   function loupeCellFromPoint(clientX, clientY) {
@@ -679,9 +712,40 @@ $(function() {
     });
   }
 
-  function followLoupePointer(clientX, clientY, prevX, prevY) {
-    accumulateLoupeFollow(clientX - prevX, clientY - prevY);
+  function setLoupeFollowOrigin(pointerX, pointerY, centerX, centerY) {
+    loupeFollowOrigin = {
+      pointerX: pointerX,
+      pointerY: pointerY,
+      centerX: centerX,
+      centerY: centerY
+    };
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
+  }
+
+  function followLoupeTo(clientX, clientY) {
+    if (clientX == null || clientY == null || isNaN(clientX) || isNaN(clientY)) return;
+    lastPointer = { x: clientX, y: clientY };
     positionLoupe(clientX, clientY);
+    var $tile = mapTileUnderPointer(clientX, clientY);
+    if (!$tile.length) return;
+    var x = Number($tile.data('x'));
+    var y = Number($tile.data('y'));
+    if (isNaN(x) || isNaN(y)) return;
+    if (x === loupeCenterX && y === loupeCenterY) {
+      syncPaintToLoupeCenter();
+      return;
+    }
+    loupeCenterX = x;
+    loupeCenterY = y;
+    clampLoupeCenter();
+    loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    stampLoupeNow();
+    syncPaintToLoupeCenter();
+  }
+
+  function followLoupePointer(clientX, clientY) {
+    followLoupeTo(clientX, clientY);
   }
 
   function syncPaintToLoupeCenter() {
@@ -724,8 +788,8 @@ $(function() {
       clientX = holdStart.clientX;
       clientY = holdStart.clientY;
     }
-    if (loupeVisible && loupeFollow) {
-      positionLoupe(clientX, clientY);
+    if (loupeVisible && loupeFollow && loupeFollowOrigin) {
+      followLoupeTo(clientX, clientY);
       return;
     }
     if (loupeFocusTile) {
@@ -733,13 +797,11 @@ $(function() {
       loupeCenterY = loupeFocusTile.y;
     }
     clampLoupeCenter();
-    loupeFollowAcc.x = 0;
-    loupeFollowAcc.y = 0;
-    if (holdStart) {
-      accumulateLoupeFollow(clientX - holdStart.clientX, clientY - holdStart.clientY);
-    }
+    var ox = (holdStart && holdStart.clientX != null) ? holdStart.clientX : clientX;
+    var oy = (holdStart && holdStart.clientY != null) ? holdStart.clientY : clientY;
+    setLoupeFollowOrigin(ox, oy, loupeCenterX, loupeCenterY);
     loupeFollow = true;
-    positionLoupe(clientX, clientY);
+    followLoupeTo(clientX, clientY);
     stampLoupeNow();
     syncPaintToLoupeCenter();
   }
@@ -815,21 +877,24 @@ $(function() {
     }
   }
 
+  function endLoupePaint() {
+    if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
+    loupePainting = false;
+    painting = false;
+    lastTileEl = null;
+    if (loupeVisible) renderLoupe();
+  }
+
   function paintLoupeAt(clientX, clientY, phase) {
+    if (phase === 'end') {
+      endLoupePaint();
+      return true;
+    }
     var cell = loupeCellFromPoint(clientX, clientY);
     if (!cell) return false;
     var $tile = mapTileAt(cell.x, cell.y);
     if (!$tile.length) return false;
     if (phase === 'start') {
-      if (handleSettingsDoubleTap(cell.x, cell.y)) return true;
-      if (mapHasSettings(cell.x, cell.y)) {
-        suppressLoupe = true;
-        settingsPointerDown = true;
-        holdStart = { clientX: clientX, clientY: clientY };
-        lastPointer = { x: clientX, y: clientY };
-        queueSettingsPaint($tile, clientX, clientY);
-        return true;
-      }
       loupePainting = true;
       painting = true;
       lastTileEl = $tile[0];
@@ -842,11 +907,6 @@ $(function() {
       }
       triggerTile($tile, 'mousemove');
       lastTileEl = $tile[0];
-    } else {
-      if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
-      loupePainting = false;
-      painting = false;
-      lastTileEl = null;
     }
     renderLoupe();
     return true;
@@ -864,6 +924,104 @@ $(function() {
     pendingDismiss = false;
     holdMovingLoupe = true;
     activateLoupeFollowFinger(clientX, clientY);
+  }
+
+  function recenterLoupeOn(x, y, clientX, clientY) {
+    loupeCenterX = x;
+    loupeCenterY = y;
+    clampLoupeCenter();
+    loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
+    if (clientX != null && clientY != null && !isNaN(clientX) && !isNaN(clientY)) {
+      positionLoupe(clientX, clientY);
+      setLoupeFollowOrigin(clientX, clientY, loupeCenterX, loupeCenterY);
+    }
+    stampLoupeNow();
+  }
+
+  function startFollowPaintAtCenter() {
+    var $tile = mapTileUnderPointer(lastPointer.x, lastPointer.y);
+    if (!$tile.length) $tile = mapTileAt(loupeCenterX, loupeCenterY);
+    if (!$tile.length) return;
+    var x = Number($tile.data('x'));
+    var y = Number($tile.data('y'));
+    if (!isNaN(x) && !isNaN(y)) {
+      loupeCenterX = x;
+      loupeCenterY = y;
+      clampLoupeCenter();
+      loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    }
+    painting = true;
+    loupePainting = false;
+    lastTileEl = $tile[0];
+    triggerTile($tile, 'mousedown');
+    triggerTile($tile, 'mouseenter');
+    captureLoupeFocusTile($tile);
+    stampLoupeNow();
+  }
+
+  function startParkedLoupePointer(clientX, clientY) {
+    closeMore();
+    pendingDismiss = false;
+    holdMovingLoupe = false;
+    var cell = loupeCellFromPoint(clientX, clientY);
+    if (!cell) return;
+    parkedLoupePending = { x: cell.x, y: cell.y, clientX: clientX, clientY: clientY };
+    holdStart = { clientX: clientX, clientY: clientY };
+    lastPointer = { x: clientX, y: clientY };
+    clearLongPress();
+    longPressTimer = setTimeout(function() {
+      if (!parkedLoupePending) return;
+      var p = parkedLoupePending;
+      parkedLoupePending = null;
+      if (mapHasSettings(p.x, p.y)) {
+        openSettingsAt(p.x, p.y);
+        return;
+      }
+      holdMovingLoupe = true;
+      loupeFollow = true;
+      recenterLoupeOn(p.x, p.y, lastPointer.x, lastPointer.y);
+      showLoupe();
+      startFollowPaintAtCenter();
+    }, LONG_PRESS_MS);
+  }
+
+  function moveParkedLoupePointer(clientX, clientY, prevX, prevY) {
+    if (prevX == null) prevX = lastPointer.x;
+    if (prevY == null) prevY = lastPointer.y;
+    lastPointer = { x: clientX, y: clientY };
+    if (holdMovingLoupe) {
+      followLoupeTo(clientX, clientY);
+      return;
+    }
+    if (parkedLoupePending && movedPastSlop(clientX, clientY)) {
+      clearLongPress();
+      var p = parkedLoupePending;
+      parkedLoupePending = null;
+      paintLoupeAt(p.clientX, p.clientY, 'start');
+      paintLoupeAt(clientX, clientY, 'move');
+      return;
+    }
+    if (loupePainting) paintLoupeAt(clientX, clientY, 'move');
+  }
+
+  function endParkedLoupePointer(clientX, clientY) {
+    clearLongPress();
+    if (parkedLoupePending) {
+      var p = parkedLoupePending;
+      parkedLoupePending = null;
+      paintLoupeAt(p.clientX, p.clientY, 'start');
+      endLoupePaint();
+      return;
+    }
+    if (loupePainting) {
+      endLoupePaint();
+      return;
+    }
+    if (holdMovingLoupe || (painting && !loupePainting)) {
+      endPaint(clientX, clientY);
+    }
   }
 
   function movedPastSlop(clientX, clientY) {
@@ -927,6 +1085,7 @@ $(function() {
   }
 
   mapEl.addEventListener('touchstart', function(e) {
+    noteTouch();
     if (e.touches.length === 2) {
       e.preventDefault();
       twoFingerPanning = true;
@@ -958,15 +1117,8 @@ $(function() {
       e.preventDefault();
       e.stopPropagation();
       closeMore();
+      if (pointInLoupe(t.clientX, t.clientY)) return;
       var over = tileFromPoint(t.clientX, t.clientY);
-      var ox = over.data('x');
-      var oy = over.data('y');
-      if (over.length && mapHasSettings(ox, oy)) {
-        if (handleSettingsDoubleTap(ox, oy)) return;
-        suppressLoupe = true;
-        pendingDismiss = false;
-        return;
-      }
       captureLoupeFocusTile(over);
       if (!loupeFocusTile) loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
       pendingDismiss = true;
@@ -1038,6 +1190,7 @@ $(function() {
 
     if (e.touches.length !== 1) return;
     if (twoFingerPanning) return;
+    noteTouch();
     var t = e.touches[0];
     var prevX = lastPointer.x;
     var prevY = lastPointer.y;
@@ -1097,6 +1250,7 @@ $(function() {
   }, { passive: false });
 
   function onTouchEnd(e) {
+    noteTouch();
     if (e.touches.length >= 2) {
       pinchLastZoomAt = pinchDistance(e.touches[0], e.touches[1]);
       lastPinchMid = pinchMidpoint(e.touches[0], e.touches[1]);
@@ -1136,6 +1290,8 @@ $(function() {
 
   mapEl.addEventListener('mousedown', function(e) {
     if (e.button !== 0) return;
+    if (isEmulatedMouse(e)) return;
+    if (isEmulatedMouse(e)) return;
     if (panMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -1148,7 +1304,7 @@ $(function() {
       if ($tile.length) {
         var x = $tile.data('x');
         var y = $tile.data('y');
-        if (mapHasSettings(x, y)) {
+        if (mapHasSettings(x, y) && !loupeVisible) {
           e.preventDefault();
           e.stopPropagation();
           closeMore();
@@ -1166,6 +1322,7 @@ $(function() {
     if (loupeVisible) {
       e.preventDefault();
       e.stopPropagation();
+      if (pointInLoupe(e.clientX, e.clientY)) return;
       var $over = $(e.target).closest('#map .tile');
       if (!$over.length) $over = tileFromPoint(e.clientX, e.clientY);
       captureLoupeFocusTile($over);
@@ -1185,12 +1342,15 @@ $(function() {
 
   $map.on('mousedown', function(e) {
     if (!e.originalEvent) return;
+    if (isEmulatedMouse(e)) return;
+    if (isEmulatedMouse(e)) return;
     if (e.which !== 1) return;
     if (e.shiftKey) return;
     if (panMode) return;
     if (loupeVisible) return;
     if (e.clientX == null || e.clientY == null) return;
-    if (painting) return;
+    painting = false;
+    loupePainting = false;
     mouseLoupe = true;
     holdStart = { clientX: e.clientX, clientY: e.clientY };
     lastPointer = { x: e.clientX, y: e.clientY };
@@ -1205,10 +1365,15 @@ $(function() {
     }, LONG_PRESS_MS);
   });
   $(document).on('mousemove', function(e) {
+    if (isEmulatedMouse(e)) return;
     var prevX = lastPointer.x;
     var prevY = lastPointer.y;
     if (e.originalEvent && e.clientX != null && e.clientY != null) {
       lastPointer = { x: e.clientX, y: e.clientY };
+    }
+    if (parkedLoupePending) {
+      moveParkedLoupePointer(e.clientX, e.clientY, prevX, prevY);
+      return;
     }
     if (loupePainting) {
       paintLoupeAt(e.clientX, e.clientY, 'move');
@@ -1248,14 +1413,25 @@ $(function() {
   });
   $(document).on('mouseup', function(e) {
     if (!e.originalEvent) return;
+    if (isEmulatedMouse(e)) return;
     settingsPointerDown = false;
+    if (parkedLoupePending) {
+      endParkedLoupePointer(e.clientX, e.clientY);
+      if (panPointer) endPan();
+      return;
+    }
     if (loupePainting) {
-      paintLoupeAt(0, 0, 'end');
+      endLoupePaint();
     }
     if (panPointer) endPan();
     if (mouseLoupe || pendingDismiss || holdMovingLoupe) {
       mouseLoupe = false;
       clearLongPress();
+      if (painting && !loupePainting) {
+        if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
+        painting = false;
+        lastTileEl = null;
+      }
       stopLoupeFollow();
       if (pendingDismiss) {
         pendingDismiss = false;
@@ -1293,31 +1469,37 @@ $(function() {
 
   var loupeEl = $loupe[0];
   loupeEl.addEventListener('touchstart', function(e) {
+    noteTouch();
     e.preventDefault();
     e.stopPropagation();
     var t = e.touches[0];
-    paintLoupeAt(t.clientX, t.clientY, 'start');
+    startParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   loupeEl.addEventListener('touchmove', function(e) {
+    noteTouch();
     e.preventDefault();
     e.stopPropagation();
-    if (!loupePainting) return;
     var t = e.touches[0];
-    paintLoupeAt(t.clientX, t.clientY, 'move');
+    moveParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   loupeEl.addEventListener('touchend', function(e) {
+    noteTouch();
     e.preventDefault();
     e.stopPropagation();
-    paintLoupeAt(0, 0, 'end');
+    var t = (e.changedTouches && e.changedTouches[0]) || {};
+    endParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   loupeEl.addEventListener('touchcancel', function(e) {
-    paintLoupeAt(0, 0, 'end');
+    noteTouch();
+    var t = (e.changedTouches && e.changedTouches[0]) || {};
+    endParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   $loupe.on('mousedown', function(e) {
     if (e.which !== 1) return;
+    if (isEmulatedMouse(e)) return;
     e.preventDefault();
     e.stopPropagation();
-    paintLoupeAt(e.clientX, e.clientY, 'start');
+    startParkedLoupePointer(e.clientX, e.clientY);
   });
   $loupe.on('dblclick', function(e) {
     if (!isPhoneLayout()) return;

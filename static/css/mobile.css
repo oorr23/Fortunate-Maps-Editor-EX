@@ -97,8 +97,19 @@ html, body {
   height: 20px;
 }
 
-.loupe-grid .selectionIndicator,
-.loupe-grid .potentialHighlight,
+.loupe-grid .selectionIndicator {
+  pointer-events: none;
+  z-index: 3;
+  background-image: url("../selected.png");
+  background-size: 40px 40px;
+}
+
+.loupe-grid .potentialHighlight {
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.5;
+}
+
 .loupe-grid .potentialHighlightOther {
   display: none !important;
 }
@@ -356,7 +367,11 @@ html:not(.layout-desktop) #tools .btn-group-justified > .btn.active {
 }
 
 html.layout-mobile #tools .btn > .glyphicon,
-html:not(.layout-desktop) #tools .btn > .glyphicon {
+html:not(.layout-desktop) #tools .btn > .glyphicon,
+html.layout-mobile #tools .btn > .tool-clip-icon,
+html:not(.layout-desktop) #tools .btn > .tool-clip-icon,
+html.layout-mobile #tools .btn > .tool-glue-icon,
+html:not(.layout-desktop) #tools .btn > .tool-glue-icon {
   display: block;
   position: static;
   top: 0;
@@ -623,10 +638,21 @@ html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
   padding: 6px 8px;
 }
 
+html.layout-mobile .modal,
+html:not(.layout-desktop) .modal {
+  z-index: 10100;
+}
+
+html.layout-mobile .modal-backdrop,
+html:not(.layout-desktop) .modal-backdrop {
+  z-index: 10050;
+}
+
 html.layout-mobile .modal-dialog,
 html:not(.layout-desktop) .modal-dialog {
-  margin: 12px;
+  margin: 12vh auto;
   width: auto !important;
+  max-width: calc(100vw - 24px);
 }
 
 html.layout-mobile .ui-dialog,
@@ -1700,5 +1726,7 @@ html.theme-dark.layout-desktop body {
 
 html.layout-mobile .modal-dialog,
 html:not(.layout-desktop) .modal-dialog {
-  margin: 48px 12px 12px;
+  margin: 12vh auto;
+  width: auto !important;
+  max-width: calc(100vw - 24px);
 }

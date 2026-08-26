@@ -537,6 +537,7 @@ $(function() {
 
   function clearHighlights() {
     $map.find('.selectionIndicator').css('display', 'none');
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
   function pairType(ty, axis) {
@@ -556,6 +557,219 @@ $(function() {
     if (nearest === dt) return 'down';
     return 'up';
   }
+
+  var mapClipboard = null;
+
+  function isMobileLayout() {
+    if (window.TagproLayout && window.TagproLayout.isMobile) return window.TagproLayout.isMobile();
+    return !document.documentElement.classList.contains('layout-desktop');
+  }
+
+  function oddSpanEnd(start, end) {
+    var d = end - start;
+    if (((Math.abs(d) + 1) % 2) === 0) end -= (d >= 0 ? 1 : -1);
+    return end;
+  }
+
+  function clipSelectRect(x0, y0, x1, y1) {
+    if (x0 == null || isNaN(x0)) x0 = x1;
+    if (y0 == null || isNaN(y0)) y0 = y1;
+    if (isMobileLayout()) {
+      x1 = oddSpanEnd(x0, x1);
+      y1 = oddSpanEnd(y0, y1);
+    }
+    return { x0: x0, y0: y0, x1: x1, y1: y1 };
+  }
+
+  function clipContains(clip, pt) {
+    if (!clip || !pt) return false;
+    return pt.x >= clip.minX && pt.x <= clip.maxX && pt.y >= clip.minY && pt.y <= clip.maxY;
+  }
+
+  function shiftCopiedPoint(pt, dx, dy, clip) {
+    if (!pt) return null;
+    var nx = pt.x;
+    var ny = pt.y;
+    if (clipContains(clip, pt)) {
+      nx = pt.x + dx;
+      ny = pt.y + dy;
+    }
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) return null;
+    return new Point({ x: nx, y: ny });
+  }
+
+  function snapshotClipboardRect(x0, y0, x1, y1) {
+    var r = clipSelectRect(x0, y0, x1, y1);
+    var coords = rectFn(r.x0, r.y0, r.x1, r.y1, true);
+    if (!coords.length) return null;
+    var cells = [];
+    var minX = coords[0].x, maxX = coords[0].x, minY = coords[0].y, maxY = coords[0].y;
+    for (var i = 0; i < coords.length; i++) {
+      var ix = coords[i].x;
+      var iy = coords[i].y;
+      if (ix < minX) minX = ix;
+      if (ix > maxX) maxX = ix;
+      if (iy < minY) minY = iy;
+      if (iy > maxY) maxY = iy;
+      cells.push(new TileState(tiles[ix][iy]));
+    }
+    return {
+      cells: cells,
+      minX: minX,
+      minY: minY,
+      maxX: maxX,
+      maxY: maxY
+    };
+  }
+
+  function syncPasteButton() {
+    var has = !!(mapClipboard && mapClipboard.cells && mapClipboard.cells.length);
+    $('#toolPaste').toggleClass('disabled', !has).attr('aria-disabled', has ? 'false' : 'true');
+  }
+
+  function highlightClipboardSource() {
+    clearHighlights();
+    if (!mapClipboard) return;
+    for (var i = 0; i < mapClipboard.cells.length; i++) {
+      var cell = mapClipboard.cells[i];
+      var tile = tiles[cell.x] && tiles[cell.x][cell.y];
+      if (tile) tile.highlight(true);
+    }
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
+  }
+
+  function selectionPreview(x0, y0, x1, y1) {
+    var r = clipSelectRect(x0, y0, x1, y1);
+    var coords = rectFn(r.x0, r.y0, r.x1, r.y1, true);
+    var preview = [];
+    for (var i = 0; i < coords.length; i++) {
+      preview.push(new TileState(tiles[coords[i].x][coords[i].y]));
+    }
+    return preview.length ? new UndoStep(preview) : null;
+  }
+
+  function pasteTileFromSnapshot(dest, snap, dx, dy, clip) {
+    var st = new TileState(dest, {
+      type: snap.type,
+      radius: snap.radius,
+      weight: snap.weight,
+      cooldown: snap.cooldown,
+      timer: snap.timer
+    });
+    if (snap.topType) st.topType = snap.topType;
+    else delete st.topType;
+    st.affected = [];
+    for (var i = 0; i < snap.affected.length; i++) {
+      var shifted = shiftCopiedPoint(snap.affected[i], dx, dy, clip);
+      if (shifted) st.affected.push(shifted);
+    }
+    st.destination = shiftCopiedPoint(snap.destination, dx, dy, clip);
+    return st;
+  }
+
+  function pasteClipboardAt(x, y) {
+    if (!mapClipboard || !mapClipboard.cells.length) return null;
+    var cx = Math.floor((mapClipboard.minX + mapClipboard.maxX) / 2);
+    var cy = Math.floor((mapClipboard.minY + mapClipboard.maxY) / 2);
+    var dx = x - cx;
+    var dy = y - cy;
+    var changes = [];
+    for (var i = 0; i < mapClipboard.cells.length; i++) {
+      var snap = mapClipboard.cells[i];
+      var nx = snap.x + dx;
+      var ny = snap.y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      changes.push(pasteTileFromSnapshot(tiles[nx][ny], snap, dx, dy, mapClipboard));
+    }
+    return changes.length ? new UndoStep(changes) : null;
+  }
+
+  function clearTileForCut(tile) {
+    var st = new TileState(tile, { type: emptyType });
+    delete st.topType;
+    st.affected = [];
+    st.destination = null;
+    st.radius = undefined;
+    st.weight = undefined;
+    st.cooldown = undefined;
+    st.timer = undefined;
+    return st;
+  }
+
+  function makeSelectClipboardTool(isCut) {
+    return new Tool({
+      previewOnly: !isCut,
+      type: 'special',
+      getState: function() {
+        return { downX: this.downX, downY: this.downY };
+      },
+      setState: function(state) {
+        this.downX = state.downX;
+        this.downY = state.downY;
+      },
+      unselect: function() {
+        clearHighlights();
+        this.downX = undefined;
+        this.downY = undefined;
+      },
+      down: function(x, y) {
+        this.downX = x;
+        this.downY = y;
+        this.lastX = x;
+        this.lastY = y;
+      },
+      speculateDrag: function(x, y) {
+        var x0 = this.downX === undefined ? x : this.downX;
+        var y0 = this.downY === undefined ? y : this.downY;
+        this.lastX = x;
+        this.lastY = y;
+        return selectionPreview(x0, y0, x, y);
+      },
+      speculateUp: function(x, y) {
+        var x0 = this.downX === undefined ? x : this.downX;
+        var y0 = this.downY === undefined ? y : this.downY;
+        this.lastX = x;
+        this.lastY = y;
+        var clip = snapshotClipboardRect(x0, y0, x, y);
+        if (clip) mapClipboard = clip;
+        if (!isCut) return selectionPreview(x0, y0, x, y);
+        var r = clipSelectRect(x0, y0, x, y);
+        var coords = rectFn(r.x0, r.y0, r.x1, r.y1, true);
+        var changes = [];
+        for (var c = 0; c < coords.length; c++) {
+          changes.push(clearTileForCut(tiles[coords[c].x][coords[c].y]));
+        }
+        return changes.length ? new UndoStep(changes) : null;
+      },
+      up: function() {
+        this.downX = undefined;
+        this.downY = undefined;
+        syncPasteButton();
+        highlightClipboardSource();
+        if (mapClipboard && mapClipboard.cells.length) {
+          $('#toolPaste').trigger('click');
+        }
+      }
+    });
+  }
+
+  var cutTool = makeSelectClipboardTool(true);
+  var copyTool = makeSelectClipboardTool(false);
+  var pasteTool = new Tool({
+    type: 'special',
+    unselect: function() {
+      clearHighlights();
+    },
+    select: function() {
+      highlightClipboardSource();
+    },
+    speculateDrag: function(x, y) {
+      return pasteClipboardAt(x, y);
+    },
+    speculateUp: function(x, y) {
+      return pasteClipboardAt(x, y);
+    }
+  });
 
   var addWidth = new Tool({
     previewOnly: true,
@@ -1086,6 +1300,7 @@ $(function() {
   }
   function clearPotentialHighlights() {
     $map.find('.potentialHighlight').css('display', 'none');
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
 
@@ -1469,6 +1684,7 @@ $(function() {
       coords.push({ x: state.x, y: state.y });
     });
     notifySpeculativeTiles(coords);
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
   function setOwnHighlightColor(name, hex) {
@@ -2170,6 +2386,9 @@ $(function() {
   $('#toolCircleFill').data('tool', circleFill);
   $('#toolCircleOutline').data('tool', circleOutline);
   $('#toolFill').data('tool', fill);
+  $('#toolCut').data('tool', cutTool);
+  $('#toolCopy').data('tool', copyTool);
+  $('#toolPaste').data('tool', pasteTool);
   $('#toolWire').data('tool', wire);
   $('#toolAddCol').data('tool', addWidth);
   $('#toolAddRow').data('tool', addHeight);
@@ -2187,12 +2406,16 @@ $(function() {
     }
     var tool = $btn.data('tool');
     if (!tool) return;
+    if ($btn.hasClass('disabled') || $btn.attr('aria-disabled') === 'true') {
+      e.preventDefault();
+      return;
+    }
     selectedTool.unselect.call(selectedTool);
     $('#tools .btn').removeClass('active');
     $btn.addClass('active');
     selectedTool = tool;
     selectedTool.select.call(selectedTool);
-    if ($btn.attr('id') && !$btn.is('#toolAddCol, #toolAddRow, #toolMirror')) {
+    if ($btn.attr('id') && !$btn.is('#toolAddCol, #toolAddRow, #toolMirror, #toolCut, #toolCopy, #toolPaste')) {
       lastDrawingToolId = $btn.attr('id');
     }
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(true);
@@ -3034,12 +3257,22 @@ $(function() {
     }
     for (var hi = 0; hi < kids.length; hi++) {
       if (!kids[hi]) continue;
-      if (/selectionIndicator|potentialHighlight/.test(kids[hi].className || '')) {
-        kids[hi].style.display = 'none';
-      }
       if (/topSquare/.test(kids[hi].className || '')) {
         kids[hi].style.display = 'none';
       }
+    }
+    var sel = tileEl.querySelector('.selectionIndicator');
+    var pot = tileEl.querySelector('.potentialHighlight');
+    if (sel) {
+      sel.style.width = sel.style.height = size;
+      sel.style.backgroundSize = size + ' ' + size;
+      sel.style.display = 'none';
+      sel.style.pointerEvents = 'none';
+    }
+    if (pot) {
+      pot.style.width = pot.style.height = size;
+      pot.style.display = 'none';
+      pot.style.pointerEvents = 'none';
     }
     bustDrawCache($bg);
     bustDrawCache($tile);
@@ -3063,6 +3296,18 @@ $(function() {
       floorType.drawOn($bg, null);
       src.type.drawOn($tile, fake);
       if (src.topType) src.topType.drawOn($tile, fake, true);
+      var srcEl = src.elem && src.elem[0];
+      if (srcEl) {
+        var srcSel = srcEl.querySelector('.selectionIndicator');
+        var srcPot = srcEl.querySelector('.potentialHighlight');
+        if (sel && srcSel && srcSel.style.display && srcSel.style.display !== 'none') {
+          sel.style.display = 'inline-block';
+        }
+        if (pot && srcPot && srcPot.style.display && srcPot.style.display !== 'none') {
+          pot.style.display = 'inline-block';
+          pot.style.backgroundColor = srcPot.style.backgroundColor || ownHighlightHex;
+        }
+      }
     }
     tileSize = saved;
   }
@@ -3106,6 +3351,10 @@ $(function() {
         topType: t.topType && t.topType.name,
         destination: t.destination ? { x: t.destination.x, y: t.destination.y } : null
       };
+    },
+    tileElem: function(x, y) {
+      var t = tiles[x] && tiles[x][y];
+      return (t && t.elem) ? t.elem : $();
     },
     setTile: function(x, y, typeName) {
       var type = typeByNameMap()[typeName];
