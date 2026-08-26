@@ -2,11 +2,10 @@ $(function() {
   var LOUPE_TILES = 11;
   var LOUPE_CELL = 24;
   var LOUPE_SIZE = LOUPE_TILES * LOUPE_CELL;
-  // Square fisheye loupe. Set false to restore the regular grid (or revert this commit).
+  // Square fisheye loupe: SVG displacement on .loupe-inner only.
+  // Set false to restore the regular grid (no filter).
   var LOUPE_FISHEYE = true;
   var LOUPE_FISHEYE_POWER = 0.66;
-  var LOUPE_FISHEYE_SCALE_CENTER = 1.35;
-  var LOUPE_FISHEYE_SCALE_RIM = 0.65;
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
@@ -642,65 +641,73 @@ $(function() {
     return Math.pow(m, power - 1);
   }
 
-  function fisheyeForward(nx, ny) {
-    var k = fisheyeUnitScale(nx, ny, LOUPE_FISHEYE_POWER);
-    if (!k) return { nx: 0, ny: 0 };
-    return { nx: nx * k, ny: ny * k };
-  }
-
   function fisheyeInverse(nx, ny) {
     var k = fisheyeUnitScale(nx, ny, 1 / LOUPE_FISHEYE_POWER);
     if (!k) return { nx: 0, ny: 0 };
     return { nx: nx * k, ny: ny * k };
   }
 
-  function layoutLoupeFisheye() {
-    if (!loupeCells) return;
-    if (!LOUPE_FISHEYE) {
-      $loupe.removeClass('fisheye');
-      for (var r = 0; r < loupeCells.length; r++) {
-        var reset = loupeCells[r];
-        reset.style.position = '';
-        reset.style.left = '';
-        reset.style.top = '';
-        reset.style.transform = '';
-        reset.style.transformOrigin = '';
-        reset.style.zIndex = '';
-      }
-      return;
-    }
-    $loupe.addClass('fisheye');
-    var n = LOUPE_TILES;
-    var nativePx = 40;
-    var half = nativePx / 2;
-    for (var i = 0; i < loupeCells.length; i++) {
-      var dx = i % n;
-      var dy = (i - dx) / n;
-      var nx = (dx + 0.5) / n * 2 - 1;
-      var ny = (dy + 0.5) / n * 2 - 1;
-      var mapped = fisheyeForward(nx, ny);
-      var s = fisheyeCellScale(dx, dy);
-      var cx = (mapped.nx + 1) / 2 * LOUPE_SIZE;
-      var cy = (mapped.ny + 1) / 2 * LOUPE_SIZE;
-      var rNorm = Math.max(Math.abs(nx), Math.abs(ny));
-      var el = loupeCells[i];
-      el.style.position = 'absolute';
-      el.style.left = (cx - half) + 'px';
-      el.style.top = (cy - half) + 'px';
-      el.style.transformOrigin = 'center center';
-      el.style.transform = 'scale(' + s + ')';
-      el.style.zIndex = String(Math.round((1 - rNorm) * 100));
-    }
+  function clampByte(v) {
+    v = Math.round(v);
+    if (v < 0) return 0;
+    if (v > 255) return 255;
+    return v;
   }
 
-  function fisheyeCellScale(dx, dy) {
-    var n = LOUPE_TILES;
-    var nx = (dx + 0.5) / n * 2 - 1;
-    var ny = (dy + 0.5) / n * 2 - 1;
-    var rNorm = Math.max(Math.abs(nx), Math.abs(ny));
-    return LOUPE_FISHEYE_SCALE_CENTER +
-      (LOUPE_FISHEYE_SCALE_RIM - LOUPE_FISHEYE_SCALE_CENTER) * rNorm;
+  function generateLoupeFisheyeMap(cssSize, scale) {
+    var canvas = document.createElement('canvas');
+    canvas.width = cssSize;
+    canvas.height = cssSize;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(cssSize, cssSize);
+    var data = img.data;
+    for (var y = 0; y < cssSize; y++) {
+      for (var x = 0; x < cssSize; x++) {
+        var nx = (x + 0.5) / cssSize * 2 - 1;
+        var ny = (y + 0.5) / cssSize * 2 - 1;
+        var src = fisheyeInverse(nx, ny);
+        var srcX = (src.nx + 1) / 2 * cssSize;
+        var srcY = (src.ny + 1) / 2 * cssSize;
+        var dx = srcX - (x + 0.5);
+        var dy = srcY - (y + 0.5);
+        var i = (y * cssSize + x) * 4;
+        // 128 = zero offset; feDisplacementMap: p' = p + scale * (channel - 0.5)
+        data[i] = clampByte((dx / scale + 0.5) * 255);
+        data[i + 1] = clampByte((dy / scale + 0.5) * 255);
+        data[i + 2] = 128;
+        data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas.toDataURL('image/png');
   }
+
+  function applyLoupeFisheyeFilter() {
+    if (!loupeInner) return;
+    if (!LOUPE_FISHEYE) {
+      loupeInner.classList.remove('fisheye');
+      loupeInner.style.filter = 'none';
+      loupeInner.style.webkitFilter = 'none';
+      return;
+    }
+    var xlinkNS = 'http://www.w3.org/1999/xlink';
+    var scale = LOUPE_SIZE;
+    var mapEl = document.getElementById('loupeFisheyeMap');
+    var dispEl = document.getElementById('loupeFisheyeDisplacement');
+    var mapUrl = generateLoupeFisheyeMap(LOUPE_SIZE, scale);
+    if (mapEl) {
+      mapEl.setAttribute('width', String(LOUPE_SIZE));
+      mapEl.setAttribute('height', String(LOUPE_SIZE));
+      mapEl.setAttribute('href', mapUrl);
+      mapEl.setAttributeNS(xlinkNS, 'href', mapUrl);
+    }
+    if (dispEl) dispEl.setAttribute('scale', String(scale));
+    loupeInner.classList.add('fisheye');
+    loupeInner.style.filter = 'url(#loupeFisheyeFilter)';
+    loupeInner.style.webkitFilter = 'url(#loupeFisheyeFilter)';
+  }
+
+  applyLoupeFisheyeFilter();
 
   function loupeCellFromPoint(clientX, clientY) {
     if (!loupeInner) return null;
@@ -768,7 +775,6 @@ $(function() {
         paint(loupeOriginX + dx, loupeOriginY + dy, loupeCells[i], LOUPE_CELL);
       }
     }
-    layoutLoupeFisheye();
     showLoupe();
   }
 
