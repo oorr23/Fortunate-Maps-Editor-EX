@@ -92,7 +92,8 @@ div.tileTypeSelectionIndicator {
     width: 18px;
     height: 18px;
 }
-#toolPaste.disabled {
+#toolPaste.disabled,
+[data-tool-id="toolPaste"].disabled {
     opacity: 0.45;
 }
 div.potentialHighlight {
