@@ -624,7 +624,7 @@ $(function() {
 
   function syncPasteButton() {
     var has = !!(mapClipboard && mapClipboard.cells && mapClipboard.cells.length);
-    $('#toolPaste').toggleClass('disabled', !has).attr('aria-disabled', has ? 'false' : 'true');
+    $('#tools [data-tool-id="toolPaste"]').toggleClass('disabled', !has).attr('aria-disabled', has ? 'false' : 'true');
   }
 
   function highlightClipboardSource() {
@@ -2411,18 +2411,20 @@ $(function() {
       return;
     }
     selectedTool.unselect.call(selectedTool);
+    var toolId = $btn.attr('data-tool-id') || $btn.attr('id') || '';
     $('#tools .btn').removeClass('active');
-    $btn.addClass('active');
+    if (toolId) $('#tools [data-tool-id="' + toolId + '"]').addClass('active');
+    else $btn.addClass('active');
     selectedTool = tool;
     selectedTool.select.call(selectedTool);
-    if ($btn.attr('id') && !$btn.is('#toolAddCol, #toolAddRow, #toolMirror, #toolCut, #toolCopy, #toolPaste')) {
-      lastDrawingToolId = $btn.attr('id');
+    if (toolId && ['toolAddCol', 'toolAddRow', 'toolMirror', 'toolCut', 'toolCopy', 'toolPaste'].indexOf(toolId) === -1) {
+      lastDrawingToolId = toolId;
     }
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(true);
   });
 
   var selectedTool = pencil;
-  $('#toolPencil').toggleClass("active");
+  $('#tools [data-tool-id="toolPencil"]').addClass('active');
 //  $('#toolPencil').trigger('click');
 
   $('#undo').click(undo);

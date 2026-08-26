@@ -50,18 +50,21 @@ $(function() {
     if (window.TagproLayout) TagproLayout.setOverride(null);
     closeMore();
     syncLayoutSwitcher();
+    if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);
   });
   $('#layoutMobileBtn').on('click', function(e) {
     e.preventDefault();
     if (window.TagproLayout) TagproLayout.setOverride('mobile');
     closeMore();
     syncLayoutSwitcher();
+    if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);
   });
   $('#layoutDesktopBtn').on('click', function(e) {
     e.preventDefault();
     if (window.TagproLayout) TagproLayout.setOverride('desktop');
     closeMore();
     syncLayoutSwitcher();
+    if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);
   });
 
   var THEME_KEY = 'tagpro-theme';
@@ -1679,30 +1682,188 @@ $(function() {
   (function setupToolsCarousel() {
     var el = document.getElementById('tools');
     if (!el) return;
+    var group = el.querySelector('.btn-group-justified');
+    if (!group) return;
 
-    function centerOnActive(animate) {
-      var active = el.querySelector('.btn.active');
-      if (!active) return;
-      // When the row fits, CSS spacers center it — don't fight that with scroll.
-      if (el.scrollWidth <= el.clientWidth) {
-        el.scrollLeft = 0;
-        return;
+    var setWidth = 0;
+    var looping = false;
+    var animating = false;
+    var scrollAnimFrame = null;
+
+    function isDesktopLayout() {
+      return document.documentElement.classList.contains('layout-desktop');
+    }
+
+    function canonicalButtons() {
+      var all = group.querySelectorAll('.btn');
+      var out = [];
+      for (var i = 0; i < all.length; i++) {
+        if (!all[i].hasAttribute('data-tool-clone')) out.push(all[i]);
       }
-      var left = active.offsetLeft - (el.clientWidth / 2) + (active.offsetWidth / 2);
-      if (left < 0) left = 0;
-      var max = Math.max(0, el.scrollWidth - el.clientWidth);
-      if (left > max) left = max;
-      if (animate === false) {
-        el.scrollLeft = left;
-        return;
-      }
-      if (typeof el.scrollTo === 'function') {
-        el.scrollTo({ left: left, behavior: 'smooth' });
-      } else {
-        el.scrollLeft = left;
+      return out;
+    }
+
+    function ensureToolIds() {
+      var buttons = canonicalButtons();
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        if (!btn.getAttribute('data-tool-id')) {
+          btn.setAttribute('data-tool-id', btn.id || btn.getAttribute('data-action') || '');
+        }
       }
     }
 
+    function removeClones() {
+      var clones = group.querySelectorAll('[data-tool-clone]');
+      for (var i = 0; i < clones.length; i++) {
+        clones[i].parentNode.removeChild(clones[i]);
+      }
+    }
+
+    function addClones() {
+      if (group.querySelector('[data-tool-clone]')) return;
+      var originals = canonicalButtons();
+      for (var copy = 0; copy < 2; copy++) {
+        for (var i = 0; i < originals.length; i++) {
+          var clone = originals[i].cloneNode(true);
+          clone.removeAttribute('id');
+          clone.setAttribute('data-tool-clone', '');
+          var tool = $(originals[i]).data('tool');
+          if (tool) $(clone).data('tool', tool);
+          group.appendChild(clone);
+        }
+      }
+    }
+
+    function measure() {
+      setWidth = looping ? group.scrollWidth / 3 : 0;
+      return setWidth;
+    }
+
+    function jumpLoop() {
+      if (animating || !looping) return;
+      if (!setWidth) measure();
+      if (setWidth < 8) return;
+      if (el.scrollLeft <= 4) el.scrollLeft += setWidth;
+      else if (el.scrollLeft >= setWidth * 2 - 4) el.scrollLeft -= setWidth;
+    }
+
+    function syncLoopMode() {
+      ensureToolIds();
+      removeClones();
+      looping = false;
+      setWidth = 0;
+      el.classList.remove('tools-looping');
+      if (isDesktopLayout()) {
+        el.scrollLeft = 0;
+        return;
+      }
+      void group.offsetWidth;
+      if (group.scrollWidth <= el.clientWidth) {
+        el.scrollLeft = 0;
+        return;
+      }
+      addClones();
+      looping = true;
+      el.classList.add('tools-looping');
+      void group.offsetWidth;
+      measure();
+      if (el.scrollLeft < 4) el.scrollLeft = setWidth;
+      else jumpLoop();
+    }
+
+    function scrollLeftToCenter(btn) {
+      var elRect = el.getBoundingClientRect();
+      var btnRect = btn.getBoundingClientRect();
+      return el.scrollLeft + (btnRect.left + btnRect.width / 2) - (elRect.left + el.clientWidth / 2);
+    }
+
+    function itemCenter(btn) {
+      return btn.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft + btn.offsetWidth / 2;
+    }
+
+    function nearestActive() {
+      var selected = el.querySelectorAll('.btn.active');
+      if (!selected.length) return null;
+      var viewCenter = el.scrollLeft + el.clientWidth / 2;
+      var target = selected[0];
+      var best = Infinity;
+      for (var i = 0; i < selected.length; i++) {
+        var d = Math.abs(itemCenter(selected[i]) - viewCenter);
+        if (d < best) {
+          best = d;
+          target = selected[i];
+        }
+      }
+      return target;
+    }
+
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function finishCenter() {
+      animating = false;
+      if (scrollAnimFrame) {
+        cancelAnimationFrame(scrollAnimFrame);
+        scrollAnimFrame = null;
+      }
+      jumpLoop();
+    }
+
+    function animateScrollTo(to, duration) {
+      if (scrollAnimFrame) cancelAnimationFrame(scrollAnimFrame);
+      var from = el.scrollLeft;
+      var dist = to - from;
+      var start = null;
+      animating = true;
+      function step(now) {
+        if (start === null) start = now;
+        var t = Math.min(1, (now - start) / duration);
+        el.scrollLeft = from + dist * easeInOutCubic(t);
+        if (t < 1) {
+          scrollAnimFrame = requestAnimationFrame(step);
+        } else {
+          scrollAnimFrame = null;
+          finishCenter();
+        }
+      }
+      scrollAnimFrame = requestAnimationFrame(step);
+    }
+
+    function centerOnActive(animate) {
+      // Rebuild clones on size/layout changes (animate !== true), not on tool taps.
+      if (animate !== true) syncLoopMode();
+      else if (!isDesktopLayout() && !looping && group.scrollWidth > el.clientWidth) {
+        syncLoopMode();
+      }
+
+      if (!looping) {
+        el.scrollLeft = 0;
+        return;
+      }
+
+      var active = nearestActive();
+      if (!active) {
+        jumpLoop();
+        return;
+      }
+      var left = scrollLeftToCenter(active);
+      if (Math.abs(el.scrollLeft - left) < 2) {
+        jumpLoop();
+        return;
+      }
+      if (animate === false) {
+        el.scrollLeft = left;
+        jumpLoop();
+        return;
+      }
+      animateScrollTo(left, 850);
+    }
+
+    el.addEventListener('scroll', function() {
+      if (!animating) jumpLoop();
+    }, { passive: true });
     window.addEventListener('resize', function() { centerOnActive(false); });
     window.addEventListener('orientationchange', function() {
       setTimeout(function() { centerOnActive(false); }, 250);

@@ -321,6 +321,16 @@ html:not(.layout-desktop) #tools::after {
   min-width: 0;
 }
 
+html.layout-mobile #tools.tools-looping::before,
+html.layout-mobile #tools.tools-looping::after,
+html:not(.layout-desktop) #tools.tools-looping::before,
+html:not(.layout-desktop) #tools.tools-looping::after {
+  content: none;
+  flex: 0 0 0;
+  min-width: 0;
+  width: 0;
+}
+
 html.layout-mobile #tools::-webkit-scrollbar,
 html:not(.layout-desktop) #tools::-webkit-scrollbar {
   display: none;
