@@ -2,6 +2,11 @@ $(function() {
   var LOUPE_TILES = 11;
   var LOUPE_CELL = 24;
   var LOUPE_SIZE = LOUPE_TILES * LOUPE_CELL;
+  // Square fisheye loupe. Set false to restore the regular grid (or revert this commit).
+  var LOUPE_FISHEYE = true;
+  var LOUPE_FISHEYE_POWER = 0.66;
+  var LOUPE_FISHEYE_SCALE_CENTER = 1.35;
+  var LOUPE_FISHEYE_SCALE_RIM = 0.65;
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
@@ -631,14 +636,91 @@ $(function() {
     return mapTileAt(cell.x, cell.y);
   }
 
+  function fisheyeUnitScale(nx, ny, power) {
+    var m = Math.max(Math.abs(nx), Math.abs(ny));
+    if (m === 0) return 0;
+    return Math.pow(m, power - 1);
+  }
+
+  function fisheyeForward(nx, ny) {
+    var k = fisheyeUnitScale(nx, ny, LOUPE_FISHEYE_POWER);
+    if (!k) return { nx: 0, ny: 0 };
+    return { nx: nx * k, ny: ny * k };
+  }
+
+  function fisheyeInverse(nx, ny) {
+    var k = fisheyeUnitScale(nx, ny, 1 / LOUPE_FISHEYE_POWER);
+    if (!k) return { nx: 0, ny: 0 };
+    return { nx: nx * k, ny: ny * k };
+  }
+
+  function layoutLoupeFisheye() {
+    if (!loupeCells) return;
+    if (!LOUPE_FISHEYE) {
+      $loupe.removeClass('fisheye');
+      for (var r = 0; r < loupeCells.length; r++) {
+        var reset = loupeCells[r];
+        reset.style.position = '';
+        reset.style.left = '';
+        reset.style.top = '';
+        reset.style.transform = '';
+        reset.style.transformOrigin = '';
+        reset.style.zIndex = '';
+      }
+      return;
+    }
+    $loupe.addClass('fisheye');
+    var n = LOUPE_TILES;
+    var nativePx = 40;
+    var half = nativePx / 2;
+    for (var i = 0; i < loupeCells.length; i++) {
+      var dx = i % n;
+      var dy = (i - dx) / n;
+      var nx = (dx + 0.5) / n * 2 - 1;
+      var ny = (dy + 0.5) / n * 2 - 1;
+      var mapped = fisheyeForward(nx, ny);
+      var s = fisheyeCellScale(dx, dy);
+      var cx = (mapped.nx + 1) / 2 * LOUPE_SIZE;
+      var cy = (mapped.ny + 1) / 2 * LOUPE_SIZE;
+      var rNorm = Math.max(Math.abs(nx), Math.abs(ny));
+      var el = loupeCells[i];
+      el.style.position = 'absolute';
+      el.style.left = (cx - half) + 'px';
+      el.style.top = (cy - half) + 'px';
+      el.style.transformOrigin = 'center center';
+      el.style.transform = 'scale(' + s + ')';
+      el.style.zIndex = String(Math.round((1 - rNorm) * 100));
+    }
+  }
+
+  function fisheyeCellScale(dx, dy) {
+    var n = LOUPE_TILES;
+    var nx = (dx + 0.5) / n * 2 - 1;
+    var ny = (dy + 0.5) / n * 2 - 1;
+    var rNorm = Math.max(Math.abs(nx), Math.abs(ny));
+    return LOUPE_FISHEYE_SCALE_CENTER +
+      (LOUPE_FISHEYE_SCALE_RIM - LOUPE_FISHEYE_SCALE_CENTER) * rNorm;
+  }
+
   function loupeCellFromPoint(clientX, clientY) {
     if (!loupeInner) return null;
     var rect = loupeInner.getBoundingClientRect();
     var x = clientX - rect.left;
     var y = clientY - rect.top;
     if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
-    var col = Math.floor(x / (rect.width / LOUPE_TILES));
-    var row = Math.floor(y / (rect.height / LOUPE_TILES));
+    var col;
+    var row;
+    if (LOUPE_FISHEYE) {
+      var mapped = fisheyeInverse(
+        (x / rect.width) * 2 - 1,
+        (y / rect.height) * 2 - 1
+      );
+      col = Math.floor((mapped.nx + 1) / 2 * LOUPE_TILES);
+      row = Math.floor((mapped.ny + 1) / 2 * LOUPE_TILES);
+    } else {
+      col = Math.floor(x / (rect.width / LOUPE_TILES));
+      row = Math.floor(y / (rect.height / LOUPE_TILES));
+    }
     if (col < 0 || row < 0 || col >= LOUPE_TILES || row >= LOUPE_TILES) return null;
     return { x: loupeOriginX + col, y: loupeOriginY + row };
   }
@@ -686,6 +768,7 @@ $(function() {
         paint(loupeOriginX + dx, loupeOriginY + dy, loupeCells[i], LOUPE_CELL);
       }
     }
+    layoutLoupeFisheye();
     showLoupe();
   }
 

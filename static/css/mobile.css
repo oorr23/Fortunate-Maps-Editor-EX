@@ -77,6 +77,27 @@ html, body {
   transform-origin: 0 0;
 }
 
+/* Square fisheye: cells are positioned by layoutLoupeFisheye. */
+.loupe.fisheye .loupe-inner {
+  z-index: 1;
+}
+
+.loupe.fisheye .loupe-grid {
+  position: relative;
+  width: 264px;
+  height: 264px;
+  transform: none;
+}
+
+.loupe.fisheye .loupe-row {
+  display: contents;
+}
+
+.loupe.fisheye .loupe-grid .tileBackground {
+  position: absolute;
+  transform-origin: center center;
+}
+
 .loupe-row {
   height: 40px;
   font-size: 0;
