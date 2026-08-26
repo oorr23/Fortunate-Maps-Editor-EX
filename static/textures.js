@@ -31,6 +31,8 @@ $(function() {
       speedpadRed: 'speedpadred.png',
       speedpadBlue: 'speedpadblue.png',
       portal: 'portal.png',
+      portalRed: 'portal.png',
+      portalBlue: 'portal.png',
       gravityWell: 'gravitywell.png'
     }
   };
@@ -48,6 +50,8 @@ $(function() {
       speedpadRed: urls.speedpadRed,
       speedpadBlue: urls.speedpadBlue,
       portal: urls.portal,
+      portalRed: urls.portalRed || urls.portal,
+      portalBlue: urls.portalBlue || urls.portal,
       gravityWell: urls.gravityWell
     };
   }
@@ -70,6 +74,8 @@ $(function() {
       speedpadRed: proxied(base + 'speedpadred.png'),
       speedpadBlue: proxied(base + 'speedpadblue.png'),
       portal: proxied(base + 'portal.png'),
+      portalRed: proxied(base + 'portalred.png'),
+      portalBlue: proxied(base + 'portalblue.png'),
       gravityWell: proxied(base + 'gravitywell.png')
     };
   }
@@ -96,6 +102,8 @@ $(function() {
       speedpadRed: proxied(entry.speedpadRed),
       speedpadBlue: proxied(entry.speedpadBlue),
       portal: proxied(entry.portal),
+      portalRed: proxied(entry.portalRed || entry.portalred) || proxied(entry.portal),
+      portalBlue: proxied(entry.portalBlue || entry.portalblue) || proxied(entry.portal),
       gravityWell: proxied(entry.gravityWell || '/images/gravitywell.png')
     };
   }
@@ -119,7 +127,10 @@ $(function() {
 
   function urlFor(type) {
     var slot = type.image ? (SLOT_BY_IMAGE[type.image] || 'tiles') : 'tiles';
-    return (current.urls && (current.urls[slot] || current.urls.tiles)) || EDITOR_DEFAULT.urls.tiles;
+    var urls = current.urls || EDITOR_DEFAULT.urls;
+    var url = urls[slot];
+    if (!url && (slot === 'portalRed' || slot === 'portalBlue')) url = urls.portal;
+    return url || urls.tiles || EDITOR_DEFAULT.urls.tiles;
   }
 
   function setStatus(text) {
@@ -280,6 +291,8 @@ $(function() {
       speedpadRed: overrides.speedpadRed || base.speedpadRed,
       speedpadBlue: overrides.speedpadBlue || base.speedpadBlue,
       portal: overrides.portal || base.portal,
+      portalRed: overrides.portalRed || base.portalRed || overrides.portal || base.portal,
+      portalBlue: overrides.portalBlue || base.portalBlue || overrides.portal || base.portal,
       gravityWell: overrides.gravityWell || base.gravityWell
     };
   }
@@ -312,6 +325,8 @@ $(function() {
       speedpadRed: proxied(shareKey(obj, ['speedpadRed', 'speedpadred', 'speedPadRed'])) || EDITOR_DEFAULT.urls.speedpadRed,
       speedpadBlue: proxied(shareKey(obj, ['speedpadBlue', 'speedpadblue', 'speedPadBlue'])) || EDITOR_DEFAULT.urls.speedpadBlue,
       portal: proxied(shareKey(obj, ['portal'])) || EDITOR_DEFAULT.urls.portal,
+      portalRed: proxied(shareKey(obj, ['portalRed', 'portalred'])) || EDITOR_DEFAULT.urls.portalRed,
+      portalBlue: proxied(shareKey(obj, ['portalBlue', 'portalblue'])) || EDITOR_DEFAULT.urls.portalBlue,
       gravityWell: proxied(shareKey(obj, ['gravityWell', 'gravitywell'])) || EDITOR_DEFAULT.urls.gravityWell
     };
   }
@@ -356,6 +371,8 @@ $(function() {
         speedpadRed: parsed.urls.speedpadRed,
         speedpadBlue: parsed.urls.speedpadBlue,
         portal: parsed.urls.portal,
+        portalRed: parsed.urls.portalRed,
+        portalBlue: parsed.urls.portalBlue,
         gravityWell: parsed.urls.gravityWell
       } : {};
       return Promise.all(images.map(function(file) {
@@ -428,6 +445,8 @@ $(function() {
         speedpadRed: FM_TEXTURE_BASE + id + '/speedpadred.png',
         speedpadBlue: FM_TEXTURE_BASE + id + '/speedpadblue.png',
         portal: FM_TEXTURE_BASE + id + '/portal.png',
+        portalRed: FM_TEXTURE_BASE + id + '/portalred.png',
+        portalBlue: FM_TEXTURE_BASE + id + '/portalblue.png',
         gravityWell: FM_TEXTURE_BASE + id + '/gravitywell.png'
       });
     }

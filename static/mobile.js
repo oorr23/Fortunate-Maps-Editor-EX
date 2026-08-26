@@ -2,7 +2,6 @@ $(function() {
   var LOUPE_TILES = 11;
   var LOUPE_CELL = 24;
   var LOUPE_SIZE = LOUPE_TILES * LOUPE_CELL;
-  var LOUPE_LIFT = LOUPE_SIZE + 28;
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
@@ -91,14 +90,29 @@ $(function() {
     applyTheme('light');
   });
 
+  var morePanelsEl = document.querySelector('.more-panels');
+  var moreNavEl = document.querySelector('.more-nav');
+  var moreDrag = null;
+  var moreIgnoreClickUntil = 0;
+  var moreSnapTimer = null;
+  var moreSnapToken = 0;
+
+  function isLandscapeChrome() {
+    var root = document.documentElement;
+    if (root.classList.contains('orient-landscape')) return true;
+    if (root.classList.contains('orient-portrait')) return false;
+    return !!(window.matchMedia && window.matchMedia('(orientation: landscape)').matches);
+  }
+
   function chromeChanged() {
     if (!window.TagproMap || !TagproMap.getSize || !TagproMap.fitView) return;
     if (TagproMap.getSize().zoom === 0) TagproMap.fitView();
   }
 
-  function setMorePanel(name) {
+  function setMorePanel(name, opts) {
+    opts = opts || {};
     var current = $moreSheet.attr('data-open') || '';
-    if (name && name === current) name = '';
+    if (name && name === current && !opts.keep) name = '';
     $moreSheet.attr('data-open', name);
     $('.more-nav-btn').removeClass('active').attr('aria-expanded', 'false');
     $('.more-panel').attr('hidden', true);
@@ -106,18 +120,42 @@ $(function() {
       $('.more-nav-btn[data-panel="' + name + '"]').addClass('active').attr('aria-expanded', 'true');
       $('.more-panel[data-panel="' + name + '"]').removeAttr('hidden');
     }
-    chromeChanged();
+    if (!isLandscapeChrome()) chromeChanged();
+  }
+
+  function clearMoreOverlayTransform() {
+    if (!morePanelsEl) return;
+    morePanelsEl.style.transition = '';
+    morePanelsEl.style.transform = '';
+  }
+
+  function syncLandscapeBackdrop() {
+    if (!isLandscapeChrome()) {
+      $moreBackdrop.css('bottom', '');
+      return;
+    }
+    var sheet = $moreSheet[0];
+    var h = sheet ? Math.round(sheet.getBoundingClientRect().height) : 0;
+    $moreBackdrop.css('bottom', h + 'px');
   }
 
   function closeMore() {
+    moreSnapToken += 1;
+    if (moreSnapTimer) {
+      clearTimeout(moreSnapTimer);
+      moreSnapTimer = null;
+    }
     setMorePanel('');
-    $moreSheet.removeClass('open');
+    $moreSheet.removeClass('open more-dragging');
     $moreBackdrop.removeClass('open').attr('hidden', true);
+    $moreBackdrop.css('bottom', '');
+    clearMoreOverlayTransform();
   }
 
   function openMore() {
-    $moreSheet.addClass('open');
+    $moreSheet.addClass('open').removeClass('more-dragging');
     $moreBackdrop.addClass('open').removeAttr('hidden');
+    syncLandscapeBackdrop();
     if (!$moreSheet.attr('data-open')) setMorePanel('file');
   }
 
@@ -126,8 +164,266 @@ $(function() {
     else openMore();
   });
   $('#moreClose, #moreBackdrop').on('click', closeMore);
-  $('.more-nav-btn').on('click', function() {
+  $('.more-nav-btn').on('click', function(e) {
+    if (isLandscapeChrome() || Date.now() < moreIgnoreClickUntil) {
+      e.preventDefault();
+      return;
+    }
     setMorePanel($(this).attr('data-panel'));
+  });
+
+  function moreEventPoint(e) {
+    if (e.touches && e.touches[0]) return e.touches[0];
+    if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0];
+    return e;
+  }
+
+  function moreIgnoreTarget(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest('input, textarea, select, a, button');
+  }
+
+  function morePanelNameFromEvent(e) {
+    var el = e.target;
+    if (!el || !el.closest) return '';
+    var btn = el.closest('.more-nav-btn');
+    return btn ? (btn.getAttribute('data-panel') || '') : '';
+  }
+
+  function moreOverlayHeight() {
+    if (!morePanelsEl) return 220;
+    var h = morePanelsEl.getBoundingClientRect().height;
+    return h > 0 ? h : 220;
+  }
+
+  function setMoreOverlayY(y, dragging) {
+    if (!morePanelsEl) return;
+    if (dragging) {
+      morePanelsEl.style.transition = 'none';
+      morePanelsEl.style.transform = 'translateY(' + y + 'px)';
+      return;
+    }
+    morePanelsEl.style.transition = 'transform 180ms ease-out';
+    morePanelsEl.style.transform = 'translateY(' + y + 'px)';
+  }
+
+  function finishMoreOverlay(open, height) {
+    if (!height) height = moreOverlayHeight();
+    var token = ++moreSnapToken;
+    $moreSheet.addClass('more-dragging');
+    setMoreOverlayY(open ? 0 : height, false);
+    function done() {
+      if (token !== moreSnapToken) return;
+      moreSnapToken += 1;
+      if (moreSnapTimer) {
+        clearTimeout(moreSnapTimer);
+        moreSnapTimer = null;
+      }
+      if (morePanelsEl) morePanelsEl.removeEventListener('transitionend', done);
+      if (open) {
+        openMore();
+        clearMoreOverlayTransform();
+      } else {
+        closeMore();
+      }
+    }
+    if (morePanelsEl) morePanelsEl.addEventListener('transitionend', done);
+    moreSnapTimer = setTimeout(done, 220);
+  }
+
+  function attachMoreFollow(kind) {
+    function onMove(e) { moveMoreDrag(e); }
+    function onFinish(e) { endMoreDrag(e); }
+    moreDrag.onMove = onMove;
+    moreDrag.onFinish = onFinish;
+    moreDrag.kind = kind;
+    if (kind === 'pointer') {
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onFinish, true);
+      document.addEventListener('pointercancel', onFinish, true);
+    } else if (kind === 'touch') {
+      document.addEventListener('touchmove', onMove, { capture: true, passive: false });
+      document.addEventListener('touchend', onFinish, true);
+      document.addEventListener('touchcancel', onFinish, true);
+    } else {
+      document.addEventListener('mousemove', onMove, true);
+      document.addEventListener('mouseup', onFinish, true);
+    }
+  }
+
+  function detachMoreFollow() {
+    if (!moreDrag || !moreDrag.onMove) return;
+    var kind = moreDrag.kind;
+    var onMove = moreDrag.onMove;
+    var onFinish = moreDrag.onFinish;
+    if (kind === 'pointer') {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onFinish, true);
+      document.removeEventListener('pointercancel', onFinish, true);
+    } else if (kind === 'touch') {
+      document.removeEventListener('touchmove', onMove, true);
+      document.removeEventListener('touchend', onFinish, true);
+      document.removeEventListener('touchcancel', onFinish, true);
+    } else {
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseup', onFinish, true);
+    }
+  }
+
+  function beginMoreDrag(e, origin, panelName) {
+    if (e.touches && e.touches.length > 1) return;
+    if ($('.modal.in:visible').length) return;
+    var pt = moreEventPoint(e);
+    moreDrag = {
+      origin: origin,
+      panelName: panelName || '',
+      startX: pt.clientX,
+      startY: pt.clientY,
+      lastY: pt.clientY,
+      lastT: Date.now(),
+      vy: 0,
+      moved: false,
+      wasOpen: $moreSheet.hasClass('open'),
+      startTranslate: 0,
+      height: 0,
+      pointerId: e.pointerId,
+      captureEl: e.currentTarget
+    };
+  }
+
+  function moveMoreDrag(e) {
+    if (!moreDrag) return;
+    if (e.touches && e.touches.length > 1) return;
+    var pt = moreEventPoint(e);
+    var dx = pt.clientX - moreDrag.startX;
+    var dy = pt.clientY - moreDrag.startY;
+    var now = Date.now();
+    var dt = now - moreDrag.lastT;
+    if (dt > 0) moreDrag.vy = (pt.clientY - moreDrag.lastY) / dt;
+    moreDrag.lastY = pt.clientY;
+    moreDrag.lastT = now;
+
+    if (!moreDrag.moved) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dy) <= Math.abs(dx)) {
+        detachMoreFollow();
+        moreDrag = null;
+        return;
+      }
+      if (moreDrag.origin === 'panel') {
+        var scroller = morePanelsEl;
+        if (scroller) {
+          if (dy > 2 && scroller.scrollTop > 1) {
+            detachMoreFollow();
+            moreDrag = null;
+            return;
+          }
+          if (dy < -2 && scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1) {
+            detachMoreFollow();
+            moreDrag = null;
+            return;
+          }
+        }
+      }
+      moreDrag.moved = true;
+      var name = moreDrag.panelName || $moreSheet.attr('data-open') || 'file';
+      setMorePanel(name, { keep: true });
+      $moreSheet.addClass('more-dragging');
+      $moreBackdrop.addClass('open').removeAttr('hidden');
+      syncLandscapeBackdrop();
+      moreDrag.height = moreOverlayHeight();
+      moreDrag.startTranslate = moreDrag.wasOpen ? 0 : moreDrag.height;
+    }
+    if (e.cancelable) e.preventDefault();
+    var y = moreDrag.startTranslate + dy;
+    if (y < 0) y = 0;
+    if (y > moreDrag.height) y = moreDrag.height;
+    moreDrag.translateY = y;
+    setMoreOverlayY(y, true);
+  }
+
+  function endMoreDrag(e) {
+    if (!moreDrag) return;
+    var drag = moreDrag;
+    detachMoreFollow();
+    moreDrag = null;
+    if (drag.captureEl && drag.pointerId != null && drag.captureEl.releasePointerCapture) {
+      try { drag.captureEl.releasePointerCapture(drag.pointerId); } catch (err) {}
+    }
+    if (!drag.moved) {
+      $moreSheet.removeClass('more-dragging');
+      if (!drag.wasOpen) $moreBackdrop.removeClass('open').attr('hidden', true);
+      return;
+    }
+    moreIgnoreClickUntil = Date.now() + 350;
+    ignorePaintUntil = Date.now() + 350;
+    if (e && e.cancelable) e.preventDefault();
+    var pt = moreEventPoint(e);
+    var dy = pt.clientY - drag.startY;
+    var y = drag.translateY;
+    if (y == null) y = drag.startTranslate + dy;
+    var height = drag.height || moreOverlayHeight();
+    var threshold = Math.max(40, height * 0.3);
+    var open;
+    if (drag.vy < -0.4) open = true;
+    else if (drag.vy > 0.4) open = false;
+    else if (drag.wasOpen) open = y < threshold;
+    else open = (height - y) > threshold;
+    finishMoreOverlay(open, height);
+  }
+
+  function bindMoreOverlayDrag() {
+    if (!moreNavEl || !morePanelsEl) return;
+
+    function onStart(origin) {
+      return function(e) {
+        if (!isLandscapeChrome()) return;
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        if (e.type === 'pointerdown' && e.button !== 0 && e.pointerType === 'mouse') return;
+        if (origin === 'panel' && !$moreSheet.hasClass('open')) return;
+        if (origin === 'panel' && moreIgnoreTarget(e.target)) return;
+        var name = origin === 'nav' ? morePanelNameFromEvent(e) : ($moreSheet.attr('data-open') || '');
+        if (origin === 'nav' && !name) return;
+        beginMoreDrag(e, origin, name);
+        if (!moreDrag) return;
+        if (e.type.indexOf('pointer') === 0) {
+          if (e.currentTarget && e.currentTarget.setPointerCapture && e.pointerId != null) {
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+          }
+          attachMoreFollow('pointer');
+        } else if (e.type.indexOf('touch') === 0) {
+          attachMoreFollow('touch');
+        } else {
+          attachMoreFollow('mouse');
+        }
+      };
+    }
+
+    if ('onpointerdown' in window) {
+      moreNavEl.addEventListener('pointerdown', onStart('nav'));
+      morePanelsEl.addEventListener('pointerdown', onStart('panel'));
+    } else {
+      moreNavEl.addEventListener('mousedown', onStart('nav'));
+      moreNavEl.addEventListener('touchstart', onStart('nav'), { passive: true });
+      morePanelsEl.addEventListener('mousedown', onStart('panel'));
+      morePanelsEl.addEventListener('touchstart', onStart('panel'), { passive: true });
+    }
+  }
+
+  bindMoreOverlayDrag();
+
+  document.addEventListener('click', function(e) {
+    if (Date.now() >= moreIgnoreClickUntil) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  $(document).on('keydown', function(e) {
+    if (e.which !== 27) return;
+    if (!$moreSheet.hasClass('open') && !$moreSheet.hasClass('more-dragging')) return;
+    if ($('.modal.in:visible').length) return;
+    e.preventDefault();
+    closeMore();
   });
 
   function setPanMode(on) {
@@ -217,10 +513,15 @@ $(function() {
   var holdMovingLoupe = false;
   var holdStart = null;
   var lastPointer = { x: 0, y: 0 };
+  var loupeFocusTile = null;
+  var loupeFollowAcc = { x: 0, y: 0 };
+  var loupeFollowOrigin = null;
+  var lastTouchAt = 0;
   var lastSettingsTap = null;
   var suppressLoupe = false;
   var pendingSettingsPaint = null;
   var settingsPaintTimer = null;
+  var parkedLoupePending = null;
 
   function clearSettingsPaint() {
     if (settingsPaintTimer) {
@@ -248,21 +549,58 @@ $(function() {
     loupeVisible = false;
     loupeFollow = false;
     loupePainting = false;
+    painting = false;
+    mouseLoupe = false;
     pendingDismiss = false;
     holdMovingLoupe = false;
     holdStart = null;
     suppressLoupe = false;
+    loupeFocusTile = null;
+    lastTileEl = null;
+    parkedLoupePending = null;
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
+    loupeFollowOrigin = null;
     clearSettingsPaint();
     if (loupeRaf) {
       cancelAnimationFrame(loupeRaf);
       loupeRaf = 0;
     }
-    $loupe.removeClass('visible').attr('aria-hidden', 'true');
+    $loupe.removeClass('visible follow-finger').attr('aria-hidden', 'true');
   }
 
   function showLoupe() {
     loupeVisible = true;
+    $loupe.toggleClass('follow-finger', !!loupeFollow && !holdMovingLoupe);
     $loupe.addClass('visible').attr('aria-hidden', 'false');
+  }
+
+  function stopLoupeFollow() {
+    loupeFollow = false;
+    holdMovingLoupe = false;
+    loupeFollowOrigin = null;
+    $loupe.removeClass('follow-finger');
+  }
+
+  function noteTouch() {
+    lastTouchAt = Date.now();
+  }
+
+  function isEmulatedMouse(e) {
+    if (!e) return Date.now() - lastTouchAt < 800;
+    var oe = e.originalEvent || e;
+    if (oe.sourceCapabilities && oe.sourceCapabilities.firesTouchEvents) return true;
+    if (oe.pointerType === 'touch') return true;
+    return Date.now() - lastTouchAt < 800;
+  }
+
+  function captureLoupeFocusTile($tile) {
+    loupeFocusTile = null;
+    if (!$tile || !$tile.length) return;
+    var x = $tile.data('x');
+    var y = $tile.data('y');
+    if (x == null || y == null || isNaN(x) || isNaN(y)) return;
+    loupeFocusTile = { x: Number(x), y: Number(y) };
   }
 
   function pointInLoupe(clientX, clientY) {
@@ -272,10 +610,22 @@ $(function() {
   }
 
   function mapTileAt(x, y) {
+    if (window.TagproMap && TagproMap.tileElem) {
+      var $fromMap = TagproMap.tileElem(x, y);
+      if ($fromMap && $fromMap.length) return $fromMap;
+    }
     var rows = mapEl.querySelectorAll('.tileRow');
     var row = rows[y];
     if (!row || x < 0 || x >= row.children.length) return $();
     return $(row.children[x]).find('.tile').first();
+  }
+
+  function mapTileUnderPointer(clientX, clientY) {
+    var $tile = tileFromPoint(clientX, clientY);
+    if ($tile.length) return $tile;
+    var cell = loupeCellFromPoint(clientX, clientY);
+    if (!cell) return $();
+    return mapTileAt(cell.x, cell.y);
   }
 
   function loupeCellFromPoint(clientX, clientY) {
@@ -306,6 +656,7 @@ $(function() {
           "<div class='tileQuadrant nestedSquareBR'></div>" +
           "<div class='tileQuadrant nestedSquareBL'></div>" +
           "<div class='tileQuadrant nestedSquareTL'></div>" +
+          "<div class='topSquare nestedSquare'></div>" +
           "<div class='selectionIndicator nestedSquare'></div>" +
           "<div class='potentialHighlight nestedSquare'></div></div>";
         row.appendChild(bg);
@@ -352,26 +703,107 @@ $(function() {
   }
 
   function positionLoupe(clientX, clientY) {
-    var left = clientX;
-    var top = clientY - LOUPE_LIFT;
-    var half = LOUPE_SIZE / 2;
-    left = Math.max(half + 8, Math.min(left, window.innerWidth - half - 8));
-    top = Math.max(half + 8, Math.min(top, window.innerHeight - half - 8));
-    $loupe.css({ left: left + 'px', top: top + 'px', width: LOUPE_SIZE + 'px', height: LOUPE_SIZE + 'px' });
+    if (clientX == null || clientY == null || isNaN(clientX) || isNaN(clientY)) return;
+    $loupe.css({
+      left: clientX + 'px',
+      top: clientY + 'px',
+      width: LOUPE_SIZE + 'px',
+      height: LOUPE_SIZE + 'px'
+    });
   }
 
-  function updateLoupe(clientX, clientY) {
-    var $tile = tileFromPoint(clientX, clientY);
-    if ($tile.length) {
-      var x = $tile.data('x');
-      var y = $tile.data('y');
-      if (x != null && y != null && !isNaN(x) && !isNaN(y)) {
-        loupeCenterX = x;
-        loupeCenterY = y;
-      }
+  function setLoupeFollowOrigin(pointerX, pointerY, centerX, centerY) {
+    loupeFollowOrigin = {
+      pointerX: pointerX,
+      pointerY: pointerY,
+      centerX: centerX,
+      centerY: centerY
+    };
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
+  }
+
+  function followLoupeTo(clientX, clientY) {
+    if (clientX == null || clientY == null || isNaN(clientX) || isNaN(clientY)) return;
+    lastPointer = { x: clientX, y: clientY };
+    positionLoupe(clientX, clientY);
+    var $tile = mapTileUnderPointer(clientX, clientY);
+    if (!$tile.length) return;
+    var x = Number($tile.data('x'));
+    var y = Number($tile.data('y'));
+    if (isNaN(x) || isNaN(y)) return;
+    if (x === loupeCenterX && y === loupeCenterY) {
+      syncPaintToLoupeCenter();
+      return;
     }
-    if (loupeFollow) positionLoupe(clientX, clientY);
+    loupeCenterX = x;
+    loupeCenterY = y;
+    clampLoupeCenter();
+    loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    stampLoupeNow();
+    syncPaintToLoupeCenter();
+  }
+
+  function followLoupePointer(clientX, clientY) {
+    followLoupeTo(clientX, clientY);
+  }
+
+  function syncPaintToLoupeCenter() {
+    if (!painting || loupePainting) return;
+    var $tile = mapTileAt(loupeCenterX, loupeCenterY);
+    if (!$tile.length) return;
+    if (lastTileEl && lastTileEl !== $tile[0]) {
+      triggerTile($(lastTileEl), 'mouseleave');
+      triggerTile($tile, 'mouseenter');
+    }
+    triggerTile($tile, 'mousemove');
+    lastTileEl = $tile[0];
+  }
+
+  function stepLoupeFollow(dx, dy) {
+    if (!dx && !dy) return;
+    loupeCenterX += dx;
+    loupeCenterY += dy;
+    clampLoupeCenter();
     requestLoupeStamp();
+    syncPaintToLoupeCenter();
+  }
+
+  function accumulateLoupeFollow(dx, dy) {
+    var acc = loupeFollowAcc;
+    acc.x += dx;
+    acc.y += dy;
+    var sx = 0;
+    var sy = 0;
+    while (acc.x >= LOUPE_CELL) { sx += 1; acc.x -= LOUPE_CELL; }
+    while (acc.x <= -LOUPE_CELL) { sx -= 1; acc.x += LOUPE_CELL; }
+    while (acc.y >= LOUPE_CELL) { sy += 1; acc.y -= LOUPE_CELL; }
+    while (acc.y <= -LOUPE_CELL) { sy -= 1; acc.y += LOUPE_CELL; }
+    if (sx || sy) stepLoupeFollow(sx, sy);
+  }
+
+  function activateLoupeFollowFinger(clientX, clientY) {
+    if (suppressLoupe) return;
+    if ((clientX == null || isNaN(clientX) || clientY == null || isNaN(clientY)) && holdStart) {
+      clientX = holdStart.clientX;
+      clientY = holdStart.clientY;
+    }
+    if (loupeVisible && loupeFollow && loupeFollowOrigin) {
+      followLoupeTo(clientX, clientY);
+      return;
+    }
+    if (loupeFocusTile) {
+      loupeCenterX = loupeFocusTile.x;
+      loupeCenterY = loupeFocusTile.y;
+    }
+    clampLoupeCenter();
+    var ox = (holdStart && holdStart.clientX != null) ? holdStart.clientX : clientX;
+    var oy = (holdStart && holdStart.clientY != null) ? holdStart.clientY : clientY;
+    setLoupeFollowOrigin(ox, oy, loupeCenterX, loupeCenterY);
+    loupeFollow = true;
+    followLoupeTo(clientX, clientY);
+    stampLoupeNow();
+    syncPaintToLoupeCenter();
   }
 
   function clampLoupeCenter() {
@@ -388,7 +820,7 @@ $(function() {
     loupeCenterX += dx;
     loupeCenterY += dy;
     clampLoupeCenter();
-    loupeFollow = false;
+    stopLoupeFollow();
     stampLoupeNow();
   }
 
@@ -428,36 +860,41 @@ $(function() {
 
   function beginPaintAtTile($tile, clientX, clientY, allowLoupe) {
     painting = true;
-    loupeFollow = !!allowLoupe;
     suppressLoupe = !allowLoupe;
     lastTileEl = $tile[0];
     triggerTile($tile, 'mousedown');
     triggerTile($tile, 'mouseenter');
     holdStart = { clientX: clientX, clientY: clientY };
     lastPointer = { x: clientX, y: clientY };
+    captureLoupeFocusTile($tile);
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
     clearLongPress();
     if (allowLoupe) {
       longPressTimer = setTimeout(function() {
-        updateLoupe(lastPointer.x, lastPointer.y);
+        activateLoupeFollowFinger(lastPointer.x, lastPointer.y);
       }, LONG_PRESS_MS);
     }
   }
 
+  function endLoupePaint() {
+    if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
+    loupePainting = false;
+    painting = false;
+    lastTileEl = null;
+    if (loupeVisible) renderLoupe();
+  }
+
   function paintLoupeAt(clientX, clientY, phase) {
+    if (phase === 'end') {
+      endLoupePaint();
+      return true;
+    }
     var cell = loupeCellFromPoint(clientX, clientY);
     if (!cell) return false;
     var $tile = mapTileAt(cell.x, cell.y);
     if (!$tile.length) return false;
     if (phase === 'start') {
-      if (handleSettingsDoubleTap(cell.x, cell.y)) return true;
-      if (mapHasSettings(cell.x, cell.y)) {
-        suppressLoupe = true;
-        settingsPointerDown = true;
-        holdStart = { clientX: clientX, clientY: clientY };
-        lastPointer = { x: clientX, y: clientY };
-        queueSettingsPaint($tile, clientX, clientY);
-        return true;
-      }
       loupePainting = true;
       painting = true;
       lastTileEl = $tile[0];
@@ -470,11 +907,6 @@ $(function() {
       }
       triggerTile($tile, 'mousemove');
       lastTileEl = $tile[0];
-    } else {
-      if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
-      loupePainting = false;
-      painting = false;
-      lastTileEl = null;
     }
     renderLoupe();
     return true;
@@ -491,8 +923,105 @@ $(function() {
     if (suppressLoupe) return;
     pendingDismiss = false;
     holdMovingLoupe = true;
-    loupeFollow = true;
-    updateLoupe(clientX, clientY);
+    activateLoupeFollowFinger(clientX, clientY);
+  }
+
+  function recenterLoupeOn(x, y, clientX, clientY) {
+    loupeCenterX = x;
+    loupeCenterY = y;
+    clampLoupeCenter();
+    loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
+    if (clientX != null && clientY != null && !isNaN(clientX) && !isNaN(clientY)) {
+      positionLoupe(clientX, clientY);
+      setLoupeFollowOrigin(clientX, clientY, loupeCenterX, loupeCenterY);
+    }
+    stampLoupeNow();
+  }
+
+  function startFollowPaintAtCenter() {
+    var $tile = mapTileUnderPointer(lastPointer.x, lastPointer.y);
+    if (!$tile.length) $tile = mapTileAt(loupeCenterX, loupeCenterY);
+    if (!$tile.length) return;
+    var x = Number($tile.data('x'));
+    var y = Number($tile.data('y'));
+    if (!isNaN(x) && !isNaN(y)) {
+      loupeCenterX = x;
+      loupeCenterY = y;
+      clampLoupeCenter();
+      loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    }
+    painting = true;
+    loupePainting = false;
+    lastTileEl = $tile[0];
+    triggerTile($tile, 'mousedown');
+    triggerTile($tile, 'mouseenter');
+    captureLoupeFocusTile($tile);
+    stampLoupeNow();
+  }
+
+  function startParkedLoupePointer(clientX, clientY) {
+    closeMore();
+    pendingDismiss = false;
+    holdMovingLoupe = false;
+    var cell = loupeCellFromPoint(clientX, clientY);
+    if (!cell) return;
+    parkedLoupePending = { x: cell.x, y: cell.y, clientX: clientX, clientY: clientY };
+    holdStart = { clientX: clientX, clientY: clientY };
+    lastPointer = { x: clientX, y: clientY };
+    clearLongPress();
+    longPressTimer = setTimeout(function() {
+      if (!parkedLoupePending) return;
+      var p = parkedLoupePending;
+      parkedLoupePending = null;
+      if (mapHasSettings(p.x, p.y)) {
+        openSettingsAt(p.x, p.y);
+        return;
+      }
+      holdMovingLoupe = true;
+      loupeFollow = true;
+      recenterLoupeOn(p.x, p.y, lastPointer.x, lastPointer.y);
+      showLoupe();
+      startFollowPaintAtCenter();
+    }, LONG_PRESS_MS);
+  }
+
+  function moveParkedLoupePointer(clientX, clientY, prevX, prevY) {
+    if (prevX == null) prevX = lastPointer.x;
+    if (prevY == null) prevY = lastPointer.y;
+    lastPointer = { x: clientX, y: clientY };
+    if (holdMovingLoupe) {
+      followLoupeTo(clientX, clientY);
+      return;
+    }
+    if (parkedLoupePending && movedPastSlop(clientX, clientY)) {
+      clearLongPress();
+      var p = parkedLoupePending;
+      parkedLoupePending = null;
+      paintLoupeAt(p.clientX, p.clientY, 'start');
+      paintLoupeAt(clientX, clientY, 'move');
+      return;
+    }
+    if (loupePainting) paintLoupeAt(clientX, clientY, 'move');
+  }
+
+  function endParkedLoupePointer(clientX, clientY) {
+    clearLongPress();
+    if (parkedLoupePending) {
+      var p = parkedLoupePending;
+      parkedLoupePending = null;
+      paintLoupeAt(p.clientX, p.clientY, 'start');
+      endLoupePaint();
+      return;
+    }
+    if (loupePainting) {
+      endLoupePaint();
+      return;
+    }
+    if (holdMovingLoupe || (painting && !loupePainting)) {
+      endPaint(clientX, clientY);
+    }
   }
 
   function movedPastSlop(clientX, clientY) {
@@ -505,14 +1034,12 @@ $(function() {
   function endPaint(clientX, clientY) {
     clearLongPress();
     if (painting && !loupePainting) {
-      var $tile = tileFromPoint(clientX, clientY);
-      if (!$tile.length && lastTileEl) $tile = $(lastTileEl);
+      var $tile = lastTileEl ? $(lastTileEl) : tileFromPoint(clientX, clientY);
       triggerTile($tile, 'mouseup');
     }
     painting = false;
     lastTileEl = null;
-    loupeFollow = false;
-    holdMovingLoupe = false;
+    stopLoupeFollow();
     if (pendingDismiss) {
       pendingDismiss = false;
       hideLoupe();
@@ -558,10 +1085,12 @@ $(function() {
   }
 
   mapEl.addEventListener('touchstart', function(e) {
+    noteTouch();
     if (e.touches.length === 2) {
       e.preventDefault();
       twoFingerPanning = true;
       painting = false;
+      stopLoupeFollow();
       clearLongPress();
       clearSettingsPaint();
       panPointer = null;
@@ -588,19 +1117,16 @@ $(function() {
       e.preventDefault();
       e.stopPropagation();
       closeMore();
+      if (pointInLoupe(t.clientX, t.clientY)) return;
       var over = tileFromPoint(t.clientX, t.clientY);
-      var ox = over.data('x');
-      var oy = over.data('y');
-      if (over.length && mapHasSettings(ox, oy)) {
-        if (handleSettingsDoubleTap(ox, oy)) return;
-        suppressLoupe = true;
-        pendingDismiss = false;
-        return;
-      }
+      captureLoupeFocusTile(over);
+      if (!loupeFocusTile) loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
       pendingDismiss = true;
       holdMovingLoupe = false;
       holdStart = { clientX: t.clientX, clientY: t.clientY };
       lastPointer = { x: t.clientX, y: t.clientY };
+      loupeFollowAcc.x = 0;
+      loupeFollowAcc.y = 0;
       clearLongPress();
       longPressTimer = setTimeout(function() {
         beginHoldReposition(lastPointer.x, lastPointer.y);
@@ -664,7 +1190,10 @@ $(function() {
 
     if (e.touches.length !== 1) return;
     if (twoFingerPanning) return;
+    noteTouch();
     var t = e.touches[0];
+    var prevX = lastPointer.x;
+    var prevY = lastPointer.y;
     lastPointer = { x: t.clientX, y: t.clientY };
 
     if (panMode && panPointer) {
@@ -685,12 +1214,25 @@ $(function() {
         e.preventDefault();
         if (movedPastSlop(t.clientX, t.clientY) || holdMovingLoupe) {
           clearLongPress();
-          beginHoldReposition(t.clientX, t.clientY);
+          if (!holdMovingLoupe) {
+            beginHoldReposition(t.clientX, t.clientY);
+          } else {
+            followLoupePointer(t.clientX, t.clientY, prevX, prevY);
+          }
         }
       }
       return;
     }
     e.preventDefault();
+    if (!suppressLoupe && ((loupeFollow && loupeVisible) || movedPastSlop(t.clientX, t.clientY))) {
+      clearLongPress();
+      if (loupeVisible && loupeFollow) {
+        followLoupePointer(t.clientX, t.clientY, prevX, prevY);
+      } else {
+        activateLoupeFollowFinger(t.clientX, t.clientY);
+      }
+      return;
+    }
     var $tile = tileFromPoint(t.clientX, t.clientY);
     if ($tile.length) {
       if (lastTileEl && lastTileEl !== $tile[0]) {
@@ -703,12 +1245,12 @@ $(function() {
     if (movedPastSlop(t.clientX, t.clientY) || loupeVisible) {
       if (suppressLoupe) return;
       clearLongPress();
-      loupeFollow = true;
-      updateLoupe(t.clientX, t.clientY);
+      activateLoupeFollowFinger(t.clientX, t.clientY);
     }
   }, { passive: false });
 
   function onTouchEnd(e) {
+    noteTouch();
     if (e.touches.length >= 2) {
       pinchLastZoomAt = pinchDistance(e.touches[0], e.touches[1]);
       lastPinchMid = pinchMidpoint(e.touches[0], e.touches[1]);
@@ -748,6 +1290,8 @@ $(function() {
 
   mapEl.addEventListener('mousedown', function(e) {
     if (e.button !== 0) return;
+    if (isEmulatedMouse(e)) return;
+    if (isEmulatedMouse(e)) return;
     if (panMode) {
       e.preventDefault();
       e.stopPropagation();
@@ -760,7 +1304,7 @@ $(function() {
       if ($tile.length) {
         var x = $tile.data('x');
         var y = $tile.data('y');
-        if (mapHasSettings(x, y)) {
+        if (mapHasSettings(x, y) && !loupeVisible) {
           e.preventDefault();
           e.stopPropagation();
           closeMore();
@@ -778,10 +1322,17 @@ $(function() {
     if (loupeVisible) {
       e.preventDefault();
       e.stopPropagation();
+      if (pointInLoupe(e.clientX, e.clientY)) return;
+      var $over = $(e.target).closest('#map .tile');
+      if (!$over.length) $over = tileFromPoint(e.clientX, e.clientY);
+      captureLoupeFocusTile($over);
+      if (!loupeFocusTile) loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
       pendingDismiss = true;
       holdMovingLoupe = false;
       holdStart = { clientX: e.clientX, clientY: e.clientY };
       lastPointer = { x: e.clientX, y: e.clientY };
+      loupeFollowAcc.x = 0;
+      loupeFollowAcc.y = 0;
       clearLongPress();
       longPressTimer = setTimeout(function() {
         beginHoldReposition(lastPointer.x, lastPointer.y);
@@ -790,21 +1341,40 @@ $(function() {
   }, true);
 
   $map.on('mousedown', function(e) {
+    if (!e.originalEvent) return;
+    if (isEmulatedMouse(e)) return;
+    if (isEmulatedMouse(e)) return;
     if (e.which !== 1) return;
     if (e.shiftKey) return;
     if (panMode) return;
     if (loupeVisible) return;
+    if (e.clientX == null || e.clientY == null) return;
+    painting = false;
+    loupePainting = false;
     mouseLoupe = true;
-    loupeFollow = true;
     holdStart = { clientX: e.clientX, clientY: e.clientY };
     lastPointer = { x: e.clientX, y: e.clientY };
+    var $tile = $(e.target).closest('#map .tile');
+    if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
+    captureLoupeFocusTile($tile);
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
     clearLongPress();
     longPressTimer = setTimeout(function() {
-      if (mouseLoupe) updateLoupe(lastPointer.x, lastPointer.y);
+      if (mouseLoupe) activateLoupeFollowFinger(lastPointer.x, lastPointer.y);
     }, LONG_PRESS_MS);
   });
   $(document).on('mousemove', function(e) {
-    lastPointer = { x: e.clientX, y: e.clientY };
+    if (isEmulatedMouse(e)) return;
+    var prevX = lastPointer.x;
+    var prevY = lastPointer.y;
+    if (e.originalEvent && e.clientX != null && e.clientY != null) {
+      lastPointer = { x: e.clientX, y: e.clientY };
+    }
+    if (parkedLoupePending) {
+      moveParkedLoupePointer(e.clientX, e.clientY, prevX, prevY);
+      return;
+    }
     if (loupePainting) {
       paintLoupeAt(e.clientX, e.clientY, 'move');
       return;
@@ -823,28 +1393,46 @@ $(function() {
     if (pendingDismiss || holdMovingLoupe) {
       if (movedPastSlop(e.clientX, e.clientY) || holdMovingLoupe) {
         clearLongPress();
-        beginHoldReposition(e.clientX, e.clientY);
+        if (!holdMovingLoupe) {
+          beginHoldReposition(e.clientX, e.clientY);
+        } else {
+          followLoupePointer(e.clientX, e.clientY, prevX, prevY);
+        }
       }
       return;
     }
     if (!mouseLoupe || panMode) return;
+    if (loupeVisible && loupeFollow) {
+      followLoupePointer(e.clientX, e.clientY, prevX, prevY);
+      return;
+    }
     if (movedPastSlop(e.clientX, e.clientY) || loupeVisible) {
       clearLongPress();
-      loupeFollow = true;
-      updateLoupe(e.clientX, e.clientY);
+      activateLoupeFollowFinger(e.clientX, e.clientY);
     }
   });
-  $(document).on('mouseup', function() {
+  $(document).on('mouseup', function(e) {
+    if (!e.originalEvent) return;
+    if (isEmulatedMouse(e)) return;
     settingsPointerDown = false;
+    if (parkedLoupePending) {
+      endParkedLoupePointer(e.clientX, e.clientY);
+      if (panPointer) endPan();
+      return;
+    }
     if (loupePainting) {
-      paintLoupeAt(0, 0, 'end');
+      endLoupePaint();
     }
     if (panPointer) endPan();
     if (mouseLoupe || pendingDismiss || holdMovingLoupe) {
       mouseLoupe = false;
       clearLongPress();
-      loupeFollow = false;
-      holdMovingLoupe = false;
+      if (painting && !loupePainting) {
+        if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
+        painting = false;
+        lastTileEl = null;
+      }
+      stopLoupeFollow();
       if (pendingDismiss) {
         pendingDismiss = false;
         hideLoupe();
@@ -881,31 +1469,37 @@ $(function() {
 
   var loupeEl = $loupe[0];
   loupeEl.addEventListener('touchstart', function(e) {
+    noteTouch();
     e.preventDefault();
     e.stopPropagation();
     var t = e.touches[0];
-    paintLoupeAt(t.clientX, t.clientY, 'start');
+    startParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   loupeEl.addEventListener('touchmove', function(e) {
+    noteTouch();
     e.preventDefault();
     e.stopPropagation();
-    if (!loupePainting) return;
     var t = e.touches[0];
-    paintLoupeAt(t.clientX, t.clientY, 'move');
+    moveParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   loupeEl.addEventListener('touchend', function(e) {
+    noteTouch();
     e.preventDefault();
     e.stopPropagation();
-    paintLoupeAt(0, 0, 'end');
+    var t = (e.changedTouches && e.changedTouches[0]) || {};
+    endParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   loupeEl.addEventListener('touchcancel', function(e) {
-    paintLoupeAt(0, 0, 'end');
+    noteTouch();
+    var t = (e.changedTouches && e.changedTouches[0]) || {};
+    endParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
   $loupe.on('mousedown', function(e) {
     if (e.which !== 1) return;
+    if (isEmulatedMouse(e)) return;
     e.preventDefault();
     e.stopPropagation();
-    paintLoupeAt(e.clientX, e.clientY, 'start');
+    startParkedLoupePointer(e.clientX, e.clientY);
   });
   $loupe.on('dblclick', function(e) {
     if (!isPhoneLayout()) return;
@@ -1089,6 +1683,11 @@ $(function() {
     function centerOnActive(animate) {
       var active = el.querySelector('.btn.active');
       if (!active) return;
+      // When the row fits, CSS spacers center it — don't fight that with scroll.
+      if (el.scrollWidth <= el.clientWidth) {
+        el.scrollLeft = 0;
+        return;
+      }
       var left = active.offsetLeft - (el.clientWidth / 2) + (active.offsetWidth / 2);
       if (left < 0) left = 0;
       var max = Math.max(0, el.scrollWidth - el.clientWidth);
