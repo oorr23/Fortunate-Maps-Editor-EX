@@ -51,6 +51,7 @@
   function applyLayout(force) {
     var layout = chooseLayout(force);
     var root = document.documentElement;
+    var previous = root.getAttribute('data-layout');
     root.classList.remove('layout-mobile', 'layout-desktop');
     root.classList.add('layout-' + layout);
     root.setAttribute('data-layout', layout);
@@ -63,6 +64,11 @@
     if (document.body) {
       document.body.classList.remove('layout-mobile', 'layout-desktop');
       document.body.classList.add('layout-' + layout);
+    }
+    if (previous && previous !== layout) {
+      try {
+        root.dispatchEvent(new CustomEvent('tagpro-layout', { detail: { layout: layout } }));
+      } catch (err) {}
     }
     return layout;
   }

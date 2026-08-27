@@ -189,6 +189,8 @@ html.layout-mobile #map .map-canvas,
 html:not(.layout-desktop) #map .map-canvas {
   flex: 0 0 auto;
   margin: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 html.layout-mobile #sidebar,
