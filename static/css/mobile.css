@@ -1,0 +1,1760 @@
+/* Mobile is the default layout. Desktop is an explicit exception
+   via html.layout-desktop (set by layout.js after size + pointer checks). */
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+#app {
+  height: 100%;
+}
+
+.dock-flip {
+  display: inline-block;
+  transform: scale(-1, 1);
+}
+
+.icon-ccw {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+.icon-flip-h {
+  display: inline-block;
+  transform: rotate(90deg);
+}
+
+.loupe {
+  display: none;
+  position: fixed;
+  width: 264px;
+  height: 264px;
+  margin-left: -132px;
+  margin-top: -132px;
+  border-radius: 12px;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.95),
+    0 0 0 5px rgba(60, 60, 70, 0.45),
+    0 10px 28px rgba(0, 0, 0, 0.45);
+  background: #111;
+}
+
+.loupe.visible {
+  display: block;
+  pointer-events: auto;
+}
+
+/* While the glass follows the pointer, punch events through to the map. */
+.loupe.visible.follow-finger,
+.loupe.visible.follow-finger .loupe-inner {
+  pointer-events: none;
+}
+
+.loupe-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 264px;
+  height: 264px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #111;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.loupe-grid {
+  width: 440px;
+  height: 440px;
+  font-size: 0;
+  line-height: 0;
+  white-space: nowrap;
+  transform: scale(0.6);
+  transform-origin: 0 0;
+}
+
+.loupe-row {
+  height: 40px;
+  font-size: 0;
+  line-height: 0;
+  white-space: nowrap;
+}
+
+.loupe-grid .tileBackground,
+.loupe-grid .tile {
+  width: 40px !important;
+  height: 40px !important;
+  margin: 0;
+  pointer-events: none;
+}
+
+.loupe-grid .tileQuadrant {
+  width: 20px;
+  height: 20px;
+}
+
+.loupe-grid .selectionIndicator {
+  pointer-events: none;
+  z-index: 3;
+  background-image: url("../selected.png");
+  background-size: 40px 40px;
+}
+
+.loupe-grid .potentialHighlight {
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.5;
+}
+
+.loupe-grid .potentialHighlightOther {
+  display: none !important;
+}
+
+.loupe-crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 2px solid rgba(255, 220, 50, 0.95);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.layout-switcher .btn.active {
+  background-color: #2e6da4;
+  color: #fff;
+}
+
+/* ===== MOBILE (default) ===== */
+html.layout-mobile,
+html:not(.layout-desktop) {
+  overflow: hidden;
+}
+
+html.layout-mobile body,
+html:not(.layout-desktop) body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  background: #111;
+}
+
+/* Default mobile chrome: stacked portrait (map, then tools, then a
+   horizontal tile carousel). Landscape phones use the left-rail layout. */
+html.layout-mobile #app,
+html:not(.layout-desktop) #app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+}
+
+html.layout-mobile #map,
+html:not(.layout-desktop) #map {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  order: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: auto;
+  overflow: auto;
+  font-size: 0;
+  line-height: 0;
+  -webkit-overflow-scrolling: touch;
+  background: #111;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+html.layout-mobile #map .map-canvas,
+html:not(.layout-desktop) #map .map-canvas {
+  flex: 0 0 auto;
+  margin: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+html.layout-mobile #sidebar,
+html:not(.layout-desktop) #sidebar {
+  display: block;
+  position: relative;
+  order: 2;
+  flex: 0 0 auto;
+  width: 100%;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: #1a1d23;
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+}
+
+html.layout-mobile #dock,
+html:not(.layout-desktop) #dock {
+  position: relative;
+  z-index: 5;
+  padding: 8px 8px 6px;
+  background: #1a1d23;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow: visible;
+}
+
+html.layout-mobile #palette,
+html:not(.layout-desktop) #palette {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  min-width: 0;
+  min-height: 0;
+  width: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  gap: 0;
+  padding: 16px 8px 18px;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  background: #1a1d23;
+  box-shadow: none;
+}
+
+html.layout-mobile #palette::-webkit-scrollbar,
+html:not(.layout-desktop) #palette::-webkit-scrollbar {
+  display: none;
+}
+
+html.layout-mobile #palette .palette-track,
+html:not(.layout-desktop) #palette .palette-track {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8.4px;
+  padding: 0 4px;
+}
+
+html.layout-mobile #palette .tileBackground,
+html.layout-mobile #palette .tilePaletteOption,
+html:not(.layout-desktop) #palette .tileBackground,
+html:not(.layout-desktop) #palette .tilePaletteOption {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  background-size: 640px 440px;
+  overflow: visible;
+  transform: scale(1);
+  transform-origin: center center;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 1;
+}
+
+html.layout-mobile #palette .tilePaletteOption.palette-selected,
+html:not(.layout-desktop) #palette .tilePaletteOption.palette-selected {
+  transform: scale(1.4);
+  z-index: 2;
+}
+
+html.layout-mobile #palette .tile,
+html.layout-mobile #palette .tileTypeSelectionIndicator,
+html:not(.layout-desktop) #palette .tile,
+html:not(.layout-desktop) #palette .tileTypeSelectionIndicator {
+  width: 40px;
+  height: 40px;
+}
+
+html.layout-mobile #palette .tileQuadrant,
+html:not(.layout-desktop) #palette .tileQuadrant {
+  width: 20px;
+  height: 20px;
+  background-size: 640px 440px;
+}
+
+html.layout-mobile #palette .tile,
+html:not(.layout-desktop) #palette .tile {
+  background-size: 640px 440px;
+  overflow: visible;
+}
+
+html.layout-mobile .dock-tools-wrap,
+html:not(.layout-desktop) .dock-tools-wrap {
+  margin: 0 0 6px !important;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+
+html.layout-mobile #tools,
+html:not(.layout-desktop) #tools {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+/* Flex spacers center the icon cluster when it fits; they collapse when it overflows. */
+html.layout-mobile #tools::before,
+html.layout-mobile #tools::after,
+html:not(.layout-desktop) #tools::before,
+html:not(.layout-desktop) #tools::after {
+  content: '';
+  flex: 1 0 0;
+  min-width: 0;
+}
+
+html.layout-mobile #tools.tools-looping::before,
+html.layout-mobile #tools.tools-looping::after,
+html:not(.layout-desktop) #tools.tools-looping::before,
+html:not(.layout-desktop) #tools.tools-looping::after {
+  content: none;
+  flex: 0 0 0;
+  min-width: 0;
+  width: 0;
+}
+
+html.layout-mobile #tools::-webkit-scrollbar,
+html:not(.layout-desktop) #tools::-webkit-scrollbar {
+  display: none;
+}
+
+html.layout-mobile #tools .btn-group-justified,
+html:not(.layout-desktop) #tools .btn-group-justified {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  width: max-content;
+  min-width: 0;
+  flex: 0 0 auto;
+  gap: 8.4px;
+  padding: 8px 10px 10px;
+}
+
+html.layout-mobile #tools .btn-group-justified > .btn,
+html:not(.layout-desktop) #tools .btn-group-justified > .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  float: none;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  font-size: 18px;
+  line-height: 1;
+  flex: 0 0 44px;
+  text-align: center;
+  transform: scale(1);
+  transform-origin: center center;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 1;
+}
+
+html.layout-mobile #tools .btn-group-justified > .btn.active,
+html:not(.layout-desktop) #tools .btn-group-justified > .btn.active {
+  transform: scale(1.25);
+  z-index: 2;
+}
+
+html.layout-mobile #tools .btn > .glyphicon,
+html:not(.layout-desktop) #tools .btn > .glyphicon,
+html.layout-mobile #tools .btn > .tool-clip-icon,
+html:not(.layout-desktop) #tools .btn > .tool-clip-icon,
+html.layout-mobile #tools .btn > .tool-glue-icon,
+html:not(.layout-desktop) #tools .btn > .tool-glue-icon {
+  display: block;
+  position: static;
+  top: 0;
+  width: 100%;
+  margin: 0;
+  line-height: 1;
+  text-align: center;
+}
+
+html.layout-mobile #tools .btn > .glyphicon.icon-ccw,
+html.layout-mobile #tools .btn > .glyphicon.icon-flip-h,
+html:not(.layout-desktop) #tools .btn > .glyphicon.icon-ccw,
+html:not(.layout-desktop) #tools .btn > .glyphicon.icon-flip-h {
+  display: inline-block;
+}
+
+html.layout-mobile #tools .btn.active,
+html.layout-mobile a.selectedTool,
+html:not(.layout-desktop) #tools .btn.active,
+html:not(.layout-desktop) a.selectedTool {
+  background-color: #c0392b !important;
+  color: #fff;
+}
+
+html.layout-mobile #dockBar,
+html:not(.layout-desktop) #dockBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+  padding-top: 2px;
+  flex: 0 0 auto;
+}
+
+html.layout-mobile .dock-btn,
+html:not(.layout-desktop) .dock-btn {
+  flex: 1 1 0;
+  min-width: 44px;
+  min-height: 48px;
+  border: 1px solid #3a3f4a;
+  border-radius: 10px;
+  background: #2a2f38;
+  color: #f2f2f2;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.layout-mobile .dock-btn:active,
+html.layout-mobile .dock-btn.active,
+html:not(.layout-desktop) .dock-btn:active,
+html:not(.layout-desktop) .dock-btn.active {
+  background: #3d4654;
+}
+
+html.layout-mobile #panMode.active,
+html:not(.layout-desktop) #panMode.active,
+html.pan-mode #panMode {
+  background: #2e6da4;
+  border-color: #4a90c8;
+}
+
+html.pan-mode #map {
+  cursor: grab;
+}
+
+html.pan-mode #map .tile,
+html.pan-mode #map .tileBackground,
+html.pan-mode #map .tileQuadrant {
+  pointer-events: none;
+}
+
+html.layout-mobile #moreToggle,
+html:not(.layout-desktop) #moreToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1.4 1 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+html.layout-mobile .more-sheet-header,
+html:not(.layout-desktop) .more-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+html.layout-mobile #moreClose,
+html:not(.layout-desktop) #moreClose {
+  display: inline-block;
+  flex: 0 0 auto;
+  min-width: 72px;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+html.layout-mobile .more-backdrop,
+html:not(.layout-desktop) .more-backdrop {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 8;
+}
+
+html.layout-mobile .more-backdrop.open,
+html:not(.layout-desktop) .more-backdrop.open {
+  display: block;
+}
+
+html.layout-mobile #moreSheet,
+html:not(.layout-desktop) #moreSheet {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  width: auto;
+  max-height: min(52vh, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  z-index: 9;
+  background: #1e2229;
+  color: #eee;
+  padding: 12px 12px 16px;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+
+html.layout-mobile #moreSheet.open,
+html:not(.layout-desktop) #moreSheet.open {
+  display: flex;
+}
+
+html.layout-mobile .more-nav,
+html:not(.layout-desktop) .more-nav {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0 0 8px;
+  border: 1px solid #2c313a;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+html.layout-mobile .more-nav-btn,
+html:not(.layout-desktop) .more-nav-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  margin: 0;
+  padding: 6px 4px;
+  border: 0;
+  border-right: 1px solid #2c313a;
+  background: transparent;
+  color: #c8c8c8;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.layout-mobile .more-nav-btn:last-child,
+html:not(.layout-desktop) .more-nav-btn:last-child {
+  border-right: 0;
+}
+
+html.layout-mobile .more-nav-btn.active,
+html:not(.layout-desktop) .more-nav-btn.active {
+  background: #2a2f38;
+  color: #fff;
+}
+
+html.layout-mobile .more-panels,
+html:not(.layout-desktop) .more-panels {
+  min-width: 0;
+}
+
+html.layout-mobile .more-panel,
+html:not(.layout-desktop) .more-panel {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+}
+
+html.layout-mobile .more-panel[hidden],
+html:not(.layout-desktop) .more-panel[hidden] {
+  display: none !important;
+}
+
+html.layout-mobile #moreSheet .panel-undo-zoom,
+html:not(.layout-desktop) #moreSheet .panel-undo-zoom {
+  display: none;
+}
+
+html.layout-mobile #moreSheet .col-xs-4:last-child,
+html:not(.layout-desktop) #moreSheet .col-xs-4:last-child {
+  width: 100%;
+}
+
+html.layout-mobile #moreSheet .form-group,
+html:not(.layout-desktop) #moreSheet .form-group {
+  margin-bottom: 8px;
+}
+
+html.layout-mobile #moreSheet .form-group:last-child,
+html:not(.layout-desktop) #moreSheet .form-group:last-child {
+  margin-bottom: 0;
+}
+
+html.layout-mobile #themeSwitcher > label,
+html.layout-mobile #layoutSwitcher > label,
+html.layout-mobile #texturePackSection > label,
+html:not(.layout-desktop) #themeSwitcher > label,
+html:not(.layout-desktop) #layoutSwitcher > label,
+html:not(.layout-desktop) #texturePackSection > label {
+  display: none;
+}
+
+html.layout-mobile #texturePackMeta,
+html:not(.layout-desktop) #texturePackMeta {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+html.layout-mobile .texture-import-btns,
+html:not(.layout-desktop) .texture-import-btns {
+  margin-top: 8px;
+}
+
+html.layout-mobile #moreSheet .dropdown-menu,
+html:not(.layout-desktop) #moreSheet .dropdown-menu {
+  top: auto !important;
+  bottom: 100%;
+  margin-top: 0 !important;
+  margin-bottom: 4px;
+}
+
+html.layout-mobile #moreSheet #collab,
+html:not(.layout-desktop) #moreSheet #collab {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+html.layout-mobile #moreSheet .collab-colors,
+html:not(.layout-desktop) #moreSheet .collab-colors {
+  --collab-swatch: 44px;
+  justify-content: center;
+}
+
+html.layout-mobile #moreSheet .btn,
+html.layout-mobile #moreSheet .form-control,
+html.layout-mobile #moreSheet .input-group-addon,
+html.layout-mobile #moreSheet .input-group-btn .btn,
+html:not(.layout-desktop) #moreSheet .btn,
+html:not(.layout-desktop) #moreSheet .form-control,
+html:not(.layout-desktop) #moreSheet .input-group-addon,
+html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
+  min-height: 44px;
+  height: auto;
+  font-size: 13px;
+  padding: 6px 8px;
+}
+
+html.layout-mobile .modal,
+html:not(.layout-desktop) .modal {
+  z-index: 10100;
+}
+
+html.layout-mobile .modal-backdrop,
+html:not(.layout-desktop) .modal-backdrop {
+  z-index: 10050;
+}
+
+html.layout-mobile .modal-dialog,
+html:not(.layout-desktop) .modal-dialog {
+  margin: 12vh auto;
+  width: auto !important;
+  max-width: calc(100vw - 24px);
+}
+
+html.layout-mobile .ui-dialog,
+html:not(.layout-desktop) .ui-dialog {
+  max-width: calc(100vw - 16px) !important;
+  left: 8px !important;
+  width: auto !important;
+}
+
+html.layout-mobile a.dropArea,
+html:not(.layout-desktop) a.dropArea {
+  min-height: 88px;
+  line-height: 88px;
+  font-size: 18px;
+}
+
+html.layout-mobile .source-link,
+html:not(.layout-desktop) .source-link {
+  margin: 12px 0 0;
+}
+
+#textureUrlImport {
+  margin-top: 8px;
+}
+#textureUrlImport textarea {
+  margin-bottom: 8px;
+}
+
+html.layout-mobile .dock-btn .dock-flip,
+html:not(.layout-desktop) .dock-btn .dock-flip {
+  display: inline-block;
+  transform: scale(-1, 1);
+}
+
+/* One-handed website layout: only on narrow portrait phones. */
+@media (orientation: portrait) and (max-width: 480px) {
+  html.layout-mobile #app,
+  html:not(.layout-desktop) #app {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
+  }
+
+  html.layout-mobile #map,
+  html:not(.layout-desktop) #map {
+    grid-column: auto;
+    grid-row: auto;
+    order: 1;
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto;
+  }
+
+  html.layout-mobile #sidebar,
+  html:not(.layout-desktop) #sidebar {
+    display: block;
+    position: relative;
+    order: 2;
+    flex: 0 0 auto;
+    width: 100%;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: #1a1d23;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  }
+
+  html.layout-mobile #dock,
+  html:not(.layout-desktop) #dock {
+    grid-column: auto;
+    grid-row: auto;
+    padding: 8px 8px 6px;
+    overflow: visible;
+  }
+
+  html.layout-mobile #palette,
+  html:not(.layout-desktop) #palette {
+    flex-direction: row;
+    grid-column: auto;
+    grid-row: auto;
+    width: auto;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 16px 8px 18px;
+    touch-action: pan-x;
+    box-shadow: none;
+  }
+
+  html.layout-mobile #palette .palette-track,
+  html:not(.layout-desktop) #palette .palette-track {
+    flex-direction: row;
+    padding: 0 4px;
+  }
+
+  html.layout-mobile #palette .tilePaletteOption.palette-selected,
+  html:not(.layout-desktop) #palette .tilePaletteOption.palette-selected {
+    transform: scale(1.4);
+  }
+
+  html.layout-mobile #moreToggle,
+  html:not(.layout-desktop) #moreToggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 1.4 1 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  html.layout-mobile .more-sheet-header,
+  html:not(.layout-desktop) .more-sheet-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  html.layout-mobile #moreClose,
+  html:not(.layout-desktop) #moreClose {
+    display: inline-block !important;
+    flex: 0 0 auto;
+    min-width: 72px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+
+  html.layout-mobile .more-backdrop,
+  html:not(.layout-desktop) .more-backdrop {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 8;
+  }
+
+  html.layout-mobile .more-backdrop.open,
+  html:not(.layout-desktop) .more-backdrop.open {
+    display: block !important;
+  }
+
+  html.layout-mobile #moreSheet,
+  html:not(.layout-desktop) #moreSheet {
+    display: none;
+    flex-direction: column;
+    grid-column: auto;
+    grid-row: auto;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    max-height: min(52vh, 420px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    z-index: 9;
+    background: #1e2229;
+    padding: 12px 12px 16px;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  html.layout-mobile #moreSheet.open,
+  html:not(.layout-desktop) #moreSheet.open {
+    display: flex;
+  }
+
+  html.layout-mobile .more-nav,
+  html:not(.layout-desktop) .more-nav {
+    margin: 0 0 8px;
+    border: 1px solid #2c313a;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  html.layout-mobile .more-panel,
+  html:not(.layout-desktop) .more-panel {
+    padding: 0;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+  }
+}
+
+html.layout-mobile.orient-landscape #app,
+html:not(.layout-desktop).orient-landscape #app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+
+html.layout-mobile.orient-landscape #map,
+html:not(.layout-desktop).orient-landscape #map {
+  order: unset;
+  flex: unset;
+  grid-column: 1;
+  grid-row: 1;
+  width: auto;
+  height: auto;
+  padding-left: 56px;
+  padding-right: 56px;
+  box-sizing: border-box;
+}
+
+html.layout-mobile.orient-landscape #sidebar,
+html:not(.layout-desktop).orient-landscape #sidebar {
+  display: contents;
+  order: unset;
+  flex: unset;
+  width: auto;
+  padding-bottom: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html.layout-mobile.orient-landscape #dock,
+html:not(.layout-desktop).orient-landscape #dock {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+  overflow: hidden;
+}
+
+html.layout-mobile.orient-landscape #palette,
+html:not(.layout-desktop).orient-landscape #palette {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  width: 56px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+  z-index: 4;
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
+}
+
+html.layout-mobile.orient-landscape #palette .palette-track,
+html:not(.layout-desktop).orient-landscape #palette .palette-track {
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+html.layout-mobile.orient-landscape #tools,
+html:not(.layout-desktop).orient-landscape #tools {
+  min-width: 0;
+}
+
+html.layout-mobile.orient-landscape #moreSheet,
+html:not(.layout-desktop).orient-landscape #moreSheet {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  position: relative;
+  left: auto;
+  top: auto;
+  bottom: auto;
+  right: auto;
+  max-height: none;
+  overflow: visible;
+  z-index: 20;
+  background: #1a1d23;
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: 0;
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+}
+
+html.layout-mobile.orient-landscape .more-sheet-header,
+html:not(.layout-desktop).orient-landscape .more-sheet-header,
+html.layout-mobile.orient-landscape #moreClose,
+html:not(.layout-desktop).orient-landscape #moreClose,
+html.layout-mobile.orient-landscape #moreToggle,
+html:not(.layout-desktop).orient-landscape #moreToggle {
+  display: none !important;
+}
+
+html.layout-mobile.orient-landscape .more-backdrop,
+html:not(.layout-desktop).orient-landscape .more-backdrop {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+html.layout-mobile.orient-landscape .more-backdrop.open,
+html:not(.layout-desktop).orient-landscape .more-backdrop.open {
+  display: block;
+  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+}
+
+html.layout-mobile.orient-landscape .more-nav,
+html:not(.layout-desktop).orient-landscape .more-nav {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #2c313a;
+  border-radius: 0;
+  overflow: visible;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn,
+html:not(.layout-desktop).orient-landscape .more-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  padding: 4px 2px 7px;
+  border: 0;
+  border-right: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #b4b8c0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn::before {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 2px auto 4px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 6px solid #6a7180;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn.active,
+html:not(.layout-desktop).orient-landscape .more-nav-btn.active {
+  background: transparent;
+  color: #fff;
+}
+
+html.layout-mobile.orient-landscape .more-nav-btn.active::before,
+html:not(.layout-desktop).orient-landscape .more-nav-btn.active::before {
+  border-bottom-color: #e6e8ee;
+}
+
+html.layout-mobile.orient-landscape .more-panels,
+html:not(.layout-desktop).orient-landscape .more-panels {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  max-height: min(40vh, 280px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #1e2229;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+  transform: translateY(100%);
+  pointer-events: none;
+  visibility: hidden;
+  z-index: 1;
+  transition: transform 180ms ease-out, visibility 0s linear 180ms;
+}
+
+html.layout-mobile.orient-landscape #moreSheet.open .more-panels,
+html.layout-mobile.orient-landscape #moreSheet.more-dragging .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.more-dragging .more-panels {
+  visibility: visible;
+  transition: transform 180ms ease-out, visibility 0s;
+}
+
+html.layout-mobile.orient-landscape #moreSheet.open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.open .more-panels {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+html.layout-mobile.orient-landscape .more-panel,
+html:not(.layout-desktop).orient-landscape .more-panel {
+  padding: 8px 10px 10px;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+}
+
+html.layout-mobile.orient-landscape .more-help,
+html:not(.layout-desktop).orient-landscape .more-help,
+html.layout-mobile.orient-landscape .source-link,
+html:not(.layout-desktop).orient-landscape .source-link {
+  display: none;
+}
+
+html.layout-mobile.orient-landscape .more-panel[data-panel="file"],
+html:not(.layout-desktop).orient-landscape .more-panel[data-panel="file"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+
+html.layout-mobile.orient-landscape .more-panel[data-panel="file"] .form-group,
+html:not(.layout-desktop).orient-landscape .more-panel[data-panel="file"] .form-group {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+html.layout-mobile.orient-landscape #moreSheet .btn,
+html.layout-mobile.orient-landscape #moreSheet .form-control,
+html:not(.layout-desktop).orient-landscape #moreSheet .btn,
+html:not(.layout-desktop).orient-landscape #moreSheet .form-control {
+  min-height: 36px;
+}
+
+html.layout-mobile.orient-landscape #collabUsername,
+html:not(.layout-desktop).orient-landscape #collabUsername {
+  min-height: 28px;
+  height: 28px;
+}
+
+html.layout-mobile.orient-landscape .collab-identity,
+html:not(.layout-desktop).orient-landscape .collab-identity {
+  flex: 1 1 100%;
+  width: 100%;
+  align-items: center;
+}
+
+html.layout-mobile.orient-landscape .collab-identity #collabUsername,
+html:not(.layout-desktop).orient-landscape .collab-identity #collabUsername {
+  width: auto;
+  flex: 1 1 0%;
+  min-width: 0;
+  margin-top: 0;
+}
+
+html.layout-mobile.orient-landscape #moreSheet .collab-colors,
+html:not(.layout-desktop).orient-landscape #moreSheet .collab-colors {
+  --collab-swatch: 36px;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+html.layout-mobile .dock-btn .dock-flip,
+html:not(.layout-desktop) .dock-btn .dock-flip {
+  display: inline-block;
+  transform: scale(-1, 1);
+}
+
+@media (orientation: landscape) {
+  html.layout-mobile #app,
+  html:not(.layout-desktop) #app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto;
+  }
+
+  html.layout-mobile #map,
+  html:not(.layout-desktop) #map {
+    order: unset;
+    flex: unset;
+    grid-column: 1;
+    grid-row: 1;
+    width: auto;
+    height: auto;
+    padding-left: 56px;
+    padding-right: 56px;
+    box-sizing: border-box;
+  }
+
+  html.layout-mobile #sidebar,
+  html:not(.layout-desktop) #sidebar {
+    display: contents;
+    order: unset;
+    flex: unset;
+    width: auto;
+    padding-bottom: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  html.layout-mobile #dock,
+  html:not(.layout-desktop) #dock {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding: 4px 8px 4px;
+    box-shadow: none;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  html.layout-mobile #palette,
+  html:not(.layout-desktop) #palette {
+    display: flex;
+    flex-direction: column;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    align-self: stretch;
+    min-width: 0;
+    min-height: 0;
+    width: 56px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 4px 2px;
+    padding-left: calc(2px + env(safe-area-inset-left, 0px));
+    touch-action: pan-y;
+    z-index: 4;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
+  }
+
+  html.layout-mobile #palette .palette-track,
+  html:not(.layout-desktop) #palette .palette-track {
+    flex-direction: column;
+    padding: 4px 0;
+  }
+
+  html.layout-mobile #palette .tilePaletteOption.palette-selected,
+  html:not(.layout-desktop) #palette .tilePaletteOption.palette-selected {
+    transform: scale(1.25);
+  }
+
+  html.layout-mobile .dock-tools-wrap,
+  html:not(.layout-desktop) .dock-tools-wrap {
+    margin: 0 !important;
+  }
+
+  html.layout-mobile #tools .btn-group-justified > .btn,
+  html.layout-mobile .dock-btn,
+  html:not(.layout-desktop) #tools .btn-group-justified > .btn,
+  html:not(.layout-desktop) .dock-btn {
+    min-height: 40px;
+    height: 40px;
+  }
+
+  html.layout-mobile #dockBar,
+  html:not(.layout-desktop) #dockBar {
+    flex-wrap: nowrap;
+  }
+
+  html.layout-mobile .more-sheet-header,
+  html:not(.layout-desktop) .more-sheet-header,
+  html.layout-mobile #moreClose,
+  html:not(.layout-desktop) #moreClose,
+  html.layout-mobile #moreToggle,
+  html:not(.layout-desktop) #moreToggle {
+    display: none !important;
+  }
+
+  html.layout-mobile .more-backdrop,
+  html:not(.layout-desktop) .more-backdrop {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 10;
+  }
+
+  html.layout-mobile .more-backdrop.open,
+  html:not(.layout-desktop) .more-backdrop.open {
+    display: block !important;
+    bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.layout-mobile #moreSheet,
+  html:not(.layout-desktop) #moreSheet {
+    display: flex;
+    flex-direction: column;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    position: relative;
+    left: auto;
+    top: auto;
+    bottom: auto;
+    right: auto;
+    max-height: none;
+    overflow: visible;
+    z-index: 20;
+    background: #1a1d23;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-radius: 0;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  }
+
+  html.layout-mobile #moreSheet.open,
+  html:not(.layout-desktop) #moreSheet.open {
+    display: flex;
+  }
+
+  html.layout-mobile .more-nav,
+  html:not(.layout-desktop) .more-nav {
+    position: relative;
+    z-index: 2;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid #2c313a;
+    border-radius: 0;
+    overflow: visible;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  html.layout-mobile .more-nav-btn,
+  html:not(.layout-desktop) .more-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 36px;
+    padding: 4px 2px 7px;
+    border: 0;
+    border-right: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #b4b8c0;
+    font-size: 11px;
+    font-weight: 600;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  html.layout-mobile .more-nav-btn::before,
+  html:not(.layout-desktop) .more-nav-btn::before {
+    content: "";
+    display: block;
+    width: 0;
+    height: 0;
+    margin: 2px auto 4px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 6px solid #6a7180;
+  }
+
+  html.layout-mobile .more-nav-btn.active,
+  html:not(.layout-desktop) .more-nav-btn.active {
+    background: transparent;
+    color: #fff;
+  }
+
+  html.layout-mobile .more-nav-btn.active::before,
+  html:not(.layout-desktop) .more-nav-btn.active::before {
+    border-bottom-color: #e6e8ee;
+  }
+
+  html.layout-mobile .more-panels,
+  html:not(.layout-desktop) .more-panels {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    max-height: min(40vh, 280px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: #1e2229;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+    transform: translateY(100%);
+    pointer-events: none;
+    visibility: hidden;
+    z-index: 1;
+    transition: transform 180ms ease-out, visibility 0s linear 180ms;
+  }
+
+  html.layout-mobile #moreSheet.open .more-panels,
+  html.layout-mobile #moreSheet.more-dragging .more-panels,
+  html:not(.layout-desktop) #moreSheet.open .more-panels,
+  html:not(.layout-desktop) #moreSheet.more-dragging .more-panels {
+    visibility: visible;
+    transition: transform 180ms ease-out, visibility 0s;
+  }
+
+  html.layout-mobile #moreSheet.open .more-panels,
+  html:not(.layout-desktop) #moreSheet.open .more-panels {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  html.layout-mobile .more-panel,
+  html:not(.layout-desktop) .more-panel {
+    padding: 8px 10px 10px;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+  }
+
+  html.layout-mobile .more-help,
+  html:not(.layout-desktop) .more-help,
+  html.layout-mobile .source-link,
+  html:not(.layout-desktop) .source-link {
+    display: none;
+  }
+
+  html.layout-mobile .more-panel[data-panel="file"],
+  html:not(.layout-desktop) .more-panel[data-panel="file"] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  html.layout-mobile .more-panel[data-panel="file"] .form-group,
+  html:not(.layout-desktop) .more-panel[data-panel="file"] .form-group {
+    flex: 1 1 220px;
+    margin-bottom: 0;
+  }
+
+  html.layout-mobile #moreSheet .btn,
+  html.layout-mobile #moreSheet .form-control,
+  html:not(.layout-desktop) #moreSheet .btn,
+  html:not(.layout-desktop) #moreSheet .form-control {
+    min-height: 36px;
+  }
+
+  html.layout-mobile #collabUsername,
+  html:not(.layout-desktop) #collabUsername {
+    min-height: 28px;
+    height: 28px;
+  }
+
+  html.layout-mobile .collab-identity,
+  html:not(.layout-desktop) .collab-identity {
+    flex: 1 1 100%;
+    width: 100%;
+    align-items: center;
+  }
+
+  html.layout-mobile .collab-identity #collabUsername,
+  html:not(.layout-desktop) .collab-identity #collabUsername {
+    width: auto;
+    flex: 1 1 0%;
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  html.layout-mobile #moreSheet .collab-colors,
+  html:not(.layout-desktop) #moreSheet .collab-colors {
+    --collab-swatch: 36px;
+    margin-top: 8px;
+    justify-content: center;
+  }
+
+  html.theme-light.layout-mobile .more-panels,
+  html.theme-light:not(.layout-desktop) .more-panels {
+    background: #f7f7f8;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn,
+  html.theme-light:not(.layout-desktop) .more-nav-btn {
+    color: #444;
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn::before,
+  html.theme-light:not(.layout-desktop) .more-nav-btn::before {
+    border-bottom-color: #9a9aa2;
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn.active,
+  html.theme-light:not(.layout-desktop) .more-nav-btn.active {
+    background: transparent;
+    color: #111;
+  }
+
+  html.theme-light.layout-mobile .more-nav-btn.active::before,
+  html.theme-light:not(.layout-desktop) .more-nav-btn.active::before {
+    border-bottom-color: #333;
+  }
+}
+
+/* ===== DESKTOP (exception) ===== */
+html.layout-desktop,
+html.layout-desktop body {
+  overflow: auto;
+  position: static;
+  width: auto;
+  height: 100%;
+  background: #fff;
+  touch-action: auto;
+}
+
+html.layout-desktop #app {
+  height: 100%;
+}
+
+html.layout-desktop #sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  background: #fff;
+  color: inherit;
+  box-shadow: none;
+  z-index: 3;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+html.layout-desktop #map {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 320px;
+  overflow: auto;
+  font-size: 0;
+  line-height: 0;
+  -webkit-overflow-scrolling: touch;
+  background: #111;
+  touch-action: auto;
+  user-select: auto;
+}
+
+html.layout-desktop #map .map-canvas {
+  flex: 0 0 auto;
+  margin: auto;
+}
+
+html.layout-desktop #dockBar,
+html.layout-desktop #moreBackdrop,
+html.layout-desktop #moreClose,
+html.layout-desktop .more-sheet-header,
+html.layout-desktop .more-nav {
+  display: none !important;
+}
+
+html.layout-desktop #moreSheet {
+  display: block;
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  max-height: none;
+  overflow: visible;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  order: 0;
+}
+
+html.layout-desktop .more-panel,
+html.layout-desktop .more-panel[hidden] {
+  display: block !important;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+}
+
+html.layout-desktop #moreSheet .panel-undo-zoom {
+  display: block;
+}
+
+html.layout-desktop #moreSheet .col-xs-4:last-child {
+  width: 33.33333333%;
+}
+
+html.layout-desktop #dock {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  padding: 0;
+  background: transparent;
+  order: 1;
+}
+
+html.layout-desktop #palette {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-top: 8px;
+  background: transparent;
+  box-shadow: none;
+  order: 2;
+}
+
+html.layout-desktop #palette .palette-track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 8.4px;
+}
+
+html.layout-desktop #palette .tilePaletteOption,
+html.layout-desktop #palette .tile {
+  overflow: visible;
+  background-size: 640px 440px;
+}
+
+html.layout-desktop #palette .tileQuadrant {
+  width: 20px;
+  height: 20px;
+  background-size: 640px 440px;
+}
+
+html.layout-desktop #tools .btn-group-justified {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+html.layout-desktop #tools .btn-group-justified > .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  float: none;
+  flex: 0 0 36px;
+  padding: 0;
+  line-height: 1;
+}
+
+html.theme-dark #moreSheet .btn,
+html.theme-dark #moreSheet .form-control,
+html.theme-dark #moreSheet .input-group-addon,
+html.theme-dark #moreSheet select,
+html.theme-dark #importExport .modal-content,
+html.theme-dark #importExport .form-control,
+html.theme-dark #instructionsModal .modal-content,
+html.theme-dark #instructionsModal .form-control {
+  background-color: #2a2f38;
+  border-color: #3a3f4a;
+  color: #f2f2f2;
+}
+
+html.theme-dark #moreSheet .help-block,
+html.theme-dark #moreSheet .source-link,
+html.theme-dark #moreSheet .source-link a,
+html.theme-dark #moreSheet .help-block a,
+html.theme-dark #importExport,
+html.theme-dark #instructionsModal {
+  color: #c8c8c8;
+}
+
+html.theme-dark .highlight-color-active,
+html.theme-dark .highlight-color:hover {
+  border-color: #fff;
+}
+
+html.theme-dark #importExport .modal-content,
+html.theme-dark #instructionsModal .modal-content {
+  background: #1e2229;
+  color: #eee;
+}
+
+html.theme-dark #importExport .modal-header,
+html.theme-dark #importExport .modal-footer,
+html.theme-dark #instructionsModal .modal-header,
+html.theme-dark #instructionsModal .modal-footer {
+  border-color: #3a3f4a;
+}
+
+html.theme-dark #importExport .close,
+html.theme-dark #instructionsModal .close {
+  color: #fff;
+  opacity: 0.8;
+}
+
+html.theme-dark a.dropArea {
+  background: #2a2f38;
+  border-color: #888;
+  color: #eee;
+}
+
+html.theme-light #moreSheet {
+  background: #f7f7f8;
+  color: #222;
+}
+
+html.theme-light.layout-mobile .more-nav,
+html.theme-light:not(.layout-desktop) .more-nav {
+  border-top-color: #d0d0d4;
+}
+
+html.theme-light.layout-mobile .more-nav-btn,
+html.theme-light:not(.layout-desktop) .more-nav-btn {
+  color: #444;
+  border-right-color: #d0d0d4;
+}
+
+html.theme-light.layout-mobile .more-nav-btn.active,
+html.theme-light:not(.layout-desktop) .more-nav-btn.active {
+  background: #e4e4e8;
+  color: #111;
+}
+
+html.theme-light.layout-mobile .more-panel,
+html.theme-light:not(.layout-desktop) .more-panel {
+  border-top-color: #d0d0d4;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-panels,
+html.theme-light:not(.layout-desktop).orient-landscape .more-panels {
+  background: #f7f7f8;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn {
+  color: #444;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn::before,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn::before {
+  border-bottom-color: #9a9aa2;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn.active,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn.active {
+  background: transparent;
+  color: #111;
+}
+
+html.theme-light.layout-mobile.orient-landscape .more-nav-btn.active::before,
+html.theme-light:not(.layout-desktop).orient-landscape .more-nav-btn.active::before {
+  border-bottom-color: #333;
+}
+
+html.theme-light.layout-mobile body,
+html.theme-light:not(.layout-desktop) body {
+  background: #ddd;
+}
+
+html.theme-dark.layout-desktop,
+html.theme-dark.layout-desktop body {
+  background: #1a1d23;
+  color: #eee;
+}
+
+html.layout-mobile .modal-dialog,
+html:not(.layout-desktop) .modal-dialog {
+  margin: 12vh auto;
+  width: auto !important;
+  max-width: calc(100vw - 24px);
+}
