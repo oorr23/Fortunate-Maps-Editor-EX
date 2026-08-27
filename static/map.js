@@ -2830,8 +2830,183 @@ $(function() {
     }
   }
 
+  function mapCanvasEl() {
+    var el = document.getElementById('map');
+    return el && el.querySelector('.map-canvas');
+  }
+
+  function minMaxTileSize() {
+    var fit = computeFitTileSize();
+    return {
+      min: 2,
+      max: Math.max(fit, Math.round(fit * Math.pow(1.4, maxZoom)))
+    };
+  }
+
+  function zoomLevelFromTileSize(size) {
+    var fit = computeFitTileSize();
+    if (size <= fit + 0.51) return 0;
+    var z = Math.log(size / fit) / Math.log(1.4);
+    return Math.max(0, Math.min(maxZoom, Math.round(z)));
+  }
+
+  var zoomAnimFrame = 0;
+  var viewScale = 1;
+  var viewTx = 0;
+  var viewTy = 0;
+
+  function cancelZoomAnimation() {
+    if (zoomAnimFrame) {
+      cancelAnimationFrame(zoomAnimFrame);
+      zoomAnimFrame = 0;
+    }
+  }
+
+  function mapViewCenter() {
+    var el = document.getElementById('map');
+    if (!el) return { x: 0, y: 0 };
+    var rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + el.clientWidth / 2,
+      y: rect.top + el.clientHeight / 2
+    };
+  }
+
+  function zoomScaleLimits() {
+    var lim = minMaxTileSize();
+    return { min: lim.min / tileSize, max: lim.max / tileSize };
+  }
+
+  function applyViewTransform() {
+    var c = mapCanvasEl();
+    if (!c) return;
+    if (!isMobileLayout() || (Math.abs(viewScale - 1) < 1e-6 && Math.abs(viewTx) < 0.05 && Math.abs(viewTy) < 0.05)) {
+      c.style.transform = '';
+      c.style.transformOrigin = '';
+      c.style.willChange = '';
+      return;
+    }
+    c.style.willChange = 'transform';
+    c.style.transformOrigin = '0 0';
+    c.style.transform = 'translate3d(' + viewTx + 'px,' + viewTy + 'px,0) scale(' + viewScale + ')';
+  }
+
+  function resetViewTransform() {
+    cancelZoomAnimation();
+    viewScale = 1;
+    viewTx = 0;
+    viewTy = 0;
+    applyViewTransform();
+  }
+
+  function beginFocalZoom(clientX, clientY) {
+    if (!isMobileLayout()) return null;
+    var c = mapCanvasEl();
+    if (!c) return null;
+    var cr = c.getBoundingClientRect();
+    return {
+      localX: (clientX - cr.left) / viewScale,
+      localY: (clientY - cr.top) / viewScale,
+      baseScale: viewScale
+    };
+  }
+
+  function setFocalZoom(focal, scale, clientX, clientY) {
+    if (!isMobileLayout()) return;
+    var c = mapCanvasEl();
+    if (!c || !focal) return;
+    var lim = zoomScaleLimits();
+    var next = Math.max(lim.min, Math.min(lim.max, scale));
+    if (!(next > 0)) return;
+    var cr = c.getBoundingClientRect();
+    var layoutX = cr.left - viewTx;
+    var layoutY = cr.top - viewTy;
+    viewScale = next;
+    viewTx = clientX - layoutX - focal.localX * viewScale;
+    viewTy = clientY - layoutY - focal.localY * viewScale;
+    applyViewTransform();
+    zoom = zoomLevelFromTileSize(tileSize * viewScale);
+    enableZoomButtons();
+  }
+
+  function zoomBy(factor, clientX, clientY) {
+    if (!isMobileLayout()) return;
+    var focal = beginFocalZoom(clientX, clientY);
+    if (!focal) return;
+    setFocalZoom(focal, viewScale * factor, clientX, clientY);
+  }
+
+  function rebaseTileSizeToView(clientX, clientY) {
+    if (!isMobileLayout()) return;
+    var c = mapCanvasEl();
+    var el = document.getElementById('map');
+    if (!c || !el || !tiles || !tiles.length) return;
+    if (!(viewScale > 0) || Math.abs(viewScale - 1) < 0.02) return;
+
+    var center = mapViewCenter();
+    if (clientX == null) clientX = center.x;
+    if (clientY == null) clientY = center.y;
+
+    var cr = c.getBoundingClientRect();
+    var localX = (clientX - cr.left) / viewScale;
+    var localY = (clientY - cr.top) / viewScale;
+    var oldTile = tileSize;
+    var visual = oldTile * viewScale;
+    var lim = minMaxTileSize();
+    var next = Math.round(visual);
+    next = Math.max(lim.min, Math.min(lim.max, next));
+    if (next === oldTile) return;
+
+    var leftover = visual / next;
+    if (Math.abs(leftover - 1) < 0.002) leftover = 1;
+    var ratio = next / oldTile;
+
+    viewScale = 1;
+    viewTx = 0;
+    viewTy = 0;
+    applyViewTransform();
+    applyTilePixelSize(next);
+    pinMapCanvas();
+
+    var cr2 = c.getBoundingClientRect();
+    viewScale = leftover;
+    viewTx = clientX - cr2.left - localX * ratio * leftover;
+    viewTy = clientY - cr2.top - localY * ratio * leftover;
+    applyViewTransform();
+    zoom = zoomLevelFromTileSize(next);
+    enableZoomButtons();
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
+  }
+
+  function clearPreviewZoom() {
+    cancelZoomAnimation();
+  }
+
+  function animateFocalZoom(targetScale, clientX, clientY) {
+    var lim = zoomScaleLimits();
+    targetScale = Math.max(lim.min, Math.min(lim.max, targetScale));
+    if (!(targetScale > 0) || Math.abs(targetScale - viewScale) < 0.002) return;
+    var focal = beginFocalZoom(clientX, clientY);
+    if (!focal) return;
+    var from = viewScale;
+    var t0 = performance.now();
+    cancelZoomAnimation();
+    function frame(now) {
+      var t = Math.min(1, (now - t0) / 180);
+      var ease = 1 - Math.pow(1 - t, 3);
+      setFocalZoom(focal, from + (targetScale - from) * ease, clientX, clientY);
+      if (t < 1) zoomAnimFrame = requestAnimationFrame(frame);
+      else {
+        zoomAnimFrame = 0;
+        rebaseTileSizeToView(clientX, clientY);
+      }
+    }
+    zoomAnimFrame = requestAnimationFrame(frame);
+  }
+
   function showZoom(opts) {
     opts = opts || {};
+    resetViewTransform();
     var prev = mapScrollSnapshot();
     var next = tileSizeForZoom();
     if (opts.shrinkOnly) next = Math.min(tileSize, computeFitTileSize());
@@ -2846,12 +3021,22 @@ $(function() {
   }
 
   function zoomIn() {
+    if (isMobileLayout()) {
+      var c = mapViewCenter();
+      animateFocalZoom(viewScale * 1.4, c.x, c.y);
+      return;
+    }
     zoom = Math.min(maxZoom, zoom + 1);
     showZoom();
     enableZoomButtons();
   }
 
   function zoomOut() {
+    if (isMobileLayout()) {
+      var c = mapViewCenter();
+      animateFocalZoom(viewScale / 1.4, c.x, c.y);
+      return;
+    }
     if (zoom > 0) {
       zoom = zoom - 1;
       showZoom();
@@ -2868,6 +3053,12 @@ $(function() {
   });
   
   function enableZoomButtons() {
+    if (isMobileLayout()) {
+      var lim = zoomScaleLimits();
+      enable($('#zoomIn, #dockZoomIn'), viewScale < lim.max - 0.01);
+      enable($('#zoomOut, #dockZoomOut'), viewScale > lim.min + 0.01);
+      return;
+    }
     enable($('#zoomIn, #dockZoomIn'), zoom < maxZoom);
     enable($('#zoomOut, #dockZoomOut'), zoom > 0 || mapOverflows());
   }
@@ -2884,11 +3075,25 @@ $(function() {
   enableZoomButtons();
   $(window).on('resize orientationchange', function() {
     requestAnimationFrame(function() {
-      if (tiles && tiles.length) {
-        showZoom();
+      if (!tiles || !tiles.length) return;
+      if (isMobileLayout()) {
+        if (Math.abs(viewScale - 1) < 0.02) showZoom();
+        else applyViewTransform();
         enableZoomButtons();
+        return;
       }
+      showZoom();
+      enableZoomButtons();
     });
+  });
+  document.documentElement.addEventListener('tagpro-layout', function() {
+    if (!isMobileLayout()) {
+      resetViewTransform();
+      if (tiles && tiles.length) showZoom();
+    } else {
+      resetViewTransform();
+    }
+    enableZoomButtons();
   });
   
   $('#dropHelp').click(function() {
@@ -3328,10 +3533,17 @@ $(function() {
     isApplyingRemote: function() { return applyingRemote; },
     enablePersist: function() { persistReady = true; },
     persistNow: persistMapNow,
-    getSize: function() { return { width: width, height: height, tileSize: tileSize, zoom: zoom }; },
+    getSize: function() { return { width: width, height: height, tileSize: tileSize, zoom: zoom, viewScale: viewScale }; },
     fitView: function() { zoom = 0; showZoom(); enableZoomButtons(); },
     zoomIn: zoomIn,
     zoomOut: zoomOut,
+    beginFocalZoom: beginFocalZoom,
+    setFocalZoom: setFocalZoom,
+    zoomBy: zoomBy,
+    rebaseTileSizeToView: rebaseTileSizeToView,
+    resetViewTransform: resetViewTransform,
+    clearPreviewZoom: clearPreviewZoom,
+    zoomScaleLimits: zoomScaleLimits,
     redrawTextures: redrawTextures,
     paintLoupeCell: paintLoupeCell,
     tileHasSettings: tileHasSettings,

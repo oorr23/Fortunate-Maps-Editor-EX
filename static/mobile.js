@@ -22,6 +22,8 @@ $(function() {
   var longPressTimer = null;
   var lastTileEl = null;
   var pinchLastZoomAt = 0;
+  var pinchLive = null;
+  var wheelPinchTimer = 0;
   var panPointer = null;
   var twoFingerPanning = false;
   var twoFingerOnLoupe = false;
@@ -34,7 +36,7 @@ $(function() {
 
   function isPhoneLayout() {
     if (window.TagproLayout && window.TagproLayout.isMobile) return window.TagproLayout.isMobile();
-    return true;
+    return !document.documentElement.classList.contains('layout-desktop');
   }
 
   function syncLayoutSwitcher() {
@@ -66,6 +68,11 @@ $(function() {
     closeMore();
     syncLayoutSwitcher();
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);
+  });
+
+  document.documentElement.addEventListener('tagpro-layout', function() {
+    finishLivePinch();
+    if (!isPhoneLayout()) hideLoupe();
   });
 
   var THEME_KEY = 'tagpro-theme';
@@ -1107,11 +1114,23 @@ $(function() {
     twoFingerPanning = true;
     holdStart = null;
     pendingDismiss = false;
+    if (wheelPinchTimer) {
+      clearTimeout(wheelPinchTimer);
+      wheelPinchTimer = 0;
+    }
+    pinchLive = null;
     lastPinchMid = pinchMidpoint(t0, t1);
     twoFingerAcc.x = 0;
     twoFingerAcc.y = 0;
     pinchLastZoomAt = pinchDistance(t0, t1);
     twoFingerOnLoupe = bothTouchesOnLoupe(t0, t1);
+    pinchLive = null;
+    if (isPhoneLayout() && !twoFingerOnLoupe && window.TagproMap && TagproMap.beginFocalZoom && lastPinchMid) {
+      pinchLive = {
+        startDist: pinchLastZoomAt,
+        focal: TagproMap.beginFocalZoom(lastPinchMid.x, lastPinchMid.y)
+      };
+    }
     if (!isPhoneLayout() && !twoFingerOnLoupe) hideLoupe();
   }
 
@@ -1124,12 +1143,17 @@ $(function() {
       lastPinchMid = mid;
       return;
     }
-    if (lastPinchMid) {
+    if (lastPinchMid && !pinchLive) {
       mapEl.scrollLeft += lastPinchMid.x - mid.x;
       mapEl.scrollTop += lastPinchMid.y - mid.y;
     }
     lastPinchMid = mid;
     var dist = pinchDistance(t0, t1);
+    if (isPhoneLayout() && pinchLive && pinchLive.startDist && pinchLive.focal && window.TagproMap && TagproMap.setFocalZoom) {
+      TagproMap.setFocalZoom(pinchLive.focal, pinchLive.focal.baseScale * (dist / pinchLive.startDist), mid.x, mid.y);
+      pinchLastZoomAt = dist;
+      return;
+    }
     if (pinchLastZoomAt) {
       if (dist / pinchLastZoomAt >= PINCH_ZOOM_RATIO) {
         $('#zoomIn').trigger('click');
@@ -1141,7 +1165,22 @@ $(function() {
     }
   }
 
+  function finishLivePinch() {
+    if (wheelPinchTimer) {
+      clearTimeout(wheelPinchTimer);
+      wheelPinchTimer = 0;
+    }
+    var mid = lastPinchMid;
+    var skipRebase = twoFingerOnLoupe || !isPhoneLayout();
+    pinchLive = null;
+    if (skipRebase) return;
+    if (window.TagproMap && TagproMap.rebaseTileSizeToView) {
+      TagproMap.rebaseTileSizeToView(mid && mid.x, mid && mid.y);
+    }
+  }
+
   function clearTwoFingerGesture() {
+    finishLivePinch();
     twoFingerPanning = false;
     twoFingerOnLoupe = false;
     lastPinchMid = null;
@@ -1153,6 +1192,7 @@ $(function() {
   mapEl.addEventListener('touchstart', function(e) {
     noteTouch();
     if (e.touches.length === 2) {
+      if (!isPhoneLayout()) return;
       e.preventDefault();
       beginTwoFingerGesture(e.touches[0], e.touches[1]);
       return;
@@ -1209,6 +1249,7 @@ $(function() {
 
   mapEl.addEventListener('touchmove', function(e) {
     if (e.touches.length === 2) {
+      if (!isPhoneLayout()) return;
       e.preventDefault();
       twoFingerPanning = true;
       handleTwoFingerMove(e.touches[0], e.touches[1]);
@@ -1288,10 +1329,7 @@ $(function() {
       clearTwoFingerGesture();
       painting = false;
       ignorePaintUntil = Date.now() + 350;
-      if (!isPhoneLayout() && !wasOnLoupe) {
-        hideLoupe();
-        startPan(e.touches[0].clientX, e.touches[0].clientY);
-      }
+      if (!isPhoneLayout() && !wasOnLoupe) return;
       return;
     }
     if (e.touches.length === 0) {
@@ -1480,11 +1518,41 @@ $(function() {
     hideLoupe();
   }, true);
 
+  function applyMapWheel(e) {
+    if (!isPhoneLayout()) return;
+    // Trackpads send wheel (and ctrl+wheel for pinch), not Touch Events.
+    if (e.ctrlKey || e.metaKey) {
+      if (window.TagproMap && TagproMap.zoomBy) {
+        TagproMap.zoomBy(Math.pow(1.0016, -e.deltaY), e.clientX, e.clientY);
+      }
+      lastPinchMid = { x: e.clientX, y: e.clientY };
+      if (wheelPinchTimer) clearTimeout(wheelPinchTimer);
+      wheelPinchTimer = setTimeout(function() {
+        wheelPinchTimer = 0;
+        if (twoFingerPanning) return;
+        finishLivePinch();
+      }, 140);
+      return;
+    }
+    var dx = e.deltaX;
+    var dy = e.deltaY;
+    if (e.deltaMode === 1) {
+      dx *= 16;
+      dy *= 16;
+    }
+    mapEl.scrollLeft += dx;
+    mapEl.scrollTop += dy;
+  }
+
   mapEl.addEventListener('wheel', function(e) {
+    // Desktop: leave the event alone so a laptop touchpad stays a normal wheel.
     if (!isPhoneLayout()) return;
     e.preventDefault();
-    revealLoupeForNav(e.clientX, e.clientY);
-    accumulateLoupePan(e.deltaX, e.deltaY, wheelAcc);
+    if (loupeVisible && pointInLoupe(e.clientX, e.clientY)) {
+      accumulateLoupePan(e.deltaX, e.deltaY, wheelAcc);
+      return;
+    }
+    applyMapWheel(e);
   }, { passive: false });
 
   var loupeEl = $loupe[0];
@@ -1565,7 +1633,10 @@ $(function() {
     if (!isPhoneLayout()) return;
     e.preventDefault();
     e.stopPropagation();
-    revealLoupeForNav(e.clientX, e.clientY);
+    if (e.ctrlKey || e.metaKey) {
+      applyMapWheel(e);
+      return;
+    }
     accumulateLoupePan(e.deltaX, e.deltaY, wheelAcc);
   }, { passive: false });
 
@@ -1581,9 +1652,11 @@ $(function() {
   });
 
   document.addEventListener('gesturestart', function(e) {
+    if (!isPhoneLayout()) return;
     if ($(e.target).closest('#map').length) e.preventDefault();
   });
   document.addEventListener('gesturechange', function(e) {
+    if (!isPhoneLayout()) return;
     if ($(e.target).closest('#map').length) e.preventDefault();
   });
 
