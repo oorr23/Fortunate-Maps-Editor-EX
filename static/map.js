@@ -8,10 +8,15 @@ $(function() {
   var tileSheetWidth = 16;
   var tileSheetHeight = 11;
   
+  // Tilesheet sprite origin. Mars Ball is a 2×2 cell (multiplier 0.5 at sheet 12,9).
+  // Do not add a centering shift when mult !== 1 — that crops the wrong region.
+  // FortunateMaps: -sheetX * cell * multiplier (e.g. 40px cell → -240px -180px, size 320×220).
+  function sheetBackgroundPosition(x, y, cell, mult) {
+    if (mult) return (-x * cell * mult) + 'px ' + (-y * cell * mult) + 'px';
+    return (-x * cell) + 'px ' + (-y * cell) + 'px';
+  }
   function positionCss(x, y, mult) {
-    mult = (mult == null) ? 1 : mult;
-    var shift = (mult !== 1) ? (tileSize * (1 - mult) / 2) : 0;
-    return (-x * tileSize * mult + shift) + 'px ' + (-y * tileSize * mult + shift) + 'px';
+    return sheetBackgroundPosition(x, y, tileSize, mult);
   }
   function TileType(name, sheetX, sheetY, r,g,b, toolTipText, extra) {
     this.name = name;
@@ -1172,7 +1177,7 @@ $(function() {
     redEndzoneType = new TileType('redEndzone', 14,5, 185,0,0, "Red Endzone - Bring a neutral (yellow) flag to this zone to score."),
     blueEndzoneType = new TileType('blueEndzone', 15,5, 25,0,148, "Blue Endzone - Bring a neutral (yellow) flag to this zone to score."),
     gravityWellType = new TileType('gravityWell', 13, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat."),
-    marsBallType = new TileType('marsBall', 12,9, 256,256,256, "Mars Ball - Push into own endzone or opponent flag to win.", {logicFn: exportMarsBall, multiplier: 0.5})
+    marsBallType = new TileType('marsBall', 12,9, 256,256,256, "Mars Ball - Push into own endzone or opponent flag to win.", {logicFn: exportMarsBall, multiplier: 0.5}), // 2×2 sheet sprite; no centering shift (see sheetBackgroundPosition)
   ];
 
   function isEnterablePortal(type) {
@@ -2263,9 +2268,7 @@ $(function() {
     var imageCss = type.image
       ? (type.imageTileWidth * cell + 'px ' + type.imageTileHeight * cell + 'px')
       : ((tileSheetWidth * cell * (type.multiplier || 1)) + 'px ' + (tileSheetHeight * cell * (type.multiplier || 1)) + 'px');
-    var mult = type.multiplier || 1;
-    var shift = (mult !== 1) ? (cell * (1 - mult) / 2) : 0;
-    var pos = (-type.sheetX * cell * mult + shift) + 'px ' + (-type.sheetY * cell * mult + shift) + 'px';
+    var pos = sheetBackgroundPosition(type.sheetX, type.sheetY, cell, type.multiplier || 1);
     var floorPos = '-' + (floorType.sheetX * cell) + 'px -' + (floorType.sheetY * cell) + 'px';
     $button.css({
       width: sizeCss,

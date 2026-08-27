@@ -1,0 +1,14 @@
+---
+description: Do not add a centering shift to Mars Ball / multiplier tilesheet sprites.
+alwaysApply: true
+---
+
+# Mars Ball sprite
+
+`marsBallType` is a 2×2 tilesheet sprite (`multiplier: 0.5`, sheet 12,9). Draw it with:
+
+`-sheetX * cell * multiplier`
+
+Do **not** add `cell * (1 - mult) / 2` (or any centering shift). That crops the wrong region and looks corrupted. It has been “fixed” that way before and must not come back.
+
+At a 40px cell: `background-size: 320px 220px`, `background-position: -240px -180px`. Use `sheetBackgroundPosition` / `positionCss` in `static/map.js` for both the map and the palette.
