@@ -542,6 +542,7 @@ $(function() {
 
   function clearHighlights() {
     $map.find('.selectionIndicator').css('display', 'none');
+    $map.find('.potentialHighlight').css('display', 'none');
     if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
@@ -689,6 +690,13 @@ $(function() {
     return changes.length ? new UndoStep(changes) : null;
   }
 
+  function previewPasteAt(x, y) {
+    clearPotentialHighlights();
+    if (x == null || y == null || isNaN(x) || isNaN(y)) return;
+    var change = pasteClipboardAt(x, y);
+    if (change) setSpeculativeStep(change);
+  }
+
   function clearTileForCut(tile) {
     var st = new TileState(tile, { type: emptyType });
     delete st.topType;
@@ -752,7 +760,12 @@ $(function() {
         syncPasteButton();
         highlightClipboardSource();
         if (mapClipboard && mapClipboard.cells.length) {
-          $('#toolPaste').trigger('click');
+          // Lock paste until a new pointer-down. Switching tools during this
+          // mouseup (or a touch ghost click) used to apply paste immediately.
+          lockPasteInput();
+          setTimeout(function() {
+            $('#toolPaste').trigger('click');
+          }, 0);
         }
       }
     });
@@ -769,10 +782,17 @@ $(function() {
       highlightClipboardSource();
     },
     speculateDrag: function(x, y) {
+      if (pasteInputLocked()) return null;
       return pasteClipboardAt(x, y);
     },
     speculateUp: function(x, y) {
+      if (pasteInputLocked()) return null;
       return pasteClipboardAt(x, y);
+    },
+    up: function(x, y) {
+      if (pasteInputLocked()) return;
+      highlightClipboardSource();
+      previewPasteAt(x, y);
     }
   });
 
@@ -1826,7 +1846,38 @@ $(function() {
   }
 
   var mouseDown = false;
+  var pasteInputLock = false;
+
+  function lockPasteInput() {
+    pasteInputLock = true;
+  }
+
+  function unlockPasteInput() {
+    pasteInputLock = false;
+  }
+
+  function pasteInputLocked() {
+    return pasteInputLock;
+  }
+
+  function isLoupeSyntheticEvent(e) {
+    return !!(e && e.tagproFromLoupe);
+  }
+
+  function isGhostMouseEvent(e) {
+    if (isLoupeSyntheticEvent(e)) return false;
+    if (window.TagproLoupe && TagproLoupe.isEmulatedMouse) return TagproLoupe.isEmulatedMouse(e);
+    return false;
+  }
+
+  function ignoreNativeWhileLoupeTracking(e) {
+    if (window.TagproLoupe && TagproLoupe.dismissing && TagproLoupe.dismissing()) return true;
+    if (isLoupeSyntheticEvent(e)) return false;
+    return !!(window.TagproLoupe && TagproLoupe.tracking && TagproLoupe.tracking());
+  }
+
   $map.on('mouseenter', '.tile', function(e) {
+    if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
 
     var x = $(this).data('x');
     var y = $(this).data('y');
@@ -1846,12 +1897,15 @@ $(function() {
     }
     })
     .on('mouseleave', '.tile', function(e) {
+      if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
       clearPotentialHighlights();
 //      console.log('mouse left ', $(this).data('x'), $(this).data('y'));
     })
     .on('mousedown', '.tile', function(e) {
       e.preventDefault();
       if (e.which==1) {
+        if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
+        unlockPasteInput();
         var x = $(this).data('x');
         var y = $(this).data('y');
         if (!controlDown) {
@@ -1897,7 +1951,8 @@ $(function() {
         mouseDown = false;
       }
     })
-    .on('mousemove', '.tile', function() {
+    .on('mousemove', '.tile', function(e) {
+      if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
       var x = $(this).data('x');
       var y = $(this).data('y');
       if (selectedTool && mouseDown) {
@@ -1915,6 +1970,7 @@ $(function() {
     })
     .on('mouseup', '.tile', function(e) {
       if (e.which==1) {
+        if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
         var x = $(this).data('x');
         var y = $(this).data('y');
         if (controlDown) {
@@ -1927,6 +1983,7 @@ $(function() {
             applyStep(change);
             selectedTool.stateChange();
           }
+          clearPotentialHighlights();
           selectedTool.up(x,y);
         
           savePoint();
@@ -1938,9 +1995,25 @@ $(function() {
 
 
   $(document).on('mouseup', function(e) {
+    if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
     if (e.which==1 && mouseDown) {
       mouseDown = false;
-      if (selectedTool && selectedTool.up) selectedTool.up(0,0);
+      if (selectedTool) {
+        var x = selectedTool.lastX != null ? selectedTool.lastX : selectedTool.downX;
+        var y = selectedTool.lastY != null ? selectedTool.lastY : selectedTool.downY;
+        if (x == null) x = 0;
+        if (y == null) y = 0;
+        if (selectedTool.speculateUp) {
+          var change = selectedTool.speculateUp(x, y);
+          if (change && !selectedTool.previewOnly) {
+            applySymmetry(change);
+            applyStep(change);
+            selectedTool.stateChange();
+          }
+        }
+        clearPotentialHighlights();
+        if (selectedTool.up) selectedTool.up(x, y);
+      }
       savePoint();
       cleanDirtyWalls();
     }
@@ -3572,6 +3645,24 @@ $(function() {
     tileElem: function(x, y) {
       var t = tiles[x] && tiles[x][y];
       return (t && t.elem) ? t.elem : $();
+    },
+    previewPasteAt: previewPasteAt,
+    lockPasteInput: lockPasteInput,
+    highlightClipboardSource: highlightClipboardSource,
+    tileAtClient: function(clientX, clientY) {
+      // Unmagnified canvas hit-test. Do not use this to drive loupeCenter while following.
+      var c = mapCanvasEl();
+      if (!c || !width || !height) return null;
+      var cr = c.getBoundingClientRect();
+      if (cr.width < 1 || cr.height < 1) return null;
+      if (clientX < cr.left || clientY < cr.top || clientX >= cr.right || clientY >= cr.bottom) return null;
+      var x = Math.floor((clientX - cr.left) / cr.width * width);
+      var y = Math.floor((clientY - cr.top) / cr.height * height);
+      if (x < 0) x = 0;
+      if (y < 0) y = 0;
+      if (x >= width) x = width - 1;
+      if (y >= height) y = height - 1;
+      return { x: x, y: y };
     },
     setTile: function(x, y, typeName) {
       var type = typeByNameMap()[typeName];

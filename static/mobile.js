@@ -467,6 +467,19 @@ $(function() {
   });
 
   function tileFromPoint(clientX, clientY) {
+    var parkedLoupe = loupeVisible && !loupeFollow && !holdMovingLoupe && pointInLoupe(clientX, clientY);
+    if (parkedLoupe) {
+      var cell = loupeCellFromPoint(clientX, clientY);
+      if (cell) return mapTileAt(cell.x, cell.y);
+    }
+    // Tracking: the work tile is the locked loupe center, not the map pixel under the finger.
+    if (loupeFollow || holdMovingLoupe) {
+      return mapTileAt(loupeCenterX, loupeCenterY);
+    }
+    if (window.TagproMap && TagproMap.tileAtClient) {
+      var at = TagproMap.tileAtClient(clientX, clientY);
+      if (at) return mapTileAt(at.x, at.y);
+    }
     var stack = [];
     var el = document.elementFromPoint(clientX, clientY);
     while (el && el !== document.body && el !== document.documentElement) {
@@ -508,13 +521,17 @@ $(function() {
 
   function triggerTile($tile, type) {
     if (!$tile || !$tile.length) return;
-    $tile.trigger($.Event(type, { which: 1, button: 0, bubbles: true }));
+    var ev = $.Event(type, { which: 1, button: 0, bubbles: true });
+    ev.tagproFromLoupe = true;
+    $tile.trigger(ev);
   }
 
   var loupeFollow = false;
   var loupePainting = false;
   var loupeOriginX = 0;
   var loupeOriginY = 0;
+  // Work tile = yellow crosshair. Only setLoupeWorkTile / stepLoupeFollow may change these
+  // while following — never tileAtClient / elementFromPoint (unmagnified map).
   var loupeCenterX = 0;
   var loupeCenterY = 0;
   var loupeCells = [];
@@ -578,6 +595,9 @@ $(function() {
       loupeRaf = 0;
     }
     $loupe.removeClass('visible follow-finger').attr('aria-hidden', 'true');
+    if (window.TagproMap && TagproMap.highlightClipboardSource) {
+      TagproMap.highlightClipboardSource();
+    }
   }
 
   function showLoupe() {
@@ -614,6 +634,74 @@ $(function() {
     loupeFocusTile = { x: Number(x), y: Number(y) };
   }
 
+  function activeDockToolId() {
+    return ($('#tools .btn.active').first().attr('data-tool-id') || '');
+  }
+
+  function isPasteTool() {
+    return activeDockToolId() === 'toolPaste';
+  }
+
+  function paintThroughParkedLoupe() {
+    var id = activeDockToolId();
+    return id === 'toolCopy' || id === 'toolCut';
+  }
+
+  function previewPasteAtLoupeCenter() {
+    if (!isPasteTool()) return;
+    if (window.TagproMap && TagproMap.previewPasteAt) {
+      TagproMap.previewPasteAt(loupeCenterX, loupeCenterY);
+    }
+  }
+
+  function beginPasteAimAt(x, y, clientX, clientY) {
+    pendingDismiss = false;
+    holdMovingLoupe = true;
+    loupeFollow = true;
+    recenterLoupeOn(x, y, clientX, clientY);
+    showLoupe();
+    previewPasteAtLoupeCenter();
+  }
+
+  function tapAimPasteAt(x, y, clientX, clientY) {
+    pendingDismiss = false;
+    holdMovingLoupe = false;
+    recenterLoupeOn(x, y, clientX, clientY);
+    showLoupe();
+    previewPasteAtLoupeCenter();
+  }
+
+  function beginParkedMapPaint(clientX, clientY) {
+    var $tile = tileFromPoint(clientX, clientY);
+    if (!$tile.length) return false;
+    pendingDismiss = false;
+    holdMovingLoupe = false;
+    clearLongPress();
+    beginPaintAtTile($tile, clientX, clientY, true);
+    return true;
+  }
+
+  function beginOutsideLoupePointer(clientX, clientY) {
+    pendingDismiss = true;
+    holdMovingLoupe = false;
+    parkedLoupePending = null;
+    painting = false;
+    loupePainting = false;
+    lastTileEl = null;
+    if (window.TagproMap && TagproMap.lockPasteInput) TagproMap.lockPasteInput();
+    var over = tileFromPoint(clientX, clientY);
+    captureLoupeFocusTile(over);
+    if (!loupeFocusTile) loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    holdStart = { clientX: clientX, clientY: clientY };
+    lastPointer = { x: clientX, y: clientY };
+    loupeFollowAcc.x = 0;
+    loupeFollowAcc.y = 0;
+    clearLongPress();
+    longPressTimer = setTimeout(function() {
+      beginHoldReposition(lastPointer.x, lastPointer.y);
+    }, LONG_PRESS_MS);
+  }
+
   function pointInLoupe(clientX, clientY) {
     if (!loupeVisible) return false;
     var r = $loupe[0].getBoundingClientRect();
@@ -631,12 +719,12 @@ $(function() {
     return $(row.children[x]).find('.tile').first();
   }
 
-  function mapTileUnderPointer(clientX, clientY) {
-    var $tile = tileFromPoint(clientX, clientY);
-    if ($tile.length) return $tile;
-    var cell = loupeCellFromPoint(clientX, clientY);
-    if (!cell) return $();
-    return mapTileAt(cell.x, cell.y);
+  function setLoupeWorkTile(x, y) {
+    if (x == null || y == null || isNaN(x) || isNaN(y)) return;
+    loupeCenterX = Number(x);
+    loupeCenterY = Number(y);
+    clampLoupeCenter();
+    loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
   }
 
   function loupeCellFromPoint(clientX, clientY) {
@@ -734,29 +822,13 @@ $(function() {
     loupeFollowAcc.y = 0;
   }
 
-  function followLoupeTo(clientX, clientY) {
+  function followLoupePointer(clientX, clientY, prevX, prevY) {
     if (clientX == null || clientY == null || isNaN(clientX) || isNaN(clientY)) return;
+    if (prevX == null) prevX = lastPointer.x;
+    if (prevY == null) prevY = lastPointer.y;
     lastPointer = { x: clientX, y: clientY };
+    accumulateLoupeFollow(clientX - prevX, clientY - prevY);
     positionLoupe(clientX, clientY);
-    var $tile = mapTileUnderPointer(clientX, clientY);
-    if (!$tile.length) return;
-    var x = Number($tile.data('x'));
-    var y = Number($tile.data('y'));
-    if (isNaN(x) || isNaN(y)) return;
-    if (x === loupeCenterX && y === loupeCenterY) {
-      syncPaintToLoupeCenter();
-      return;
-    }
-    loupeCenterX = x;
-    loupeCenterY = y;
-    clampLoupeCenter();
-    loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
-    stampLoupeNow();
-    syncPaintToLoupeCenter();
-  }
-
-  function followLoupePointer(clientX, clientY) {
-    followLoupeTo(clientX, clientY);
   }
 
   function syncPaintToLoupeCenter() {
@@ -773,11 +845,10 @@ $(function() {
 
   function stepLoupeFollow(dx, dy) {
     if (!dx && !dy) return;
-    loupeCenterX += dx;
-    loupeCenterY += dy;
-    clampLoupeCenter();
+    setLoupeWorkTile(loupeCenterX + dx, loupeCenterY + dy);
     requestLoupeStamp();
-    syncPaintToLoupeCenter();
+    if (isPasteTool() && !painting) previewPasteAtLoupeCenter();
+    else syncPaintToLoupeCenter();
   }
 
   function accumulateLoupeFollow(dx, dy) {
@@ -800,21 +871,28 @@ $(function() {
       clientY = holdStart.clientY;
     }
     if (loupeVisible && loupeFollow && loupeFollowOrigin) {
-      followLoupeTo(clientX, clientY);
+      followLoupePointer(clientX, clientY);
       return;
     }
-    if (loupeFocusTile) {
-      loupeCenterX = loupeFocusTile.x;
-      loupeCenterY = loupeFocusTile.y;
-    }
-    clampLoupeCenter();
+    if (loupeFocusTile) setLoupeWorkTile(loupeFocusTile.x, loupeFocusTile.y);
+    else clampLoupeCenter();
     var ox = (holdStart && holdStart.clientX != null) ? holdStart.clientX : clientX;
     var oy = (holdStart && holdStart.clientY != null) ? holdStart.clientY : clientY;
     setLoupeFollowOrigin(ox, oy, loupeCenterX, loupeCenterY);
     loupeFollow = true;
-    followLoupeTo(clientX, clientY);
+    positionLoupe(clientX, clientY);
     stampLoupeNow();
-    syncPaintToLoupeCenter();
+    // Mouse path never sets `painting`; copy/cut/draw still have map.js mouseDown.
+    // Adopt that gesture so follow uses the work tile, not unmagnified hit-tests.
+    if (!painting && !loupePainting && !isPasteTool()) {
+      var $adopt = mapTileAt(loupeCenterX, loupeCenterY);
+      if ($adopt.length) {
+        painting = true;
+        if (!lastTileEl) lastTileEl = $adopt[0];
+      }
+    }
+    if (isPasteTool() && !painting) previewPasteAtLoupeCenter();
+    else syncPaintToLoupeCenter();
   }
 
   function clampLoupeCenter() {
@@ -828,9 +906,7 @@ $(function() {
 
   function stepLoupeBy(dx, dy) {
     if (!dx && !dy) return;
-    loupeCenterX += dx;
-    loupeCenterY += dy;
-    clampLoupeCenter();
+    setLoupeWorkTile(loupeCenterX + dx, loupeCenterY + dy);
     stopLoupeFollow();
     stampLoupeNow();
   }
@@ -854,8 +930,7 @@ $(function() {
         var x = $tile.data('x');
         var y = $tile.data('y');
         if (x != null && y != null && !isNaN(x) && !isNaN(y)) {
-          loupeCenterX = x;
-          loupeCenterY = y;
+          setLoupeWorkTile(x, y);
         }
       }
       clampLoupeCenter();
@@ -938,10 +1013,7 @@ $(function() {
   }
 
   function recenterLoupeOn(x, y, clientX, clientY) {
-    loupeCenterX = x;
-    loupeCenterY = y;
-    clampLoupeCenter();
-    loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
+    setLoupeWorkTile(x, y);
     loupeFollowAcc.x = 0;
     loupeFollowAcc.y = 0;
     if (clientX != null && clientY != null && !isNaN(clientX) && !isNaN(clientY)) {
@@ -952,17 +1024,8 @@ $(function() {
   }
 
   function startFollowPaintAtCenter() {
-    var $tile = mapTileUnderPointer(lastPointer.x, lastPointer.y);
-    if (!$tile.length) $tile = mapTileAt(loupeCenterX, loupeCenterY);
+    var $tile = mapTileAt(loupeCenterX, loupeCenterY);
     if (!$tile.length) return;
-    var x = Number($tile.data('x'));
-    var y = Number($tile.data('y'));
-    if (!isNaN(x) && !isNaN(y)) {
-      loupeCenterX = x;
-      loupeCenterY = y;
-      clampLoupeCenter();
-      loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
-    }
     painting = true;
     loupePainting = false;
     lastTileEl = $tile[0];
@@ -986,14 +1049,11 @@ $(function() {
       if (!parkedLoupePending) return;
       var p = parkedLoupePending;
       parkedLoupePending = null;
-      if (mapHasSettings(p.x, p.y)) {
+      if (!isPasteTool() && mapHasSettings(p.x, p.y)) {
         openSettingsAt(p.x, p.y);
         return;
       }
-      holdMovingLoupe = true;
-      loupeFollow = true;
-      recenterLoupeOn(p.x, p.y, lastPointer.x, lastPointer.y);
-      showLoupe();
+      beginPasteAimAt(p.x, p.y, lastPointer.x, lastPointer.y);
       startFollowPaintAtCenter();
     }, LONG_PRESS_MS);
   }
@@ -1003,13 +1063,18 @@ $(function() {
     if (prevY == null) prevY = lastPointer.y;
     lastPointer = { x: clientX, y: clientY };
     if (holdMovingLoupe) {
-      followLoupeTo(clientX, clientY);
+      followLoupePointer(clientX, clientY, prevX, prevY);
       return;
     }
     if (parkedLoupePending && movedPastSlop(clientX, clientY)) {
       clearLongPress();
       var p = parkedLoupePending;
       parkedLoupePending = null;
+      if (isPasteTool()) {
+        beginPasteAimAt(p.x, p.y, clientX, clientY);
+        startFollowPaintAtCenter();
+        return;
+      }
       paintLoupeAt(p.clientX, p.clientY, 'start');
       paintLoupeAt(clientX, clientY, 'move');
       return;
@@ -1022,6 +1087,10 @@ $(function() {
     if (parkedLoupePending) {
       var p = parkedLoupePending;
       parkedLoupePending = null;
+      if (isPasteTool()) {
+        tapAimPasteAt(p.x, p.y, clientX != null ? clientX : p.clientX, clientY != null ? clientY : p.clientY);
+        return;
+      }
       paintLoupeAt(p.clientX, p.clientY, 'start');
       endLoupePaint();
       return;
@@ -1044,14 +1113,15 @@ $(function() {
 
   function endPaint(clientX, clientY) {
     clearLongPress();
-    if (painting && !loupePainting) {
+    var dismiss = pendingDismiss;
+    if (!dismiss && painting && !loupePainting) {
       var $tile = lastTileEl ? $(lastTileEl) : tileFromPoint(clientX, clientY);
       triggerTile($tile, 'mouseup');
     }
     painting = false;
     lastTileEl = null;
     stopLoupeFollow();
-    if (pendingDismiss) {
+    if (dismiss) {
       pendingDismiss = false;
       hideLoupe();
       return;
@@ -1207,19 +1277,8 @@ $(function() {
       e.stopPropagation();
       closeMore();
       if (pointInLoupe(t.clientX, t.clientY)) return;
-      var over = tileFromPoint(t.clientX, t.clientY);
-      captureLoupeFocusTile(over);
-      if (!loupeFocusTile) loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
-      pendingDismiss = true;
-      holdMovingLoupe = false;
-      holdStart = { clientX: t.clientX, clientY: t.clientY };
-      lastPointer = { x: t.clientX, y: t.clientY };
-      loupeFollowAcc.x = 0;
-      loupeFollowAcc.y = 0;
-      clearLongPress();
-      longPressTimer = setTimeout(function() {
-        beginHoldReposition(lastPointer.x, lastPointer.y);
-      }, LONG_PRESS_MS);
+      if (paintThroughParkedLoupe() && beginParkedMapPaint(t.clientX, t.clientY)) return;
+      beginOutsideLoupePointer(t.clientX, t.clientY);
       return;
     }
 
@@ -1245,7 +1304,7 @@ $(function() {
       return;
     }
     beginPaintAtTile($tile, t.clientX, t.clientY, true);
-  }, { passive: false });
+  }, { passive: false, capture: true });
 
   mapEl.addEventListener('touchmove', function(e) {
     if (e.touches.length === 2) {
@@ -1348,7 +1407,16 @@ $(function() {
 
   mapEl.addEventListener('mousedown', function(e) {
     if (e.button !== 0) return;
-    if (isEmulatedMouse(e)) return;
+    if (loupeVisible) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMore();
+      if (pointInLoupe(e.clientX, e.clientY)) return;
+      if (isEmulatedMouse(e)) return;
+      if (paintThroughParkedLoupe() && beginParkedMapPaint(e.clientX, e.clientY)) return;
+      beginOutsideLoupePointer(e.clientX, e.clientY);
+      return;
+    }
     if (isEmulatedMouse(e)) return;
     if (panMode) {
       e.preventDefault();
@@ -1376,25 +1444,6 @@ $(function() {
           return;
         }
       }
-    }
-    if (loupeVisible) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (pointInLoupe(e.clientX, e.clientY)) return;
-      var $over = $(e.target).closest('#map .tile');
-      if (!$over.length) $over = tileFromPoint(e.clientX, e.clientY);
-      captureLoupeFocusTile($over);
-      if (!loupeFocusTile) loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
-      pendingDismiss = true;
-      holdMovingLoupe = false;
-      holdStart = { clientX: e.clientX, clientY: e.clientY };
-      lastPointer = { x: e.clientX, y: e.clientY };
-      loupeFollowAcc.x = 0;
-      loupeFollowAcc.y = 0;
-      clearLongPress();
-      longPressTimer = setTimeout(function() {
-        beginHoldReposition(lastPointer.x, lastPointer.y);
-      }, LONG_PRESS_MS);
     }
   }, true);
 
@@ -1485,13 +1534,16 @@ $(function() {
     if (mouseLoupe || pendingDismiss || holdMovingLoupe) {
       mouseLoupe = false;
       clearLongPress();
-      if (painting && !loupePainting) {
+      var dismiss = pendingDismiss;
+      if (!dismiss && painting && !loupePainting) {
         if (lastTileEl) triggerTile($(lastTileEl), 'mouseup');
         painting = false;
         lastTileEl = null;
       }
+      painting = false;
+      lastTileEl = null;
       stopLoupeFollow();
-      if (pendingDismiss) {
+      if (dismiss) {
         pendingDismiss = false;
         hideLoupe();
       } else if (loupeVisible) {
@@ -1794,7 +1846,13 @@ $(function() {
     window.TagproLoupe = {
       refresh: function() {
         if (loupeVisible) renderLoupe();
-      }
+      },
+      hide: hideLoupe,
+      visible: function() { return loupeVisible; },
+      center: function() { return { x: loupeCenterX, y: loupeCenterY }; },
+      tracking: function() { return !!(loupeFollow || holdMovingLoupe || loupePainting); },
+      dismissing: function() { return !!pendingDismiss; },
+      isEmulatedMouse: isEmulatedMouse
     };
   })();
 

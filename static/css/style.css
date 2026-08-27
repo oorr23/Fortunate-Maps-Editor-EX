@@ -74,6 +74,8 @@ div.selectionIndicator {
     height:40px;
     background-image: url("../selected.png");
     display:none;
+    pointer-events: none;
+    z-index: 2;
 }
 div.tileTypeSelectionIndicator {
     width:40px;
@@ -104,6 +106,7 @@ div.potentialHighlight {
     /*background-image: url("selected.png");*/
     display:none;
     pointer-events: none;
+    z-index: 3;
 }
 div.potentialHighlightOther {
     width:40px;

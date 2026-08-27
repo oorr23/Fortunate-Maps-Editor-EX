@@ -1,0 +1,12 @@
+---
+description: Loupe work tile must stay locked to the crosshair; never retarget from map hit-testing while following.
+alwaysApply: true
+---
+
+# Loupe work tile
+
+The yellow crosshair is the work tile (`loupeCenterX/Y`). While the glass follows the finger, **do not** set that center from `tileFromPoint`, `tileAtClient`, `elementFromPoint`, or `mapTileUnderPointer`.
+
+Those hit the **unmagnified** map (and disagree further under CSS zoom). That has been “fixed” that way before and the view/work tile split again. It must not come back.
+
+Follow the finger with `accumulateLoupeFollow` / `followLoupePointer` only. Paint and paste preview with `mapTileAt(loupeCenterX, loupeCenterY)` (or `setLoupeWorkTile`). Parked taps may use `loupeCellFromPoint`.
