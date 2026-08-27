@@ -1630,6 +1630,8 @@ $(function() {
 
   var symmetry = 'None';
 
+  // One #symmetry <select> in index.html: Map tab of the mobile More sheet and the desktop sidebar.
+  // Import auto-detect writes this control here so both layouts show the same value.
   function setSymmetry(mode) {
     if (symmetryFns[mode]) {
       symmetry = mode;
@@ -2787,6 +2789,8 @@ $(function() {
       applyImportedSpawns('blue');
       applyMarsBalls(json, deltaX, deltaY);
       recountMarsBalls();
+      // User PNG/JSON and FortunateMaps imports only. Shared path for desktop and mobile;
+      // do not gate on isMobileLayout() / layout-desktop, and do not move this into mobile.js.
       if (detectSymmetry) setSymmetry(detectImportedSymmetry());
 
       savePoint();
