@@ -1630,18 +1630,38 @@ $(function() {
 
   var symmetry = 'None';
 
+  function setSymmetry(mode) {
+    if (symmetryFns[mode]) {
+      symmetry = mode;
+      $('#symmetry').val(mode);
+    } else {
+      symmetry = 'None';
+      $('#symmetry').val('No Symmetry');
+    }
+  }
+
   $('#symmetry').change(function() {
     console.log('Symmetry was ', symmetry);
-    symmetry = $(this).val();
+    setSymmetry($(this).val());
     console.log('Symmetry is ', symmetry);
   });
 
+  function transformType(type, how) {
+    if (!type) return type;
+    if (how[4]) type = type.opposite;
+    if (how[0]==-1) type = type.horizontalMirror;
+    if (how[2]==-1) type = type.verticalMirror;
+    return type;
+  }
+
+  function applyHow(pt, how, cols, rows) {
+    pt.x = pt.x*how[0] + (cols-1)*how[1];
+    pt.y = pt.y*how[2] + (rows-1)*how[3];
+    if (pt.type) pt.type = transformType(pt.type, how);
+  }
+
   function transformPoint(pt, how) {
-    pt.x = pt.x*how[0] + (tiles.length-1)*how[1];
-    pt.y = pt.y*how[2] + (tiles[0].length-1)*how[3];
-    if (pt.type && how[4]) pt.type = pt.type.opposite;
-    if (pt.type && how[0]==-1) pt.type = pt.type.horizontalMirror;
-    if (pt.type && how[2]==-1) pt.type = pt.type.verticalMirror;
+    applyHow(pt, how, tiles.length, tiles[0].length);
   }
   
   var symmetryFns = {
@@ -1663,6 +1683,68 @@ $(function() {
       [1,0, 1,0],
       [-1,1, -1,1, true]
     ]
+  }
+
+  function isIdentityHow(how) {
+    return how[0] === 1 && how[1] === 0 && how[2] === 1 && how[3] === 0 && !how[4];
+  }
+
+  function hasAffectedTargets(tile) {
+    if (!tile || !tile.affected) return false;
+    for (var key in tile.affected) {
+      if (tile.affected[key]) return true;
+    }
+    return false;
+  }
+
+  function mapMatchesSymmetry(mode, grid) {
+    var transforms = symmetryFns[mode];
+    grid = grid || tiles;
+    if (!transforms || !grid || !grid.length || !grid[0] || !grid[0].length) return false;
+    var cols = grid.length;
+    var rows = grid[0].length;
+    for (var ti = 0; ti < transforms.length; ti++) {
+      var how = transforms[ti];
+      if (isIdentityHow(how)) continue;
+      for (var x = 0; x < cols; x++) {
+        for (var y = 0; y < rows; y++) {
+          var src = grid[x][y];
+          if (!src) return false;
+          var pt = { x: x, y: y, type: src.type };
+          applyHow(pt, how, cols, rows);
+          var dst = grid[pt.x] && grid[pt.x][pt.y];
+          if (!dst || dst.type !== pt.type) return false;
+          var expectedTop = src.topType ? transformType(src.topType, how) : null;
+          var actualTop = dst.topType || null;
+          if (expectedTop !== actualTop) return false;
+          if (isEnterablePortal(src.type) && isEnterablePortal(dst.type) && src.destination && dst.destination) {
+            var destPt = { x: src.destination.x, y: src.destination.y };
+            applyHow(destPt, how, cols, rows);
+            if (dst.destination.x !== destPt.x || dst.destination.y !== destPt.y) return false;
+          }
+          if (src.type === switchType && dst.type === switchType && hasAffectedTargets(src) && hasAffectedTargets(dst)) {
+            for (var key in src.affected) {
+              var aff = src.affected[key];
+              if (!aff) continue;
+              var affPt = { x: aff.x, y: aff.y };
+              applyHow(affPt, how, cols, rows);
+              if (!dst.affected[affPt.x + ',' + affPt.y]) return false;
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  function detectImportedSymmetry(grid) {
+    if (mapMatchesSymmetry('4-Way', grid)) return '4-Way';
+    var horizontal = mapMatchesSymmetry('Horizontal', grid);
+    var vertical = mapMatchesSymmetry('Vertical', grid);
+    if (horizontal && !vertical) return 'Horizontal';
+    if (vertical && !horizontal) return 'Vertical';
+    if (mapMatchesSymmetry('Rotational', grid)) return 'Rotational';
+    return 'No Symmetry';
   }
   
   function applySymmetry(step) {
@@ -2578,7 +2660,7 @@ $(function() {
     this.value = '';
   });
 
-  function restoreFromPngAndJson(pngBase64, jsonString, optResizeParams, doHistoryClear) {
+  function restoreFromPngAndJson(pngBase64, jsonString, optResizeParams, doHistoryClear, detectSymmetry) {
     var serial = ++restoreSerial;
     var optWidth = optResizeParams && optResizeParams.width;
     var optHeight = optResizeParams && optResizeParams.height;
@@ -2705,6 +2787,7 @@ $(function() {
       applyImportedSpawns('blue');
       applyMarsBalls(json, deltaX, deltaY);
       recountMarsBalls();
+      if (detectSymmetry) setSymmetry(detectImportedSymmetry());
 
       savePoint();
       if (doHistoryClear) clearHistory();
@@ -2727,7 +2810,7 @@ $(function() {
     if (importPng && importJson) {
       restoreFromPngAndJson(
         importPng,
-        importJson, undefined, true);
+        importJson, undefined, true, true);
     } else {
       alert('Please add a PNG and a JSON (tap the squares on a phone, or drag and drop on desktop) before importing.')
     }
@@ -3462,7 +3545,7 @@ $(function() {
           return;
         }
         var jsonString = typeof data.json === 'string' ? data.json : JSON.stringify(data.json);
-        restoreFromPngAndJson(data.png, jsonString, undefined, true);
+        restoreFromPngAndJson(data.png, jsonString, undefined, true, true);
         $('#importExport').modal('hide');
       })
       .fail(function(xhr) {
@@ -3596,6 +3679,7 @@ $(function() {
   }
 
   window.TagproMap = {
+    detectImportedSymmetry: detectImportedSymmetry,
     restoreFromPngAndJson: restoreFromPngAndJson,
     restoreFromExtractedMap: restoreFromExtractedMap,
     extractMap: extractMap,
