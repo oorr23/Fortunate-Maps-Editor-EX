@@ -1629,6 +1629,7 @@ $(function() {
   clearMap();
 
   var symmetry = 'None';
+  var SYMMETRY_KEY = 'tagproSymmetry';
 
   // One #symmetry <select> in index.html: Map tab of the mobile More sheet and the desktop sidebar.
   // Import auto-detect writes this control here so both layouts show the same value.
@@ -1640,6 +1641,7 @@ $(function() {
       symmetry = 'None';
       $('#symmetry').val('No Symmetry');
     }
+    try { localStorage.setItem(SYMMETRY_KEY, symmetry); } catch (err) {}
   }
 
   $('#symmetry').change(function() {
@@ -1686,6 +1688,11 @@ $(function() {
       [-1,1, -1,1, true]
     ]
   }
+
+  try {
+    var savedSymmetry = localStorage.getItem(SYMMETRY_KEY);
+    if (savedSymmetry) setSymmetry(savedSymmetry);
+  } catch (err) {}
 
   function isIdentityHow(how) {
     return how[0] === 1 && how[1] === 0 && how[2] === 1 && how[3] === 0 && !how[4];
