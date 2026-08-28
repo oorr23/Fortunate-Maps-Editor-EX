@@ -1902,127 +1902,60 @@ $(function() {
   }
 
   var settingsModalGuardUntil = 0;
+  var TILE_SETTINGS_MODALS = '#portalOptions, #switchOptions, #spawnOptions';
 
   function armSettingsModalGuard() {
-    settingsModalGuardUntil = Date.now() + 450;
+    settingsModalGuardUntil = Date.now() + 300;
     if (window.TagproLoupe && TagproLoupe.armSettingsModalGuard) {
       TagproLoupe.armSettingsModalGuard(settingsModalGuardUntil);
     }
   }
 
-  function settingsModalBackdropInDom(plugin) {
-    return !!(plugin && plugin.$backdrop && plugin.$backdrop.parent && plugin.$backdrop.parent().length);
+  function tileSettingsIsOpen() {
+    return $('body').hasClass('tile-settings-open');
   }
 
-  function settingsModalIsVisible($modal) {
-    return $modal.hasClass('in') && $modal.is(':visible');
-  }
-
-  var settingsModalShowEl = null;
-  var settingsModalShowUntil = 0;
-  var pendingSettingsShow = null;
-  var pendingSettingsShowTimer = 0;
-
-  function markSettingsModalShow($modal) {
-    settingsModalShowEl = $modal[0];
-    settingsModalShowUntil = Date.now() + 400;
-  }
-
-  function isRecentSettingsShow($modal) {
-    return settingsModalShowEl === $modal[0] && Date.now() < settingsModalShowUntil;
-  }
-
-  function clearPendingSettingsShow() {
-    if (pendingSettingsShowTimer) {
-      clearTimeout(pendingSettingsShowTimer);
-      pendingSettingsShowTimer = 0;
-    }
-    if (pendingSettingsShow) {
-      pendingSettingsShow.off('hidden.bs.modal.tagproShow');
-      pendingSettingsShow = null;
-    }
-  }
-
-  function resetDesyncedSettingsPlugin($modal, plugin) {
-    if (!plugin) return;
-    plugin.isShown = false;
-    $modal.removeClass('in').attr('aria-hidden', true);
-    if (plugin.$backdrop) {
-      plugin.$backdrop.remove();
-      plugin.$backdrop = null;
-    }
-  }
-
-  function invokeSettingsModalShow($modal) {
-    if (settingsModalIsVisible($modal)) return;
-    var plugin = $modal.data('bs.modal');
-    if (plugin && plugin.isShown && !$modal.is(':visible')) {
-      resetDesyncedSettingsPlugin($modal, plugin);
-    }
-    markSettingsModalShow($modal);
-    $modal.modal('show');
-  }
-
-  function showSettingsModalAfterHide($modal) {
-    if (pendingSettingsShow && pendingSettingsShow[0] === $modal[0]) return;
-    clearPendingSettingsShow();
-    pendingSettingsShow = $modal;
-    var done = false;
-    function finish() {
-      if (done) return;
-      done = true;
-      pendingSettingsShow = null;
-      if (pendingSettingsShowTimer) {
-        clearTimeout(pendingSettingsShowTimer);
-        pendingSettingsShowTimer = 0;
-      }
-      $modal.off('hidden.bs.modal.tagproShow');
-      invokeSettingsModalShow($modal);
-    }
-    $modal.one('hidden.bs.modal.tagproShow', finish);
-    // Bootstrap 3 hide: ~300ms modal fade + ~150ms backdrop. If hidden already
-    // fired before we attached, this still shows instead of waiting forever.
-    pendingSettingsShowTimer = setTimeout(finish, 500);
+  function hideTileSettings() {
+    $(TILE_SETTINGS_MODALS)
+      .removeClass('in is-open')
+      .css('display', 'none')
+      .attr('aria-hidden', 'true');
+    $('#tileSettingsBackdrop, .tile-settings-backdrop').remove();
+    $('body').removeClass('tile-settings-open');
   }
 
   function showTileSettingsModal($modal) {
+    hideTileSettings();
     armSettingsModalGuard();
-    var $all = $('#portalOptions, #switchOptions, #spawnOptions');
-    // Bootstrap 3.1.1: .modal('hide') on a never-shown sibling (typically
-    // #switchOptions) can leave plugin.isShown true while the element stays
-    // display:none / no .in. Later opens then wait for hidden.bs.modal forever.
-    $all.not($modal).filter('.in').modal('hide');
-
-    // Already actually on screen — do not hide-and-re-show. A stuck `.in`
-    // with display:none must not return; that blocked every later open.
-    if (settingsModalIsVisible($modal)) return;
-
-    var plugin = $modal.data('bs.modal');
-    var backdropInDom = settingsModalBackdropInDom(plugin);
-
-    // Show in progress: isShown is set immediately; .in / display come after
-    // the backdrop fade. A second open (click + native dblclick) must not
-    // reset that — but only if we recently called show. Hide in progress is
-    // isShown === false with the backdrop still in the DOM; do not treat that
-    // as a live show.
-    if (plugin && plugin.isShown && isRecentSettingsShow($modal) && !settingsModalIsVisible($modal)) {
-      return;
-    }
-
-    if (plugin && !plugin.isShown && backdropInDom) {
-      showSettingsModalAfterHide($modal);
-      return;
-    }
-
-    if (plugin && plugin.isShown && !$modal.is(':visible')) {
-      resetDesyncedSettingsPlugin($modal, plugin);
-    }
-
-    if (pendingSettingsShow && pendingSettingsShow[0] !== $modal[0]) {
-      clearPendingSettingsShow();
-    }
-    invokeSettingsModalShow($modal);
+    $('<div id="tileSettingsBackdrop" class="tile-settings-backdrop" aria-hidden="true"></div>')
+      .appendTo(document.body);
+    $modal.addClass('in is-open').css('display', 'block').attr('aria-hidden', 'false');
+    $('body').addClass('tile-settings-open');
+    var $input = $modal.find('input').first();
+    if ($input.length) $input.focus();
   }
+
+  $(document).on('click', '.tile-settings-dialog [data-dismiss="tile-settings"]', function(e) {
+    e.preventDefault();
+    hideTileSettings();
+  });
+
+  $(document).on('click', '#tileSettingsBackdrop, .tile-settings-backdrop', function(e) {
+    if (settingsModalGuardUntil && Date.now() < settingsModalGuardUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    hideTileSettings();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.which !== 27 && e.key !== 'Escape') return;
+    if (!tileSettingsIsOpen()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    hideTileSettings();
+  }, true);
 
   function openTileSettings(x, y) {
     var tile = tiles && tiles[x] && tiles[x][y];
@@ -2037,7 +1970,7 @@ $(function() {
         if (!(value >= 0)) value = cooldown;
         applyStep(new UndoStep([new TileState(tile, { cooldown: value })]));
         savePoint();
-        $('#portalOptions').modal('hide');
+        hideTileSettings();
       });
       return true;
     }
@@ -2050,7 +1983,7 @@ $(function() {
         if (isNaN(value)) value = timer;
         applyStep(new UndoStep([new TileState(tile, { timer: value })]));
         savePoint();
-        $('#switchOptions').modal('hide');
+        hideTileSettings();
       });
       return true;
     }
@@ -2070,7 +2003,7 @@ $(function() {
         else changes.weight = weight;
         applyStep(new UndoStep([new TileState(tile, changes)]));
         savePoint();
-        $('#spawnOptions').modal('hide');
+        hideTileSettings();
       });
       return true;
     }

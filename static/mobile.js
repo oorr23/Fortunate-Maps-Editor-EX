@@ -285,9 +285,13 @@ $(function() {
     }
   }
 
+  function blockingOverlayOpen() {
+    return !!(document.body.classList.contains('tile-settings-open') || $('.modal.in:visible').length);
+  }
+
   function beginMoreDrag(e, origin, panelName) {
     if (e.touches && e.touches.length > 1) return;
-    if ($('.modal.in:visible').length) return;
+    if (blockingOverlayOpen()) return;
     var pt = moreEventPoint(e);
     moreDrag = {
       origin: origin,
@@ -436,7 +440,7 @@ $(function() {
   $(document).on('keydown', function(e) {
     if (e.which !== 27) return;
     if (!$moreSheet.hasClass('open') && !$moreSheet.hasClass('more-dragging')) return;
-    if ($('.modal.in:visible').length) return;
+    if (blockingOverlayOpen()) return;
     e.preventDefault();
     closeMore();
   });
@@ -711,17 +715,21 @@ $(function() {
   var settingsModalGuardUntil = 0;
 
   function armSettingsModalGuard(until) {
-    settingsModalGuardUntil = until || (Date.now() + 450);
+    settingsModalGuardUntil = until || (Date.now() + 300);
+  }
+
+  function isSettingsBackdropEl(el) {
+    if (!el) return false;
+    if (el.id === 'tileSettingsBackdrop') return true;
+    if (!el.classList) return false;
+    return el.classList.contains('tile-settings-backdrop') || el.classList.contains('modal-backdrop');
   }
 
   document.addEventListener('click', function(e) {
     if (!settingsModalGuardUntil || Date.now() >= settingsModalGuardUntil) return;
-    var t = e.target;
-    if (!t) return;
-    if (t.classList && t.classList.contains('modal-backdrop')) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    if (!isSettingsBackdropEl(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
   }, true);
 
   function clearSettingsPaint() {
