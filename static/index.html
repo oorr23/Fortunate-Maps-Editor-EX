@@ -235,6 +235,7 @@
         <button type="button" class="dock-btn" id="dockZoomOut" title="Zoom out"><span class="glyphicon glyphicon-zoom-out"></span></button>
         <button type="button" class="dock-btn" id="dockZoomIn" title="Zoom in"><span class="glyphicon glyphicon-zoom-in"></span></button>
         <button type="button" class="dock-btn" id="panMode" title="Pan: drag to move the map. Tap again to place tiles." aria-pressed="false"><span class="glyphicon glyphicon-move"></span></button>
+        <button type="button" class="dock-btn" id="tileSettingsBtn" title="Tile settings for the yellow-crosshair or focused tile" disabled aria-disabled="true"><span class="glyphicon glyphicon-cog"></span> Tile</button>
         <button type="button" class="dock-btn" id="moreToggle" title="More options"><span class="glyphicon glyphicon-option-horizontal"></span> More</button>
       </div>
     </div>
@@ -247,6 +248,7 @@
   <div id="loupe" class="loupe" aria-hidden="true">
     <div id="loupeInner" class="loupe-inner"></div>
     <div class="loupe-crosshair"></div>
+    <button type="button" id="loupeTileSettings" class="loupe-tile-settings" hidden>Tile settings</button>
   </div>
 
   <input type="file" id="pngFileInput" accept="image/png,.png" style="display:none">
@@ -410,7 +412,7 @@
         </div>
         <div class="modal-body instructions-body">
           <p><strong>Draw.</strong> Pick a tile from the palette carousel, then tap or drag on the map. Dock tools (brush, line, fill, and the rest) paint many tiles at once.</p>
-          <p><strong>Tile settings.</strong> Portals, buttons, and team spawns have extra options. Shift-click or double-click a tile; on a phone, long-press or double-tap.</p>
+          <p><strong>Tile settings.</strong> Portals, buttons, and team spawns have extra options. Shift-click or double-click a tile; on a phone, double-tap or use Tile settings (yellow-crosshair / focused tile).</p>
           <ul>
             <li>Portal: cooldown in milliseconds (0 = none).</li>
             <li>Button: timer in seconds (0 = off when you leave; negative = stays on).</li>

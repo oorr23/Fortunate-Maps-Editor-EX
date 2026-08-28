@@ -54,6 +54,34 @@ html, body {
   pointer-events: none;
 }
 
+.loupe-tile-settings {
+  position: absolute;
+  left: 50%;
+  bottom: -48px;
+  transform: translateX(-50%);
+  z-index: 3;
+  pointer-events: auto;
+  white-space: nowrap;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid #3a3f4a;
+  border-radius: 10px;
+  background: #2a2f38;
+  color: #f2f2f2;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.loupe-tile-settings[hidden] {
+  display: none !important;
+}
+
+body.modal-open .loupe {
+  pointer-events: none;
+  z-index: 1;
+}
+
 .loupe-inner {
   position: absolute;
   left: 0;
@@ -440,6 +468,13 @@ html:not(.layout-desktop) .dock-btn.active {
   background: #3d4654;
 }
 
+html.layout-mobile .dock-btn.has-settings,
+html:not(.layout-desktop) .dock-btn.has-settings {
+  background: #2e6da4;
+  border-color: #4a90c8;
+  color: #fff;
+}
+
 html.layout-mobile #panMode.active,
 html:not(.layout-desktop) #panMode.active,
 html.pan-mode #panMode {
@@ -465,6 +500,22 @@ html:not(.layout-desktop) #moreToggle {
   flex: 1.4 1 0;
   font-size: 14px;
   font-weight: 600;
+}
+
+html.layout-mobile #tileSettingsBtn,
+html:not(.layout-desktop) #tileSettingsBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1.3 1 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+html.layout-mobile #tileSettingsBtn:disabled,
+html:not(.layout-desktop) #tileSettingsBtn:disabled {
+  opacity: 0.45;
 }
 
 html.layout-mobile .more-sheet-header,
@@ -665,13 +716,17 @@ html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
 }
 
 html.layout-mobile .modal,
-html:not(.layout-desktop) .modal {
-  z-index: 10100;
+html:not(.layout-desktop) .modal,
+#portalOptions,
+#switchOptions,
+#spawnOptions {
+  z-index: 11000;
 }
 
 html.layout-mobile .modal-backdrop,
-html:not(.layout-desktop) .modal-backdrop {
-  z-index: 10050;
+html:not(.layout-desktop) .modal-backdrop,
+.modal-backdrop {
+  z-index: 10900;
 }
 
 html.layout-mobile .modal-dialog,
@@ -1642,7 +1697,13 @@ html.theme-dark #moreSheet select,
 html.theme-dark #importExport .modal-content,
 html.theme-dark #importExport .form-control,
 html.theme-dark #instructionsModal .modal-content,
-html.theme-dark #instructionsModal .form-control {
+html.theme-dark #instructionsModal .form-control,
+html.theme-dark #portalOptions .modal-content,
+html.theme-dark #portalOptions .form-control,
+html.theme-dark #switchOptions .modal-content,
+html.theme-dark #switchOptions .form-control,
+html.theme-dark #spawnOptions .modal-content,
+html.theme-dark #spawnOptions .form-control {
   background-color: #2a2f38;
   border-color: #3a3f4a;
   color: #f2f2f2;
@@ -1663,7 +1724,10 @@ html.theme-dark .highlight-color:hover {
 }
 
 html.theme-dark #importExport .modal-content,
-html.theme-dark #instructionsModal .modal-content {
+html.theme-dark #instructionsModal .modal-content,
+html.theme-dark #portalOptions .modal-content,
+html.theme-dark #switchOptions .modal-content,
+html.theme-dark #spawnOptions .modal-content {
   background: #1e2229;
   color: #eee;
 }
@@ -1671,12 +1735,21 @@ html.theme-dark #instructionsModal .modal-content {
 html.theme-dark #importExport .modal-header,
 html.theme-dark #importExport .modal-footer,
 html.theme-dark #instructionsModal .modal-header,
-html.theme-dark #instructionsModal .modal-footer {
+html.theme-dark #instructionsModal .modal-footer,
+html.theme-dark #portalOptions .modal-header,
+html.theme-dark #portalOptions .modal-footer,
+html.theme-dark #switchOptions .modal-header,
+html.theme-dark #switchOptions .modal-footer,
+html.theme-dark #spawnOptions .modal-header,
+html.theme-dark #spawnOptions .modal-footer {
   border-color: #3a3f4a;
 }
 
 html.theme-dark #importExport .close,
-html.theme-dark #instructionsModal .close {
+html.theme-dark #instructionsModal .close,
+html.theme-dark #portalOptions .close,
+html.theme-dark #switchOptions .close,
+html.theme-dark #spawnOptions .close {
   color: #fff;
   opacity: 0.8;
 }

@@ -1876,21 +1876,65 @@ $(function() {
     controlDown = false;
   })
 
+  function settingsTypeName(type) {
+    if (!type) return '';
+    if (typeof type === 'string') return type;
+    return type.name || '';
+  }
+
+  function isEnterablePortalName(name) {
+    return name === 'portal' || name === 'redPortal' || name === 'bluePortal';
+  }
+
+  function isSwitchName(name) {
+    return name === 'switch';
+  }
+
+  function isSpawnName(name) {
+    return name === 'redSpawn' || name === 'blueSpawn';
+  }
+
   function tileHasSettings(x, y) {
     var tile = tiles && tiles[x] && tiles[x][y];
     if (!tile || !tile.type) return false;
-    var t = tile.type;
-    return isEnterablePortal(t) || t === switchType || t === redSpawnType || t === blueSpawnType;
+    var name = settingsTypeName(tile.type);
+    return isEnterablePortalName(name) || isSwitchName(name) || isSpawnName(name);
+  }
+
+  var settingsModalGuardUntil = 0;
+
+  function armSettingsModalGuard() {
+    settingsModalGuardUntil = Date.now() + 450;
+    if (window.TagproLoupe && TagproLoupe.armSettingsModalGuard) {
+      TagproLoupe.armSettingsModalGuard(settingsModalGuardUntil);
+    }
+  }
+
+  function showTileSettingsModal($modal) {
+    armSettingsModalGuard();
+    var $all = $('#portalOptions, #switchOptions, #spawnOptions');
+    var $others = $all.not($modal);
+    $others.modal('hide');
+    function show() {
+      $modal.modal('show');
+    }
+    var plugin = $modal.data('bs.modal');
+    if ($modal.hasClass('in') || (plugin && plugin.isShown)) {
+      $modal.one('hidden.bs.modal', show);
+      $modal.modal('hide');
+      return;
+    }
+    setTimeout(show, 0);
   }
 
   function openTileSettings(x, y) {
     var tile = tiles && tiles[x] && tiles[x][y];
     if (!tile || !tile.type) return false;
-    var t = tile.type;
-    if (isEnterablePortal(t)) {
+    var name = settingsTypeName(tile.type);
+    if (isEnterablePortalName(name)) {
       var cooldown = (tile.cooldown != undefined) ? tile.cooldown : defaultPortalCooldown;
       $('#portalCooldown').val('').attr('placeholder', cooldown);
-      $('#portalOptions').modal('show');
+      showTileSettingsModal($('#portalOptions'));
       $('#portalSubmit').off('click').on('click', function() {
         var value = parseFloat($('#portalCooldown').val());
         if (!(value >= 0)) value = cooldown;
@@ -1900,10 +1944,10 @@ $(function() {
       });
       return true;
     }
-    if (t === switchType) {
+    if (isSwitchName(name)) {
       var timer = (tile.timer != undefined) ? tile.timer : defaultButtonTimer;
       $('#switchTimer').val('').attr('placeholder', timer);
-      $('#switchOptions').modal('show');
+      showTileSettingsModal($('#switchOptions'));
       $('#switchSubmit').off('click').on('click', function() {
         var value = parseFloat($('#switchTimer').val());
         if (isNaN(value)) value = timer;
@@ -1913,12 +1957,12 @@ $(function() {
       });
       return true;
     }
-    if (t === redSpawnType || t === blueSpawnType) {
+    if (isSpawnName(name)) {
       var radius = (tile.radius != undefined) ? tile.radius : defaultSpawnRadius;
       var weight = (tile.weight != undefined) ? tile.weight : defaultSpawnWeight;
       $('#spawnRadius').val('').attr('placeholder', radius);
       $('#spawnWeight').val('').attr('placeholder', weight);
-      $('#spawnOptions').modal('show');
+      showTileSettingsModal($('#spawnOptions'));
       $('#spawnSubmit').off('click').on('click', function() {
         var nextRadius = parseFloat($('#spawnRadius').val());
         var nextWeight = parseFloat($('#spawnWeight').val());
@@ -1993,7 +2037,6 @@ $(function() {
 //      console.log('mouse left ', $(this).data('x'), $(this).data('y'));
     })
     .on('mousedown', '.tile', function(e) {
-      e.preventDefault();
       if (e.which==1) {
         if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
         unlockPasteInput();
@@ -2001,7 +2044,11 @@ $(function() {
         var y = $(this).data('y');
         if (!controlDown) {
           if (e.shiftKey && openTileSettings(x, y)) {
-            e.preventDefault();
+            mouseDown = false;
+            return;
+          }
+          // Do not preventDefault on settings tiles: that cancels native dblclick.
+          if (tileHasSettings(x, y)) {
             mouseDown = false;
             return;
           }
