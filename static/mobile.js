@@ -5,8 +5,12 @@ $(function() {
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
+  var SAME_GESTURE_MS = 40;
+  var GHOST_MOUSE_SLOP = 24;
+  var GHOST_MOUSE_MS = 700;
   var PINCH_ZOOM_RATIO = 1.08;
   var LOUPE_STEP_PX = 40;
+  var HAS_POINTER = typeof window.PointerEvent === 'function' || 'onpointerdown' in window;
 
   var $map = $('#map');
   var mapEl = $map[0];
@@ -505,19 +509,32 @@ $(function() {
     return !!(window.TagproMap && TagproMap.openTileSettings && TagproMap.openTileSettings(x, y));
   }
 
+  function commitOpenSettings(x, y) {
+    lastSettingsTap = null;
+    clearSettingsPaint();
+    settingsPointerDown = false;
+    parkedLoupePending = null;
+    clearLongPress();
+    openSettingsAt(x, y);
+    hideLoupe();
+    return true;
+  }
+
   function handleSettingsDoubleTap(x, y) {
     if (isPasteTool()) return false;
     if (x == null || y == null || !mapHasSettings(x, y)) return false;
     var now = Date.now();
     if (lastSettingsTap && lastSettingsTap.x === x && lastSettingsTap.y === y && (now - lastSettingsTap.t) <= DOUBLE_TAP_MS) {
-      lastSettingsTap = null;
-      clearSettingsPaint();
-      openSettingsAt(x, y);
-      hideLoupe();
-      return true;
+      return commitOpenSettings(x, y);
     }
     lastSettingsTap = { t: now, x: x, y: y };
     return false;
+  }
+
+  function handleSettingsNativeDblClick(x, y) {
+    if (isPasteTool()) return false;
+    if (x == null || y == null || !mapHasSettings(x, y)) return false;
+    return commitOpenSettings(x, y);
   }
 
   function loupeTapCell(clientX, clientY) {
@@ -581,6 +598,7 @@ $(function() {
   var loupeFollowAcc = { x: 0, y: 0 };
   var loupeFollowOrigin = null;
   var lastTouchAt = 0;
+  var lastHandledDown = null;
   var lastSettingsTap = null;
   var suppressLoupe = false;
   var pendingSettingsPaint = null;
@@ -653,12 +671,102 @@ $(function() {
     lastTouchAt = Date.now();
   }
 
+  function nativeEvent(e) {
+    return (e && e.originalEvent) || e;
+  }
+
+  function pointerKind(e) {
+    var oe = nativeEvent(e);
+    if (oe && oe.pointerType) return oe.pointerType;
+    var type = (e && e.type) || (oe && oe.type) || '';
+    if (type.indexOf('touch') === 0) return 'touch';
+    if (type.indexOf('mouse') === 0) return 'mouse';
+    return '';
+  }
+
+  function pointerClient(e) {
+    var oe = nativeEvent(e) || {};
+    var t = (oe.touches && oe.touches[0]) || (oe.changedTouches && oe.changedTouches[0]);
+    if (t) return { x: t.clientX, y: t.clientY };
+    return { x: oe.clientX, y: oe.clientY };
+  }
+
+  function isPrimaryPointer(e) {
+    var oe = nativeEvent(e);
+    if (!oe) return false;
+    if (oe.isPrimary === false) return false;
+    var kind = pointerKind(e);
+    if (kind === 'mouse' || ((e.type || '').indexOf('mouse') === 0)) {
+      if (oe.button != null && oe.button !== 0) return false;
+      if (e.which != null && e.which !== 1 && (e.type || '').indexOf('mouse') === 0) return false;
+    }
+    return true;
+  }
+
+  function markHandledDown(e, prevented) {
+    var pt = pointerClient(e);
+    var oe = nativeEvent(e);
+    lastHandledDown = {
+      t: Date.now(),
+      x: pt.x,
+      y: pt.y,
+      id: oe && oe.pointerId,
+      kind: pointerKind(e),
+      prevented: !!prevented
+    };
+    if (lastHandledDown.kind === 'touch') lastTouchAt = lastHandledDown.t;
+  }
+
+  function pointsNear(ax, ay, bx, by, slop) {
+    var dx = ax - bx;
+    var dy = ay - by;
+    return (dx * dx + dy * dy) <= (slop * slop);
+  }
+
+  function isGhostCompatibilityMouse(e) {
+    if (!e) return false;
+    var oe = nativeEvent(e);
+    var kind = pointerKind(e);
+    var type = e.type || (oe && oe.type) || '';
+    if (kind === 'touch' && type.indexOf('mouse') === -1) return false;
+    var mouseLike = kind === 'mouse' || type.indexOf('mouse') === 0;
+    if (!mouseLike) return false;
+    if (!lastHandledDown || lastHandledDown.kind !== 'touch') return false;
+    var pt = pointerClient(e);
+    if (pt.x == null || pt.y == null) return false;
+    if (!pointsNear(pt.x, pt.y, lastHandledDown.x, lastHandledDown.y, GHOST_MOUSE_SLOP)) return false;
+    var dt = Date.now() - lastHandledDown.t;
+    if (dt > GHOST_MOUSE_MS) return false;
+    if (dt <= SAME_GESTURE_MS) return true;
+    var firesTouch = !!(oe.sourceCapabilities && oe.sourceCapabilities.firesTouchEvents);
+    if (!firesTouch) return false;
+    if (type === 'mousedown' || type === 'mouseup' || type === 'click') lastHandledDown = null;
+    return true;
+  }
+
+  function isDuplicatePrimaryDown(e) {
+    var type = e.type || '';
+    if (type.indexOf('down') === -1 && type.indexOf('start') === -1) return false;
+    if (!lastHandledDown) return false;
+    var dt = Date.now() - lastHandledDown.t;
+    if (dt > SAME_GESTURE_MS) return false;
+    var pt = pointerClient(e);
+    if (pt.x == null || pt.y == null) return false;
+    if (!pointsNear(pt.x, pt.y, lastHandledDown.x, lastHandledDown.y, GHOST_MOUSE_SLOP)) return false;
+    var oe = nativeEvent(e);
+    if (oe && lastHandledDown.id != null && oe.pointerId != null && oe.pointerId === lastHandledDown.id) return true;
+    return type.indexOf('mouse') === 0 || type.indexOf('touch') === 0 || type.indexOf('pointer') === 0;
+  }
+
+  function shouldIgnoreCompatPointer(e) {
+    if (isGhostCompatibilityMouse(e)) return true;
+    var type = e.type || '';
+    if (type.indexOf('move') !== -1) return false;
+    return isDuplicatePrimaryDown(e);
+  }
+
   function isEmulatedMouse(e) {
-    if (!e) return Date.now() - lastTouchAt < 800;
-    var oe = e.originalEvent || e;
-    if (oe.sourceCapabilities && oe.sourceCapabilities.firesTouchEvents) return true;
-    if (oe.pointerType === 'touch') return true;
-    return Date.now() - lastTouchAt < 800;
+    return isGhostCompatibilityMouse(e);
   }
 
   function captureLoupeFocusTile($tile) {
@@ -1307,6 +1415,101 @@ $(function() {
     twoFingerAcc.y = 0;
   }
 
+  function handleMapPrimaryDown(e, clientX, clientY) {
+    if (loupeVisible) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMore();
+      if (consumeSettingsPointer(clientX, clientY)) return true;
+      if (pointInLoupe(clientX, clientY)) return true;
+      if (paintThroughParkedLoupe() && beginParkedMapPaint(clientX, clientY)) return true;
+      beginOutsideLoupePointer(clientX, clientY);
+      return true;
+    }
+    if (panMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      startPan(clientX, clientY);
+      return true;
+    }
+    if (isPhoneLayout() && !e.shiftKey) {
+      var $tile = $(e.target).closest('#map .tile');
+      if (!$tile.length) $tile = tileFromPoint(clientX, clientY);
+      if ($tile.length) {
+        var x = $tile.data('x');
+        var y = $tile.data('y');
+        if (mapHasSettings(x, y)) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeMore();
+          settingsPointerDown = true;
+          holdStart = { clientX: clientX, clientY: clientY };
+          lastPointer = { x: clientX, y: clientY };
+          if (handleSettingsDoubleTap(x, y)) return true;
+          suppressLoupe = true;
+          pendingDismiss = false;
+          queueSettingsPaint($tile, clientX, clientY);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function onMapPrimaryDown(e) {
+    if (!isPrimaryPointer(e)) return false;
+    if (shouldIgnoreCompatPointer(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return true;
+    }
+    var pt = pointerClient(e);
+    var handled = handleMapPrimaryDown(e, pt.x, pt.y);
+    if (handled) markHandledDown(e, true);
+    return handled;
+  }
+
+  function onLoupePrimaryDown(e) {
+    if (!isPrimaryPointer(e)) return false;
+    if (twoFingerPanning || Date.now() < ignorePaintUntil) return false;
+    if (shouldIgnoreCompatPointer(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return true;
+    }
+    var pt = pointerClient(e);
+    e.preventDefault();
+    e.stopPropagation();
+    startParkedLoupePointer(pt.x, pt.y);
+    markHandledDown(e, true);
+    return true;
+  }
+
+  function onLoupePrimaryMove(e) {
+    if (!isPrimaryPointer(e)) return;
+    if (shouldIgnoreCompatPointer(e)) return;
+    if (twoFingerOnLoupe || twoFingerPanning) return;
+    var pt = pointerClient(e);
+    moveParkedLoupePointer(pt.x, pt.y);
+  }
+
+  function onLoupePrimaryUp(e) {
+    if (!isPrimaryPointer(e)) return;
+    if (shouldIgnoreCompatPointer(e)) return;
+    if (twoFingerPanning || twoFingerOnLoupe) return;
+    var pt = pointerClient(e);
+    endParkedLoupePointer(pt.x, pt.y);
+    if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
+  }
+
+  function captureLoupePointer(e) {
+    var el = $loupe[0];
+    var oe = nativeEvent(e);
+    if (el && oe && oe.pointerId != null && el.setPointerCapture) {
+      try { el.setPointerCapture(oe.pointerId); } catch (err) {}
+    }
+  }
+
   mapEl.addEventListener('touchstart', function(e) {
     noteTouch();
     if (e.touches.length === 2) {
@@ -1320,20 +1523,37 @@ $(function() {
     if (twoFingerPanning || Date.now() < ignorePaintUntil) return;
     var t = e.touches[0];
 
+    if (HAS_POINTER) {
+      if (shouldIgnoreCompatPointer(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
+
     if (loupeVisible) {
       e.preventDefault();
       e.stopPropagation();
       closeMore();
-      if (consumeSettingsPointer(t.clientX, t.clientY)) return;
+      if (HAS_POINTER && lastHandledDown && (Date.now() - lastHandledDown.t) <= SAME_GESTURE_MS) return;
+      if (consumeSettingsPointer(t.clientX, t.clientY)) {
+        markHandledDown(e, true);
+        return;
+      }
       if (pointInLoupe(t.clientX, t.clientY)) return;
-      if (paintThroughParkedLoupe() && beginParkedMapPaint(t.clientX, t.clientY)) return;
+      if (paintThroughParkedLoupe() && beginParkedMapPaint(t.clientX, t.clientY)) {
+        markHandledDown(e, true);
+        return;
+      }
       beginOutsideLoupePointer(t.clientX, t.clientY);
+      markHandledDown(e, true);
       return;
     }
 
     if (panMode) {
       e.preventDefault();
       startPan(t.clientX, t.clientY);
+      markHandledDown(e, true);
       return;
     }
 
@@ -1341,18 +1561,24 @@ $(function() {
     if (!$tile.length) return;
     e.preventDefault();
     closeMore();
+    if (HAS_POINTER && lastHandledDown && (Date.now() - lastHandledDown.t) <= SAME_GESTURE_MS) return;
     var x = $tile.data('x');
     var y = $tile.data('y');
     settingsPointerDown = true;
-    if (mapHasSettings(x, y) && handleSettingsDoubleTap(x, y)) return;
+    if (mapHasSettings(x, y) && handleSettingsDoubleTap(x, y)) {
+      markHandledDown(e, true);
+      return;
+    }
     if (mapHasSettings(x, y)) {
       suppressLoupe = true;
       holdStart = { clientX: t.clientX, clientY: t.clientY };
       lastPointer = { x: t.clientX, y: t.clientY };
       queueSettingsPaint($tile, t.clientX, t.clientY);
+      markHandledDown(e, true);
       return;
     }
     beginPaintAtTile($tile, t.clientX, t.clientY, true);
+    markHandledDown(e, true);
   }, { passive: false, capture: true });
 
   mapEl.addEventListener('touchmove', function(e) {
@@ -1447,7 +1673,10 @@ $(function() {
       panPointer = null;
       endPan();
       var t = (e.changedTouches && e.changedTouches[0]) || {};
-      endPaint(t.clientX, t.clientY);
+      if (!(HAS_POINTER && lastHandledDown && (Date.now() - lastHandledDown.t) <= SAME_GESTURE_MS && lastHandledDown.kind !== 'touch')) {
+        endPaint(t.clientX, t.clientY);
+      }
+      if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
     }
   }
 
@@ -1456,55 +1685,25 @@ $(function() {
 
   mapEl.addEventListener('mousedown', function(e) {
     if (e.button !== 0) return;
-    if (loupeVisible) {
-      e.preventDefault();
-      e.stopPropagation();
-      closeMore();
-      if (isEmulatedMouse(e)) return;
-      if (consumeSettingsPointer(e.clientX, e.clientY)) return;
-      if (pointInLoupe(e.clientX, e.clientY)) return;
-      if (paintThroughParkedLoupe() && beginParkedMapPaint(e.clientX, e.clientY)) return;
-      beginOutsideLoupePointer(e.clientX, e.clientY);
-      return;
-    }
-    if (isEmulatedMouse(e)) return;
-    if (panMode) {
-      e.preventDefault();
-      e.stopPropagation();
-      startPan(e.clientX, e.clientY);
-      return;
-    }
-    if (isPhoneLayout() && !e.shiftKey) {
-      var $tile = $(e.target).closest('#map .tile');
-      if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
-      if ($tile.length) {
-        var x = $tile.data('x');
-        var y = $tile.data('y');
-        if (mapHasSettings(x, y)) {
-          e.preventDefault();
-          e.stopPropagation();
-          closeMore();
-          settingsPointerDown = true;
-          holdStart = { clientX: e.clientX, clientY: e.clientY };
-          lastPointer = { x: e.clientX, y: e.clientY };
-          if (handleSettingsDoubleTap(x, y)) return;
-          suppressLoupe = true;
-          pendingDismiss = false;
-          queueSettingsPaint($tile, e.clientX, e.clientY);
-          return;
-        }
-      }
-    }
+    onMapPrimaryDown(e);
   }, true);
+
+  if (HAS_POINTER) {
+    mapEl.addEventListener('pointerdown', function(e) {
+      onMapPrimaryDown(e);
+    }, true);
+  }
 
   $map.on('mousedown', function(e) {
     if (!e.originalEvent) return;
-    if (isEmulatedMouse(e)) return;
-    if (isEmulatedMouse(e)) return;
+    if (shouldIgnoreCompatPointer(e)) return;
     if (e.which !== 1) return;
     if (e.shiftKey) return;
     if (panMode) return;
-    if (loupeVisible) return;
+    if (loupeVisible) {
+      onMapPrimaryDown(e);
+      return;
+    }
     if (e.clientX == null || e.clientY == null) return;
     painting = false;
     loupePainting = false;
@@ -1522,18 +1721,18 @@ $(function() {
     }, LONG_PRESS_MS);
   });
   $(document).on('mousemove', function(e) {
-    if (isEmulatedMouse(e)) return;
+    if (shouldIgnoreCompatPointer(e)) return;
     var prevX = lastPointer.x;
     var prevY = lastPointer.y;
     if (e.originalEvent && e.clientX != null && e.clientY != null) {
       lastPointer = { x: e.clientX, y: e.clientY };
     }
     if (parkedLoupePending) {
-      moveParkedLoupePointer(e.clientX, e.clientY, prevX, prevY);
+      if (!HAS_POINTER) moveParkedLoupePointer(e.clientX, e.clientY, prevX, prevY);
       return;
     }
     if (loupePainting) {
-      paintLoupeAt(e.clientX, e.clientY, 'move');
+      if (!HAS_POINTER) paintLoupeAt(e.clientX, e.clientY, 'move');
       return;
     }
     if (panMode && panPointer) {
@@ -1570,11 +1769,12 @@ $(function() {
   });
   $(document).on('mouseup', function(e) {
     if (!e.originalEvent) return;
-    if (isEmulatedMouse(e)) return;
+    if (shouldIgnoreCompatPointer(e)) return;
     settingsPointerDown = false;
     if (parkedLoupePending) {
       endParkedLoupePointer(e.clientX, e.clientY);
       if (panPointer) endPan();
+      if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
       return;
     }
     if (loupePainting) {
@@ -1601,23 +1801,24 @@ $(function() {
       }
       holdStart = null;
     }
+    if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
   });
 
   mapEl.addEventListener('dblclick', function(e) {
     if (!isPhoneLayout()) return;
-    var $tile = $(e.target).closest('#map .tile');
-    if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
-    if (!$tile.length) return;
-    var x = $tile.data('x');
-    var y = $tile.data('y');
-    if (!mapHasSettings(x, y)) return;
+    if (shouldIgnoreCompatPointer(e)) return;
+    var cell = null;
+    if (loupeVisible && pointInLoupe(e.clientX, e.clientY)) {
+      cell = loupeTapCell(e.clientX, e.clientY);
+    } else {
+      var $tile = $(e.target).closest('#map .tile');
+      if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
+      if ($tile.length) cell = { x: $tile.data('x'), y: $tile.data('y') };
+    }
+    if (!cell) return;
+    if (!handleSettingsNativeDblClick(cell.x, cell.y)) return;
     e.preventDefault();
     e.stopPropagation();
-    clearSettingsPaint();
-    lastSettingsTap = null;
-    settingsPointerDown = false;
-    openSettingsAt(x, y);
-    hideLoupe();
   }, true);
 
   function applyMapWheel(e) {
@@ -1658,6 +1859,14 @@ $(function() {
   }, { passive: false });
 
   var loupeEl = $loupe[0];
+  if (HAS_POINTER) {
+    loupeEl.addEventListener('pointerdown', function(e) {
+      if (onLoupePrimaryDown(e)) captureLoupePointer(e);
+    });
+    loupeEl.addEventListener('pointermove', onLoupePrimaryMove);
+    loupeEl.addEventListener('pointerup', onLoupePrimaryUp);
+    loupeEl.addEventListener('pointercancel', onLoupePrimaryUp);
+  }
   loupeEl.addEventListener('touchstart', function(e) {
     noteTouch();
     e.preventDefault();
@@ -1668,8 +1877,10 @@ $(function() {
       return;
     }
     if (twoFingerPanning || Date.now() < ignorePaintUntil) return;
+    if (HAS_POINTER && lastHandledDown && (Date.now() - lastHandledDown.t) <= SAME_GESTURE_MS) return;
     var t = e.touches[0];
     startParkedLoupePointer(t.clientX, t.clientY);
+    markHandledDown(e, true);
   }, { passive: false });
   loupeEl.addEventListener('touchmove', function(e) {
     noteTouch();
@@ -1683,6 +1894,7 @@ $(function() {
       return;
     }
     if (twoFingerOnLoupe || twoFingerPanning) return;
+    if (HAS_POINTER) return;
     var t = e.touches[0];
     moveParkedLoupePointer(t.clientX, t.clientY);
   }, { passive: false });
@@ -1700,8 +1912,13 @@ $(function() {
       clearTwoFingerGesture();
       return;
     }
+    if (HAS_POINTER) {
+      if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
+      return;
+    }
     var t = (e.changedTouches && e.changedTouches[0]) || {};
     endParkedLoupePointer(t.clientX, t.clientY);
+    if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
   }, { passive: false });
   loupeEl.addEventListener('touchcancel', function(e) {
     noteTouch();
@@ -1710,26 +1927,26 @@ $(function() {
       clearTwoFingerGesture();
       return;
     }
+    if (HAS_POINTER) {
+      if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
+      return;
+    }
     var t = (e.changedTouches && e.changedTouches[0]) || {};
     endParkedLoupePointer(t.clientX, t.clientY);
+    if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
   }, { passive: false });
   $loupe.on('mousedown', function(e) {
     if (e.which !== 1) return;
-    if (isEmulatedMouse(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    startParkedLoupePointer(e.clientX, e.clientY);
+    onLoupePrimaryDown(e);
   });
   $loupe.on('dblclick', function(e) {
     if (!isPhoneLayout()) return;
+    if (shouldIgnoreCompatPointer(e)) return;
     var cell = loupeTapCell(e.clientX, e.clientY);
-    if (!cell || !mapHasSettings(cell.x, cell.y) || isPasteTool()) return;
+    if (!cell) return;
+    if (!handleSettingsNativeDblClick(cell.x, cell.y)) return;
     e.preventDefault();
     e.stopPropagation();
-    clearSettingsPaint();
-    lastSettingsTap = null;
-    settingsPointerDown = false;
-    openSettingsAt(cell.x, cell.y);
   });
   loupeEl.addEventListener('wheel', function(e) {
     if (!isPhoneLayout()) return;
