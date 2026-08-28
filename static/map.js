@@ -1914,6 +1914,77 @@ $(function() {
     return !!(plugin && plugin.$backdrop && plugin.$backdrop.parent && plugin.$backdrop.parent().length);
   }
 
+  function settingsModalIsVisible($modal) {
+    return $modal.hasClass('in') && $modal.is(':visible');
+  }
+
+  var settingsModalShowEl = null;
+  var settingsModalShowUntil = 0;
+  var pendingSettingsShow = null;
+  var pendingSettingsShowTimer = 0;
+
+  function markSettingsModalShow($modal) {
+    settingsModalShowEl = $modal[0];
+    settingsModalShowUntil = Date.now() + 400;
+  }
+
+  function isRecentSettingsShow($modal) {
+    return settingsModalShowEl === $modal[0] && Date.now() < settingsModalShowUntil;
+  }
+
+  function clearPendingSettingsShow() {
+    if (pendingSettingsShowTimer) {
+      clearTimeout(pendingSettingsShowTimer);
+      pendingSettingsShowTimer = 0;
+    }
+    if (pendingSettingsShow) {
+      pendingSettingsShow.off('hidden.bs.modal.tagproShow');
+      pendingSettingsShow = null;
+    }
+  }
+
+  function resetDesyncedSettingsPlugin($modal, plugin) {
+    if (!plugin) return;
+    plugin.isShown = false;
+    $modal.removeClass('in').attr('aria-hidden', true);
+    if (plugin.$backdrop) {
+      plugin.$backdrop.remove();
+      plugin.$backdrop = null;
+    }
+  }
+
+  function invokeSettingsModalShow($modal) {
+    if (settingsModalIsVisible($modal)) return;
+    var plugin = $modal.data('bs.modal');
+    if (plugin && plugin.isShown && !$modal.is(':visible')) {
+      resetDesyncedSettingsPlugin($modal, plugin);
+    }
+    markSettingsModalShow($modal);
+    $modal.modal('show');
+  }
+
+  function showSettingsModalAfterHide($modal) {
+    if (pendingSettingsShow && pendingSettingsShow[0] === $modal[0]) return;
+    clearPendingSettingsShow();
+    pendingSettingsShow = $modal;
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      pendingSettingsShow = null;
+      if (pendingSettingsShowTimer) {
+        clearTimeout(pendingSettingsShowTimer);
+        pendingSettingsShowTimer = 0;
+      }
+      $modal.off('hidden.bs.modal.tagproShow');
+      invokeSettingsModalShow($modal);
+    }
+    $modal.one('hidden.bs.modal.tagproShow', finish);
+    // Bootstrap 3 hide: ~300ms modal fade + ~150ms backdrop. If hidden already
+    // fired before we attached, this still shows instead of waiting forever.
+    pendingSettingsShowTimer = setTimeout(finish, 500);
+  }
+
   function showTileSettingsModal($modal) {
     armSettingsModalGuard();
     var $all = $('#portalOptions, #switchOptions, #spawnOptions');
@@ -1922,31 +1993,35 @@ $(function() {
     // display:none / no .in. Later opens then wait for hidden.bs.modal forever.
     $all.not($modal).filter('.in').modal('hide');
 
-    // Already visible — do not hide-and-re-show.
-    if ($modal.hasClass('in')) return;
+    // Already actually on screen — do not hide-and-re-show. A stuck `.in`
+    // with display:none must not return; that blocked every later open.
+    if (settingsModalIsVisible($modal)) return;
 
     var plugin = $modal.data('bs.modal');
     var backdropInDom = settingsModalBackdropInDom(plugin);
-    var modalVisible = $modal.is(':visible');
 
-    if (plugin && plugin.isShown) {
-      // Show already in progress: isShown is set immediately; .in / display
-      // come after the ~150ms backdrop fade. A second open (click + native
-      // dblclick) must not clear isShown or strip that backdrop — doing so
-      // races the first show's callback and leaves isShown true with display:none.
-      if (backdropInDom || modalVisible) return;
-
-      // Desynced leftover: isShown true, no .in, not visible, no backdrop.
-      plugin.isShown = false;
-    } else if (plugin && backdropInDom) {
-      // Hide already started (class `in` gone, backdrop still fading). Wait
-      // for it to finish so hideModal does not steal the next show.
-      $modal.one('hidden.bs.modal', function() {
-        $modal.modal('show');
-      });
+    // Show in progress: isShown is set immediately; .in / display come after
+    // the backdrop fade. A second open (click + native dblclick) must not
+    // reset that — but only if we recently called show. Hide in progress is
+    // isShown === false with the backdrop still in the DOM; do not treat that
+    // as a live show.
+    if (plugin && plugin.isShown && isRecentSettingsShow($modal) && !settingsModalIsVisible($modal)) {
       return;
     }
-    $modal.modal('show');
+
+    if (plugin && !plugin.isShown && backdropInDom) {
+      showSettingsModalAfterHide($modal);
+      return;
+    }
+
+    if (plugin && plugin.isShown && !$modal.is(':visible')) {
+      resetDesyncedSettingsPlugin($modal, plugin);
+    }
+
+    if (pendingSettingsShow && pendingSettingsShow[0] !== $modal[0]) {
+      clearPendingSettingsShow();
+    }
+    invokeSettingsModalShow($modal);
   }
 
   function openTileSettings(x, y) {

@@ -532,20 +532,24 @@ $(function() {
 
   var lastOpenSettingsAt = 0;
   var lastOpenSettingsCell = null;
-  var OPEN_SETTINGS_DEBOUNCE_MS = 500;
+  var OPEN_SETTINGS_DEBOUNCE_MS = 80;
 
-  function commitOpenSettings(x, y) {
+  function commitOpenSettings(x, y, fromNativeDblclick) {
     lastSettingsTap = null;
     clearSettingsPaint();
     settingsPointerDown = false;
     parkedLoupePending = null;
     clearLongPress();
     var now = Date.now();
-    var duplicate = lastOpenSettingsCell
+    // Collapse only the native dblclick that immediately follows the second
+    // click of the same gesture. 80ms is same-turn / click+dblclick, not a
+    // later close-then-reopen. Different tiles are never duplicates.
+    var companion = fromNativeDblclick
+      && lastOpenSettingsCell
       && lastOpenSettingsCell.x === x
       && lastOpenSettingsCell.y === y
       && (now - lastOpenSettingsAt) < OPEN_SETTINGS_DEBOUNCE_MS;
-    if (!duplicate) {
+    if (!companion) {
       lastOpenSettingsAt = now;
       lastOpenSettingsCell = { x: x, y: y };
       openSettingsAt(x, y);
@@ -569,7 +573,7 @@ $(function() {
   function handleSettingsNativeDblClick(x, y) {
     if (isPasteTool()) return false;
     if (x == null || y == null || !mapHasSettings(x, y)) return false;
-    return commitOpenSettings(x, y);
+    return commitOpenSettings(x, y, true);
   }
 
   function settingsCellFromEvent(e) {
