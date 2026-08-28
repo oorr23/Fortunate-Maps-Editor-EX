@@ -506,6 +506,7 @@ $(function() {
   }
 
   function handleSettingsDoubleTap(x, y) {
+    if (isPasteTool()) return false;
     if (x == null || y == null || !mapHasSettings(x, y)) return false;
     var now = Date.now();
     if (lastSettingsTap && lastSettingsTap.x === x && lastSettingsTap.y === y && (now - lastSettingsTap.t) <= DOUBLE_TAP_MS) {
@@ -517,6 +518,41 @@ $(function() {
     }
     lastSettingsTap = { t: now, x: x, y: y };
     return false;
+  }
+
+  function loupeTapCell(clientX, clientY) {
+    var cell = loupeCellFromPoint(clientX, clientY);
+    if (cell) return cell;
+    if (mapHasSettings(loupeCenterX, loupeCenterY)) {
+      return { x: loupeCenterX, y: loupeCenterY };
+    }
+    return null;
+  }
+
+  function settingsCoordsAt(clientX, clientY) {
+    if (isPasteTool()) return null;
+    var cell = null;
+    if (loupeVisible && !loupeFollow && !holdMovingLoupe && pointInLoupe(clientX, clientY)) {
+      cell = loupeTapCell(clientX, clientY);
+    } else {
+      var $tile = tileFromPoint(clientX, clientY);
+      if ($tile.length) cell = { x: $tile.data('x'), y: $tile.data('y') };
+    }
+    if (!cell || cell.x == null || cell.y == null) return null;
+    if (!mapHasSettings(cell.x, cell.y)) return null;
+    return cell;
+  }
+
+  function consumeSettingsPointer(clientX, clientY) {
+    var cell = settingsCoordsAt(clientX, clientY);
+    if (!cell) return false;
+    if (handleSettingsDoubleTap(cell.x, cell.y)) return true;
+    settingsPointerDown = true;
+    suppressLoupe = true;
+    pendingDismiss = false;
+    holdStart = { clientX: clientX, clientY: clientY };
+    lastPointer = { x: clientX, y: clientY };
+    return true;
   }
 
   function triggerTile($tile, type) {
@@ -1039,12 +1075,17 @@ $(function() {
     closeMore();
     pendingDismiss = false;
     holdMovingLoupe = false;
-    var cell = loupeCellFromPoint(clientX, clientY);
+    clearSettingsPaint();
+    var cell = loupeTapCell(clientX, clientY);
     if (!cell) return;
     parkedLoupePending = { x: cell.x, y: cell.y, clientX: clientX, clientY: clientY };
     holdStart = { clientX: clientX, clientY: clientY };
     lastPointer = { x: clientX, y: clientY };
     clearLongPress();
+    if (!isPasteTool() && mapHasSettings(cell.x, cell.y) && handleSettingsDoubleTap(cell.x, cell.y)) {
+      parkedLoupePending = null;
+      return;
+    }
     longPressTimer = setTimeout(function() {
       if (!parkedLoupePending) return;
       var p = parkedLoupePending;
@@ -1089,6 +1130,13 @@ $(function() {
       parkedLoupePending = null;
       if (isPasteTool()) {
         tapAimPasteAt(p.x, p.y, clientX != null ? clientX : p.clientX, clientY != null ? clientY : p.clientY);
+        return;
+      }
+      var cell = loupeTapCell(clientX != null ? clientX : p.clientX, clientY != null ? clientY : p.clientY);
+      if (!cell) cell = { x: p.x, y: p.y };
+      if (mapHasSettings(cell.x, cell.y)) {
+        var $tile = mapTileAt(cell.x, cell.y);
+        if ($tile.length) queueSettingsPaint($tile, p.clientX, p.clientY);
         return;
       }
       paintLoupeAt(p.clientX, p.clientY, 'start');
@@ -1276,6 +1324,7 @@ $(function() {
       e.preventDefault();
       e.stopPropagation();
       closeMore();
+      if (consumeSettingsPointer(t.clientX, t.clientY)) return;
       if (pointInLoupe(t.clientX, t.clientY)) return;
       if (paintThroughParkedLoupe() && beginParkedMapPaint(t.clientX, t.clientY)) return;
       beginOutsideLoupePointer(t.clientX, t.clientY);
@@ -1411,8 +1460,9 @@ $(function() {
       e.preventDefault();
       e.stopPropagation();
       closeMore();
-      if (pointInLoupe(e.clientX, e.clientY)) return;
       if (isEmulatedMouse(e)) return;
+      if (consumeSettingsPointer(e.clientX, e.clientY)) return;
+      if (pointInLoupe(e.clientX, e.clientY)) return;
       if (paintThroughParkedLoupe() && beginParkedMapPaint(e.clientX, e.clientY)) return;
       beginOutsideLoupePointer(e.clientX, e.clientY);
       return;
@@ -1430,7 +1480,7 @@ $(function() {
       if ($tile.length) {
         var x = $tile.data('x');
         var y = $tile.data('y');
-        if (mapHasSettings(x, y) && !loupeVisible) {
+        if (mapHasSettings(x, y)) {
           e.preventDefault();
           e.stopPropagation();
           closeMore();
@@ -1440,7 +1490,7 @@ $(function() {
           if (handleSettingsDoubleTap(x, y)) return;
           suppressLoupe = true;
           pendingDismiss = false;
-          if (!loupeVisible) queueSettingsPaint($tile, e.clientX, e.clientY);
+          queueSettingsPaint($tile, e.clientX, e.clientY);
           return;
         }
       }
@@ -1672,8 +1722,8 @@ $(function() {
   });
   $loupe.on('dblclick', function(e) {
     if (!isPhoneLayout()) return;
-    var cell = loupeCellFromPoint(e.clientX, e.clientY);
-    if (!cell || !mapHasSettings(cell.x, cell.y)) return;
+    var cell = loupeTapCell(e.clientX, e.clientY);
+    if (!cell || !mapHasSettings(cell.x, cell.y) || isPasteTool()) return;
     e.preventDefault();
     e.stopPropagation();
     clearSettingsPaint();
