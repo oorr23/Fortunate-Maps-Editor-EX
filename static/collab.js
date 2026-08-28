@@ -167,7 +167,6 @@ $(function() {
     log.appendChild(line);
     trimChatLog();
     scrollChatLog();
-    if (!chatOpen) setChatUnread(true);
   }
 
   function appendChat(msg) {
