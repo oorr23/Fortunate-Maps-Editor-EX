@@ -77,7 +77,8 @@ html, body {
   display: none !important;
 }
 
-body.modal-open .loupe {
+body.modal-open .loupe,
+body.tile-settings-open .loupe {
   pointer-events: none;
   z-index: 1;
 }
@@ -721,6 +722,39 @@ html:not(.layout-desktop) .modal,
 #switchOptions,
 #spawnOptions {
   z-index: 11000;
+}
+
+#portalOptions,
+#switchOptions,
+#spawnOptions {
+  display: none;
+  pointer-events: none;
+}
+
+#portalOptions.in,
+#portalOptions.is-open,
+#switchOptions.in,
+#switchOptions.is-open,
+#spawnOptions.in,
+#spawnOptions.is-open {
+  display: block;
+}
+
+#portalOptions .modal-dialog,
+#switchOptions .modal-dialog,
+#spawnOptions .modal-dialog {
+  pointer-events: auto;
+}
+
+.tile-settings-backdrop {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10900;
+  background-color: #000;
+  opacity: 0.5;
 }
 
 html.layout-mobile .modal-backdrop,
