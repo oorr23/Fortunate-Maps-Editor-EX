@@ -1910,6 +1910,10 @@ $(function() {
     }
   }
 
+  function settingsModalBackdropInDom(plugin) {
+    return !!(plugin && plugin.$backdrop && plugin.$backdrop.parent && plugin.$backdrop.parent().length);
+  }
+
   function showTileSettingsModal($modal) {
     armSettingsModalGuard();
     var $all = $('#portalOptions, #switchOptions, #spawnOptions');
@@ -1918,34 +1922,31 @@ $(function() {
     // display:none / no .in. Later opens then wait for hidden.bs.modal forever.
     $all.not($modal).filter('.in').modal('hide');
 
-    function show() {
-      $modal.modal('show');
-    }
-
-    if ($modal.hasClass('in')) {
-      $modal.one('hidden.bs.modal', show);
-      $modal.modal('hide');
-      return;
-    }
+    // Already visible — do not hide-and-re-show.
+    if ($modal.hasClass('in')) return;
 
     var plugin = $modal.data('bs.modal');
+    var backdropInDom = settingsModalBackdropInDom(plugin);
+    var modalVisible = $modal.is(':visible');
+
     if (plugin && plugin.isShown) {
+      // Show already in progress: isShown is set immediately; .in / display
+      // come after the ~150ms backdrop fade. A second open (click + native
+      // dblclick) must not clear isShown or strip that backdrop — doing so
+      // races the first show's callback and leaves isShown true with display:none.
+      if (backdropInDom || modalVisible) return;
+
+      // Desynced leftover: isShown true, no .in, not visible, no backdrop.
       plugin.isShown = false;
-      if (!$all.filter('.in').length) {
-        $('.modal-backdrop').remove();
-        $('body').removeClass('modal-open');
-        if (plugin.$backdrop) {
-          plugin.$backdrop.remove();
-          plugin.$backdrop = null;
-        }
-      }
-    } else if (plugin && plugin.$backdrop && plugin.$backdrop.parent().length) {
+    } else if (plugin && backdropInDom) {
       // Hide already started (class `in` gone, backdrop still fading). Wait
       // for it to finish so hideModal does not steal the next show.
-      $modal.one('hidden.bs.modal', show);
+      $modal.one('hidden.bs.modal', function() {
+        $modal.modal('show');
+      });
       return;
     }
-    show();
+    $modal.modal('show');
   }
 
   function openTileSettings(x, y) {
