@@ -1913,18 +1913,39 @@ $(function() {
   function showTileSettingsModal($modal) {
     armSettingsModalGuard();
     var $all = $('#portalOptions, #switchOptions, #spawnOptions');
-    var $others = $all.not($modal);
-    $others.modal('hide');
+    // Bootstrap 3.1.1: .modal('hide') on a never-shown sibling (typically
+    // #switchOptions) can leave plugin.isShown true while the element stays
+    // display:none / no .in. Later opens then wait for hidden.bs.modal forever.
+    $all.not($modal).filter('.in').modal('hide');
+
     function show() {
       $modal.modal('show');
     }
-    var plugin = $modal.data('bs.modal');
-    if ($modal.hasClass('in') || (plugin && plugin.isShown)) {
+
+    if ($modal.hasClass('in')) {
       $modal.one('hidden.bs.modal', show);
       $modal.modal('hide');
       return;
     }
-    setTimeout(show, 0);
+
+    var plugin = $modal.data('bs.modal');
+    if (plugin && plugin.isShown) {
+      plugin.isShown = false;
+      if (!$all.filter('.in').length) {
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open');
+        if (plugin.$backdrop) {
+          plugin.$backdrop.remove();
+          plugin.$backdrop = null;
+        }
+      }
+    } else if (plugin && plugin.$backdrop && plugin.$backdrop.parent().length) {
+      // Hide already started (class `in` gone, backdrop still fading). Wait
+      // for it to finish so hideModal does not steal the next show.
+      $modal.one('hidden.bs.modal', show);
+      return;
+    }
+    show();
   }
 
   function openTileSettings(x, y) {
