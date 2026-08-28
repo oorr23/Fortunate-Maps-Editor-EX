@@ -664,6 +664,34 @@ html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
   padding: 6px 8px;
 }
 
+/* iOS Safari skips the VK when text fields are under 16px. Keep buttons at 13px. */
+html.layout-mobile #moreSheet input.form-control,
+html.layout-mobile #moreSheet textarea.form-control,
+html:not(.layout-desktop) #moreSheet input.form-control,
+html:not(.layout-desktop) #moreSheet textarea.form-control,
+html.layout-mobile #fmMapId,
+html.layout-mobile #mapName,
+html.layout-mobile #author,
+html.layout-mobile #resizeWidthTo,
+html.layout-mobile #resizeHeightTo,
+html.layout-mobile #portalCooldown,
+html.layout-mobile #switchTimer,
+html.layout-mobile #spawnRadius,
+html.layout-mobile #spawnWeight,
+html.layout-mobile #collabChatInput,
+html:not(.layout-desktop) #fmMapId,
+html:not(.layout-desktop) #mapName,
+html:not(.layout-desktop) #author,
+html:not(.layout-desktop) #resizeWidthTo,
+html:not(.layout-desktop) #resizeHeightTo,
+html:not(.layout-desktop) #portalCooldown,
+html:not(.layout-desktop) #switchTimer,
+html:not(.layout-desktop) #spawnRadius,
+html:not(.layout-desktop) #spawnWeight,
+html:not(.layout-desktop) #collabChatInput {
+  font-size: 16px;
+}
+
 html.layout-mobile .modal,
 html:not(.layout-desktop) .modal {
   z-index: 10100;
@@ -1120,8 +1148,8 @@ html:not(.layout-desktop).orient-landscape #moreSheet .form-control {
 
 html.layout-mobile.orient-landscape #collabUsername,
 html:not(.layout-desktop).orient-landscape #collabUsername {
-  min-height: 28px;
-  height: 28px;
+  min-height: 36px;
+  height: auto;
 }
 
 html.layout-mobile.orient-landscape .collab-identity,
@@ -1425,8 +1453,8 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
 
   html.layout-mobile #collabUsername,
   html:not(.layout-desktop) #collabUsername {
-    min-height: 28px;
-    height: 28px;
+    min-height: 36px;
+    height: auto;
   }
 
   html.layout-mobile .collab-identity,
