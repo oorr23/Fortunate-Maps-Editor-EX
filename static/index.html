@@ -65,7 +65,7 @@
             </button>
             <p class="help-block" id="collabStatus" style="margin:8px 0 0;font-size:12px;"></p>
             <div class="collab-identity">
-              <input type="text" id="collabUsername" class="form-control" placeholder="Name" maxlength="32" autocomplete="nickname">
+              <input type="text" id="collabUsername" class="form-control" placeholder="Name" maxlength="32" autocomplete="nickname" inputmode="text" enterkeyhint="done" virtualkeyboardpolicy="manual">
             </div>
             <div id="collabUsers" class="collab-users"></div>
           </div>
@@ -115,7 +115,7 @@
           <div class="form-group">
             <div class="input-group">
               <span class="input-group-addon">Map Size:</span>
-              <input type="text" class="form-control" placeholder="56x24" id="mapSize" inputmode="numeric" autocomplete="off" aria-label="Map size as width x height">
+              <input type="text" class="form-control" placeholder="56x24" id="mapSize" inputmode="numeric" enterkeyhint="done" virtualkeyboardpolicy="manual" autocomplete="off" aria-label="Map size as width x height">
               <input type="hidden" id="resizeWidth">
               <input type="hidden" id="resizeHeight">
               <span class="input-group-btn">
@@ -173,7 +173,7 @@
             </div>
             <input type="file" id="texturePackFiles" accept="image/png,.png,application/json,.json" multiple style="display:none">
             <div id="textureUrlImport" hidden>
-              <textarea id="textureSharepack" class="form-control" rows="3" placeholder="Paste TagPro sharepack JSON, a tiles.png URL, or an official pack slug"></textarea>
+              <textarea id="textureSharepack" class="form-control" rows="3" placeholder="Paste TagPro sharepack JSON, a tiles.png URL, or an official pack slug" inputmode="text" virtualkeyboardpolicy="manual"></textarea>
               <button type="button" id="textureUrlApply" class="btn btn-default btn-block">Load pack</button>
             </div>
             <p class="help-block more-help">Packs match <a href="https://github.com/raikutro/fortunatemaps" target="_blank" rel="noopener">FortunateMaps</a> and <a href="https://tagpro.koalabeast.com/textures/" target="_blank" rel="noopener">TagPro textures</a>. Import a tiles.png (640×440) or a sharepack JSON; speedpad, portal, and gravity well PNGs are optional.</p>
@@ -265,7 +265,7 @@
         <div class="modal-body">
           <div class="form-group">
             <label for="fmMapId">FortunateMaps</label>
-            <input type="text" class="form-control" id="fmMapId" placeholder="Map ID or URL, e.g. 77011" autocomplete="off">
+            <input type="text" class="form-control" id="fmMapId" placeholder="Map ID or URL, e.g. 77011" autocomplete="off" inputmode="text" enterkeyhint="done" virtualkeyboardpolicy="manual">
           </div>
           <div class="form-group">
             <div class="btn-group btn-group-justified">
@@ -295,11 +295,11 @@
           </div>
           <div class="form-group">
             <label for="mapName">Map Name</label>
-            <input type="text" class="form-control" id="mapName" placeholder="Untitled">
+            <input type="text" class="form-control" id="mapName" placeholder="Untitled" inputmode="text" enterkeyhint="done" virtualkeyboardpolicy="manual">
           </div>
           <div class="form-group">
             <label for="author">Map Author</label>
-            <input type="text" class="form-control" id="author" placeholder="Anonymous">
+            <input type="text" class="form-control" id="author" placeholder="Anonymous" inputmode="text" enterkeyhint="done" virtualkeyboardpolicy="manual">
           </div>
         </div>
 
@@ -335,7 +335,7 @@
       </tr>
     </table>
     <div>
-      Width: <input type='text' id='resizeWidthTo' style='width:4em' /> Height: <input type='text' id='resizeHeightTo' style='width:4em' />
+      Width: <input type='text' id='resizeWidthTo' style='width:4em' inputmode="decimal" enterkeyhint="done" virtualkeyboardpolicy="manual" /> Height: <input type='text' id='resizeHeightTo' style='width:4em' inputmode="decimal" enterkeyhint="done" virtualkeyboardpolicy="manual" />
     </div>
   </div>
 
@@ -349,7 +349,7 @@
         <div class="modal-body">
           <p>Cooldown time in milliseconds. 0 means no cooldown.</p>
           <label for="portalCooldown">Cooldown</label>
-          <input type="number" id="portalCooldown" class="form-control" min="0" step="100">
+          <input type="number" id="portalCooldown" class="form-control" min="0" step="100" inputmode="decimal" enterkeyhint="done" virtualkeyboardpolicy="manual">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
@@ -369,7 +369,7 @@
         <div class="modal-body">
           <p>Timer in seconds. 0 means the button is not held after a player leaves. A negative value keeps it on after the first press.</p>
           <label for="switchTimer">Timer</label>
-          <input type="number" id="switchTimer" class="form-control" step="1">
+          <input type="number" id="switchTimer" class="form-control" step="1" inputmode="decimal" enterkeyhint="done" virtualkeyboardpolicy="manual">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
@@ -389,9 +389,9 @@
         <div class="modal-body">
           <p>Radius is in tiles (0 pins spawns to this tile). Weight controls how often this spawn is chosen.</p>
           <label for="spawnRadius">Radius</label>
-          <input type="number" id="spawnRadius" class="form-control" min="0" step="1">
+          <input type="number" id="spawnRadius" class="form-control" min="0" step="1" inputmode="decimal" enterkeyhint="done" virtualkeyboardpolicy="manual">
           <label for="spawnWeight" style="margin-top:8px">Weight</label>
-          <input type="number" id="spawnWeight" class="form-control" min="1" step="1">
+          <input type="number" id="spawnWeight" class="form-control" min="1" step="1" inputmode="decimal" enterkeyhint="done" virtualkeyboardpolicy="manual">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
@@ -437,7 +437,7 @@
     </div>
     <div id="collabChatLog" class="collab-chat-log"></div>
     <form id="collabChatForm" class="collab-chat-form" action="#">
-      <input type="text" id="collabChatInput" class="form-control" maxlength="300" placeholder="Message" autocomplete="off">
+      <input type="text" id="collabChatInput" class="form-control" maxlength="300" placeholder="Message" autocomplete="off" inputmode="text" enterkeyhint="send" virtualkeyboardpolicy="manual">
       <button type="submit" class="btn btn-default btn-sm">Send</button>
     </form>
   </aside>
