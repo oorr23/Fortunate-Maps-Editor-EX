@@ -559,6 +559,30 @@ $(function() {
     return commitOpenSettings(x, y);
   }
 
+  function settingsCellFromEvent(e) {
+    var cell = null;
+    if (loupeVisible && pointInLoupe(e.clientX, e.clientY)) {
+      cell = loupeTapCell(e.clientX, e.clientY);
+    } else {
+      var $tile = $(e.target).closest('#map .tile');
+      if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
+      if ($tile.length) cell = { x: $tile.data('x'), y: $tile.data('y') };
+    }
+    if (!cell || cell.x == null || cell.y == null) return null;
+    return cell;
+  }
+
+  function onSettingsMouseClick(e) {
+    if (!isMousePointer(e)) return;
+    if (shouldIgnoreCompatPointer(e)) return;
+    if (isLoupeSettingsControl(e.target)) return;
+    var cell = settingsCellFromEvent(e);
+    if (!cell) return;
+    if (!handleSettingsDoubleTap(cell.x, cell.y)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   function loupeTapCell(clientX, clientY) {
     var cell = loupeCellFromPoint(clientX, clientY);
     if (cell) return cell;
@@ -1503,7 +1527,7 @@ $(function() {
     var mouse = isMousePointer(e);
     if (loupeVisible) {
       preventIfTouch(e);
-      e.stopPropagation();
+      if (!mouse) e.stopPropagation();
       closeMore();
       if (consumeSettingsPointer(clientX, clientY, e)) return true;
       if (pointInLoupe(clientX, clientY)) return true;
@@ -1525,7 +1549,7 @@ $(function() {
         var y = $tile.data('y');
         if (mapHasSettings(x, y)) {
           preventIfTouch(e);
-          e.stopPropagation();
+          if (!mouse) e.stopPropagation();
           closeMore();
           settingsPointerDown = true;
           holdStart = { clientX: clientX, clientY: clientY };
@@ -1566,7 +1590,7 @@ $(function() {
     }
     var pt = pointerClient(e);
     preventIfTouch(e);
-    e.stopPropagation();
+    if (!isMousePointer(e)) e.stopPropagation();
     startParkedLoupePointer(pt.x, pt.y, e);
     markHandledDown(e, true);
     return true;
@@ -1892,16 +1916,10 @@ $(function() {
     if (lastHandledDown && lastHandledDown.prevented) lastHandledDown = null;
   });
 
+  mapEl.addEventListener('click', onSettingsMouseClick, true);
   mapEl.addEventListener('dblclick', function(e) {
     if (shouldIgnoreCompatPointer(e)) return;
-    var cell = null;
-    if (loupeVisible && pointInLoupe(e.clientX, e.clientY)) {
-      cell = loupeTapCell(e.clientX, e.clientY);
-    } else {
-      var $tile = $(e.target).closest('#map .tile');
-      if (!$tile.length) $tile = tileFromPoint(e.clientX, e.clientY);
-      if ($tile.length) cell = { x: $tile.data('x'), y: $tile.data('y') };
-    }
+    var cell = settingsCellFromEvent(e);
     if (!cell) return;
     if (!handleSettingsNativeDblClick(cell.x, cell.y)) return;
     e.preventDefault();
@@ -2028,6 +2046,7 @@ $(function() {
     if (isLoupeSettingsControl(e.target)) return;
     onLoupePrimaryDown(e);
   });
+  loupeEl.addEventListener('click', onSettingsMouseClick, true);
   loupeEl.addEventListener('dblclick', function(e) {
     if (isLoupeSettingsControl(e.target)) return;
     if (shouldIgnoreCompatPointer(e)) return;
