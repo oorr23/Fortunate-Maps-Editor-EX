@@ -634,6 +634,21 @@ html:not(.layout-desktop) #moreSheet .dropdown-menu {
   bottom: 100%;
   margin-top: 0 !important;
   margin-bottom: 4px;
+  z-index: 40;
+}
+
+html.layout-mobile #moreSheet.submenu-open,
+html:not(.layout-desktop) #moreSheet.submenu-open,
+html.layout-mobile #moreSheet.submenu-open .more-panels,
+html:not(.layout-desktop) #moreSheet.submenu-open .more-panels,
+html.layout-mobile.orient-landscape #moreSheet.submenu-open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.submenu-open .more-panels {
+  overflow: visible;
+}
+
+html.layout-mobile.orient-landscape #moreSheet.submenu-open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.submenu-open .more-panels {
+  z-index: 5;
 }
 
 html.layout-mobile #moreSheet #collab,
