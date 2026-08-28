@@ -764,38 +764,21 @@ $(function() {
     return !!(window.TagproMap && TagproMap.openTileSettings && TagproMap.openTileSettings(x, y));
   }
 
-  function settingsModalIsOpen() {
-    return $('#portalOptions, #switchOptions, #spawnOptions').filter('.in').length > 0;
-  }
-
-  function parkLoupeForSettings() {
-    holdMovingLoupe = false;
-    loupeFollow = false;
-    painting = false;
-    loupePainting = false;
-    lastTileEl = null;
-    pendingDismiss = false;
-    suppressLoupe = false;
-    $loupe.removeClass('follow-finger');
-  }
-
-  function holdOpenSettingsAndLoupe(x, y, clientX, clientY) {
+  // Open Timer/Cooldown/Spawn from the work tile after recenter. Do not park follow.
+  function openSettingsIfWorkTile(parkedCell) {
+    if (isPasteTool()) return false;
+    var target = null;
+    if (coordsHaveSettings(loupeCenterX, loupeCenterY)) {
+      target = { x: loupeCenterX, y: loupeCenterY };
+    } else if (parkedCell && coordsHaveSettings(parkedCell.x, parkedCell.y)) {
+      target = { x: Number(parkedCell.x), y: Number(parkedCell.y) };
+    } else if (loupeFocusTile && coordsHaveSettings(loupeFocusTile.x, loupeFocusTile.y)) {
+      target = { x: loupeFocusTile.x, y: loupeFocusTile.y };
+    }
+    if (!target) return false;
     clearSettingsPaint();
-    suppressLoupe = false;
-    pendingDismiss = false;
     lastSettingsTap = null;
-    painting = false;
-    loupePainting = false;
-    lastTileEl = null;
-    var $tile = mapTileAt(x, y);
-    captureLoupeFocusTile($tile);
-    if (!loupeFocusTile) loupeFocusTile = { x: Number(x), y: Number(y) };
-    recenterLoupeOn(x, y, clientX, clientY);
-    // Recenter the glass on this tile, but do not stamp the brush or keep following.
-    parkLoupeForSettings();
-    if (!coordsHaveSettings(x, y)) return false;
-    var opened = openSettingsAt(x, y);
-    parkLoupeForSettings();
+    var opened = openSettingsAt(target.x, target.y);
     if (opened) settingsHoldOpen = true;
     return opened;
   }
@@ -808,8 +791,6 @@ $(function() {
   }
 
   function armUnmagnifiedSettingsHold($tile, clientX, clientY) {
-    var x = $tile.data('x');
-    var y = $tile.data('y');
     settingsPointerDown = true;
     pendingDismiss = false;
     suppressLoupe = false;
@@ -822,10 +803,7 @@ $(function() {
     settingsHoldTimer = setTimeout(function() {
       settingsHoldTimer = null;
       if (!settingsPointerDown) return;
-      if (movedPastSlop(lastPointer.x, lastPointer.y)) return;
-      var target = resolveSettingsHoldTile(x, y);
-      if (target) holdOpenSettingsAndLoupe(target.x, target.y, lastPointer.x, lastPointer.y);
-      else holdOpenSettingsAndLoupe(x, y, lastPointer.x, lastPointer.y);
+      beginHoldReposition(lastPointer.x, lastPointer.y);
     }, LONG_PRESS_MS);
   }
 
@@ -1028,18 +1006,8 @@ $(function() {
     loupeFollowAcc.y = 0;
     clearLongPress();
     clearSettingsHoldTimer();
-    var pointerTile = over && over.length ? { x: over.data('x'), y: over.data('y') } : null;
     longPressTimer = setTimeout(function() {
       beginHoldReposition(lastPointer.x, lastPointer.y);
-      var target = null;
-      if (coordsHaveSettings(loupeCenterX, loupeCenterY)) {
-        target = { x: loupeCenterX, y: loupeCenterY };
-      } else if (pointerTile) {
-        target = resolveSettingsHoldTile(pointerTile.x, pointerTile.y);
-      }
-      if (target && !isPasteTool()) {
-        holdOpenSettingsAndLoupe(target.x, target.y, lastPointer.x, lastPointer.y);
-      }
     }, LONG_PRESS_MS);
   }
 
@@ -1207,7 +1175,6 @@ $(function() {
 
   function activateLoupeFollowFinger(clientX, clientY) {
     if (suppressLoupe) return;
-    if (settingsHoldOpen || settingsModalIsOpen()) return;
     if ((clientX == null || isNaN(clientX) || clientY == null || isNaN(clientY)) && holdStart) {
       clientX = holdStart.clientX;
       clientY = holdStart.clientY;
@@ -1353,6 +1320,14 @@ $(function() {
     pendingDismiss = false;
     holdMovingLoupe = true;
     activateLoupeFollowFinger(clientX, clientY);
+    openSettingsIfWorkTile();
+  }
+
+  function beginParkedHoldReposition(x, y, clientX, clientY) {
+    parkedLoupePending = null;
+    beginPasteAimAt(x, y, clientX, clientY);
+    var opened = openSettingsIfWorkTile({ x: x, y: y });
+    if (!opened) startFollowPaintAtCenter();
   }
 
   function recenterLoupeOn(x, y, clientX, clientY) {
@@ -1385,6 +1360,7 @@ $(function() {
     var cell = loupeCellFromPoint(clientX, clientY);
     if (!cell) return;
     parkedLoupePending = { x: cell.x, y: cell.y, clientX: clientX, clientY: clientY };
+    loupeFocusTile = { x: cell.x, y: cell.y };
     holdStart = { clientX: clientX, clientY: clientY };
     lastPointer = { x: clientX, y: clientY };
     clearLongPress();
@@ -1393,18 +1369,7 @@ $(function() {
       if (!parkedLoupePending) return;
       var p = parkedLoupePending;
       parkedLoupePending = null;
-      if (isPasteTool()) {
-        beginPasteAimAt(p.x, p.y, lastPointer.x, lastPointer.y);
-        startFollowPaintAtCenter();
-        return;
-      }
-      var target = resolveSettingsHoldTile(p.x, p.y);
-      if (target) {
-        holdOpenSettingsAndLoupe(target.x, target.y, lastPointer.x, lastPointer.y);
-        return;
-      }
-      beginPasteAimAt(p.x, p.y, lastPointer.x, lastPointer.y);
-      startFollowPaintAtCenter();
+      beginParkedHoldReposition(p.x, p.y, lastPointer.x, lastPointer.y);
     }, LONG_PRESS_MS);
   }
 
@@ -1417,14 +1382,22 @@ $(function() {
       return;
     }
     if (parkedLoupePending && movedPastSlop(clientX, clientY)) {
-      clearLongPress();
       var p = parkedLoupePending;
-      parkedLoupePending = null;
       if (isPasteTool()) {
+        clearLongPress();
+        parkedLoupePending = null;
         beginPasteAimAt(p.x, p.y, clientX, clientY);
         startFollowPaintAtCenter();
         return;
       }
+      if (coordsHaveSettings(p.x, p.y)) {
+        // Same recenter as a floor hold, plus settings — do not paint through the glass.
+        clearLongPress();
+        beginParkedHoldReposition(p.x, p.y, clientX, clientY);
+        return;
+      }
+      clearLongPress();
+      parkedLoupePending = null;
       paintLoupeAt(p.clientX, p.clientY, 'start');
       paintLoupeAt(clientX, clientY, 'move');
       return;
@@ -1682,9 +1655,9 @@ $(function() {
     if (!painting || loupePainting) {
       if (pendingSettingsPaint && movedPastSlop(t.clientX, t.clientY)) {
         e.preventDefault();
-        var p = pendingSettingsPaint;
         clearSettingsPaint();
-        beginPaintAtTile(p.$tile, t.clientX, t.clientY, false);
+        clearSettingsHoldTimer();
+        beginHoldReposition(t.clientX, t.clientY);
         return;
       }
       if (pendingDismiss || holdMovingLoupe) {
@@ -1840,9 +1813,9 @@ $(function() {
       return;
     }
     if (pendingSettingsPaint && movedPastSlop(e.clientX, e.clientY)) {
-      var p = pendingSettingsPaint;
       clearSettingsPaint();
-      beginPaintAtTile(p.$tile, e.clientX, e.clientY, false);
+      clearSettingsHoldTimer();
+      beginHoldReposition(e.clientX, e.clientY);
       return;
     }
     if (pendingDismiss || holdMovingLoupe) {
