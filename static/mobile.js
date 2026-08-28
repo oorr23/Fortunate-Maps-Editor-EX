@@ -101,9 +101,95 @@ $(function() {
     applyTheme('light');
   });
 
+  (function bindVirtualKeyboardTriggers() {
+    var bound = false;
+    var listeners = [];
+
+    function vkField(el) {
+      if (!el) return null;
+      if (el.nodeType !== 1) el = el.parentElement;
+      if (!el || !el.closest) return null;
+      var field = el.closest('input, textarea');
+      if (!field) return null;
+      if (field.tagName === 'TEXTAREA') return field;
+      var type = (field.getAttribute('type') || field.type || 'text').toLowerCase();
+      if (type === 'file' || type === 'hidden' || type === 'checkbox' || type === 'radio' || type === 'button' || type === 'submit' || type === 'reset' || type === 'image') {
+        return null;
+      }
+      if (type === 'text' || type === 'number' || type === 'url' || type === 'search' || type === 'tel' || type === 'email' || !type) {
+        return field;
+      }
+      return null;
+    }
+
+    function requestVk(field) {
+      if (!isPhoneLayout() || !field) return;
+      if (document.activeElement !== field) {
+        try { field.focus(); } catch (err) {}
+      }
+      var vk = navigator.virtualKeyboard;
+      if (!vk || typeof vk.show !== 'function') return;
+      try { vk.overlaysContent = true; } catch (err) {}
+      try { vk.show(); } catch (err) {}
+    }
+
+    function requestVkSoon(field) {
+      requestVk(field);
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(function() { requestVk(field); });
+      }
+    }
+
+    function onGesture(e) {
+      if (!isPhoneLayout()) return;
+      var field = vkField(e.target);
+      if (!field) return;
+      requestVkSoon(field);
+    }
+
+    function add(type, fn) {
+      document.addEventListener(type, fn, true);
+      listeners.push([type, fn]);
+    }
+
+    function bind() {
+      if (bound) return;
+      bound = true;
+      if ('onpointerdown' in window) {
+        add('pointerdown', onGesture);
+        add('pointerup', onGesture);
+      } else {
+        add('mousedown', onGesture);
+        add('mouseup', onGesture);
+        add('touchstart', onGesture);
+      }
+      add('touchend', onGesture);
+      add('click', onGesture);
+      add('focusin', onGesture);
+    }
+
+    function unbind() {
+      if (!bound) return;
+      bound = false;
+      for (var i = 0; i < listeners.length; i++) {
+        document.removeEventListener(listeners[i][0], listeners[i][1], true);
+      }
+      listeners = [];
+    }
+
+    function syncVkTriggers() {
+      if (isPhoneLayout()) bind();
+      else unbind();
+    }
+
+    syncVkTriggers();
+    document.documentElement.addEventListener('tagpro-layout', syncVkTriggers);
+  })();
+
   var morePanelsEl = document.querySelector('.more-panels');
   var moreNavEl = document.querySelector('.more-nav');
   var moreDrag = null;
+  var submenuHold = null;
   var moreIgnoreClickUntil = 0;
   var moreSnapTimer = null;
   var moreSnapToken = 0;
@@ -262,6 +348,22 @@ $(function() {
     }
   }
 
+  function clearSubmenuHold() {
+    if (!submenuHold) return;
+    if (submenuHold.timer) clearTimeout(submenuHold.timer);
+    submenuHold = null;
+  }
+
+  function cancelMoreDrag() {
+    if (!moreDrag) return;
+    detachMoreFollow();
+    var drag = moreDrag;
+    moreDrag = null;
+    if (drag.captureEl && drag.pointerId != null && drag.captureEl.releasePointerCapture) {
+      try { drag.captureEl.releasePointerCapture(drag.pointerId); } catch (err) {}
+    }
+  }
+
   function detachMoreFollow() {
     if (!moreDrag || !moreDrag.onMove) return;
     var kind = moreDrag.kind;
@@ -337,6 +439,7 @@ $(function() {
         }
       }
       moreDrag.moved = true;
+      clearSubmenuHold();
       var name = moreDrag.panelName || $moreSheet.attr('data-open') || 'file';
       setMorePanel(name, { keep: true });
       $moreSheet.addClass('more-dragging');
@@ -425,9 +528,133 @@ $(function() {
 
   document.addEventListener('click', function(e) {
     if (Date.now() >= moreIgnoreClickUntil) return;
+    var el = e.target;
+    if (el && el.closest) {
+      if (el.closest('input, textarea')) return;
+      if (el.closest('.dropdown-menu')) return;
+    }
     e.preventDefault();
     e.stopPropagation();
   }, true);
+
+  (function bindSubmenuHolds() {
+    function holdTarget(el) {
+      if (!el || !el.closest) return null;
+      if (el.closest('input, textarea, select')) return null;
+      if (el.closest('.dropdown-menu')) return null;
+      var nav = el.closest('.more-nav-btn');
+      if (nav) return { kind: 'nav', el: nav };
+      var drop = el.closest('[data-toggle="dropdown"]');
+      if (drop) return { kind: 'dropdown', el: drop };
+      return null;
+    }
+
+    function openMorePanelFromHold(btn) {
+      var name = btn && btn.getAttribute('data-panel');
+      if (!name) return;
+      cancelMoreDrag();
+      moreIgnoreClickUntil = Date.now() + 400;
+      ignorePaintUntil = Date.now() + 400;
+      setMorePanel(name, { keep: true });
+      if (isLandscapeChrome()) {
+        if ($moreSheet.hasClass('open')) {
+          openMore();
+          clearMoreOverlayTransform();
+        } else {
+          finishMoreOverlay(true);
+        }
+      } else {
+        openMore();
+      }
+    }
+
+    function openDropdownFromHold(btn) {
+      if (!btn) return;
+      var $btn = $(btn);
+      var $parent = $btn.parent();
+      moreIgnoreClickUntil = Date.now() + 400;
+      $moreSheet.addClass('submenu-open');
+      if ($parent.hasClass('open')) return;
+      try {
+        $btn.dropdown('toggle');
+      } catch (err) {
+        $parent.addClass('open');
+        $btn.attr('aria-expanded', 'true');
+      }
+      if (!$parent.hasClass('open')) {
+        $parent.addClass('open');
+        $btn.attr('aria-expanded', 'true');
+      }
+    }
+
+    function fireHold() {
+      if (!submenuHold) return;
+      var h = submenuHold;
+      clearSubmenuHold();
+      if (!isPhoneLayout()) return;
+      if (h.kind === 'nav') openMorePanelFromHold(h.el);
+      else if (h.kind === 'dropdown') openDropdownFromHold(h.el);
+    }
+
+    function onStart(e) {
+      if (!isPhoneLayout()) return;
+      if (e.button != null && e.button !== 0 && e.pointerType === 'mouse') return;
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      if (e.touches && e.touches.length > 1) return;
+      var found = holdTarget(e.target);
+      if (!found) return;
+      if (found.kind === 'nav' && $('.modal.in:visible').length) return;
+      clearSubmenuHold();
+      var pt = moreEventPoint(e);
+      submenuHold = {
+        kind: found.kind,
+        el: found.el,
+        startX: pt.clientX,
+        startY: pt.clientY,
+        timer: setTimeout(fireHold, LONG_PRESS_MS)
+      };
+    }
+
+    function onMove(e) {
+      if (!submenuHold) return;
+      var pt = moreEventPoint(e);
+      var dx = pt.clientX - submenuHold.startX;
+      var dy = pt.clientY - submenuHold.startY;
+      if ((dx * dx + dy * dy) >= (HOLD_SLOP * HOLD_SLOP)) clearSubmenuHold();
+    }
+
+    function onEnd() {
+      clearSubmenuHold();
+    }
+
+    if ('onpointerdown' in window) {
+      document.addEventListener('pointerdown', onStart, true);
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onEnd, true);
+      document.addEventListener('pointercancel', onEnd, true);
+    } else {
+      document.addEventListener('mousedown', onStart, true);
+      document.addEventListener('mousemove', onMove, true);
+      document.addEventListener('mouseup', onEnd, true);
+      document.addEventListener('touchstart', onStart, true);
+      document.addEventListener('touchmove', onMove, true);
+      document.addEventListener('touchend', onEnd, true);
+      document.addEventListener('touchcancel', onEnd, true);
+    }
+
+    $moreSheet.on('shown.bs.dropdown', function() {
+      $moreSheet.addClass('submenu-open');
+    });
+    $moreSheet.on('hidden.bs.dropdown', function() {
+      $moreSheet.removeClass('submenu-open');
+    });
+    document.documentElement.addEventListener('tagpro-layout', function() {
+      if (!isPhoneLayout()) {
+        clearSubmenuHold();
+        $moreSheet.removeClass('submenu-open');
+      }
+    });
+  })();
 
   $(document).on('keydown', function(e) {
     if (e.which !== 27) return;
