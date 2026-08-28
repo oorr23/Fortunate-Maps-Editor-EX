@@ -101,6 +101,54 @@ $(function() {
     applyTheme('light');
   });
 
+  (function bindVirtualKeyboardTriggers() {
+    var vkConfigured = false;
+
+    function vkField(el) {
+      if (!el) return null;
+      if (el.nodeType !== 1) el = el.parentElement;
+      if (!el || !el.closest) return null;
+      var field = el.closest('input, textarea');
+      if (!field) return null;
+      if (field.tagName === 'TEXTAREA') return field;
+      var type = (field.getAttribute('type') || field.type || 'text').toLowerCase();
+      if (type === 'text' || type === 'number' || type === 'url' || type === 'search' || type === 'tel' || type === 'email') {
+        return field;
+      }
+      return null;
+    }
+
+    function configureVk() {
+      var vk = navigator.virtualKeyboard;
+      if (!vk) return null;
+      if (!vkConfigured) {
+        try { vk.overlaysContent = true; } catch (err) {}
+        vkConfigured = true;
+      }
+      return vk;
+    }
+
+    function onGesture(e) {
+      var field = vkField(e.target);
+      if (!field) return;
+      if (document.activeElement !== field) {
+        try { field.focus(); } catch (err) {}
+      }
+      var vk = configureVk();
+      if (vk && typeof vk.show === 'function') {
+        try { vk.show(); } catch (err) {}
+      }
+    }
+
+    if ('onpointerdown' in window) {
+      document.addEventListener('pointerdown', onGesture, true);
+    } else {
+      document.addEventListener('mousedown', onGesture, true);
+      document.addEventListener('touchstart', onGesture, true);
+    }
+  })();
+  });
+
   var morePanelsEl = document.querySelector('.more-panels');
   var moreNavEl = document.querySelector('.more-nav');
   var moreDrag = null;
