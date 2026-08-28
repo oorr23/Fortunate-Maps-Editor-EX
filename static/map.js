@@ -1939,6 +1939,11 @@ $(function() {
           plugin.$backdrop = null;
         }
       }
+    } else if (plugin && plugin.$backdrop && plugin.$backdrop.parent().length) {
+      // Hide already started (class `in` gone, backdrop still fading). Wait
+      // for it to finish so hideModal does not steal the next show.
+      $modal.one('hidden.bs.modal', show);
+      return;
     }
     show();
   }
