@@ -639,7 +639,7 @@ $(function() {
     lastPointer = { x: clientX, y: clientY };
     var $tile = mapTileAt(cell.x, cell.y);
     captureLoupeFocusTile($tile);
-    if ($tile.length) queueSettingsPaint($tile, clientX, clientY);
+    if ($tile.length) armSettingsPaint($tile, clientX, clientY);
     return true;
   }
 
@@ -710,7 +710,6 @@ $(function() {
   var lastSettingsTap = null;
   var suppressLoupe = false;
   var pendingSettingsPaint = null;
-  var settingsPaintTimer = null;
   var parkedLoupePending = null;
   var settingsModalGuardUntil = 0;
 
@@ -733,25 +732,15 @@ $(function() {
   }, true);
 
   function clearSettingsPaint() {
-    if (settingsPaintTimer) {
-      clearTimeout(settingsPaintTimer);
-      settingsPaintTimer = null;
-    }
     pendingSettingsPaint = null;
   }
 
-  function queueSettingsPaint($tile, clientX, clientY) {
+  // Arm a settings-tile stroke so a drag past slop can paint. A stationary
+  // tap/click must not paint — that is for opening settings.
+  function armSettingsPaint($tile, clientX, clientY) {
     clearSettingsPaint();
+    if (!$tile || !$tile.length) return;
     pendingSettingsPaint = { $tile: $tile, clientX: clientX, clientY: clientY };
-    settingsPaintTimer = setTimeout(function() {
-      var p = pendingSettingsPaint;
-      pendingSettingsPaint = null;
-      settingsPaintTimer = null;
-      if (p && p.$tile) {
-        beginPaintAtTile(p.$tile, p.clientX, p.clientY, false);
-        if (!settingsPointerDown) endPaint(p.clientX, p.clientY);
-      }
-    }, DOUBLE_TAP_MS);
   }
 
   function hideLoupe() {
@@ -1376,8 +1365,8 @@ $(function() {
       var cell = loupeTapCell(clientX != null ? clientX : p.clientX, clientY != null ? clientY : p.clientY);
       if (!cell) cell = { x: p.x, y: p.y };
       if (mapHasSettings(cell.x, cell.y)) {
-        var $tile = mapTileAt(cell.x, cell.y);
-        if ($tile.length) queueSettingsPaint($tile, p.clientX, p.clientY);
+        captureLoupeFocusTile(mapTileAt(cell.x, cell.y));
+        refreshTileSettingsControl();
         return;
       }
       paintLoupeAt(p.clientX, p.clientY, 'start');
@@ -1583,7 +1572,7 @@ $(function() {
           if (!mouse && handleSettingsDoubleTap(x, y)) return true;
           suppressLoupe = true;
           pendingDismiss = false;
-          queueSettingsPaint($tile, clientX, clientY);
+          armSettingsPaint($tile, clientX, clientY);
           return true;
         }
       }
@@ -1710,7 +1699,7 @@ $(function() {
       suppressLoupe = true;
       holdStart = { clientX: t.clientX, clientY: t.clientY };
       lastPointer = { x: t.clientX, y: t.clientY };
-      queueSettingsPaint($tile, t.clientX, t.clientY);
+      armSettingsPaint($tile, t.clientX, t.clientY);
       markHandledDown(e, true);
       return;
     }
@@ -1807,6 +1796,11 @@ $(function() {
       if (twoFingerPanning) ignorePaintUntil = Date.now() + 350;
       clearTwoFingerGesture();
       settingsPointerDown = false;
+      if (!painting && pendingSettingsPaint) {
+        clearSettingsPaint();
+        suppressLoupe = false;
+        holdStart = null;
+      }
       panPointer = null;
       endPan();
       var t = (e.changedTouches && e.changedTouches[0]) || {};
@@ -1908,6 +1902,11 @@ $(function() {
     if (!e.originalEvent) return;
     if (shouldIgnoreCompatPointer(e)) return;
     settingsPointerDown = false;
+    if (!painting && pendingSettingsPaint) {
+      clearSettingsPaint();
+      suppressLoupe = false;
+      holdStart = null;
+    }
     if (parkedLoupePending) {
       endParkedLoupePointer(e.clientX, e.clientY);
       if (panPointer) endPan();

@@ -1916,10 +1916,25 @@ $(function() {
   }
 
   function hideTileSettings() {
-    $(TILE_SETTINGS_MODALS)
-      .removeClass('in is-open')
-      .css('display', 'none')
-      .attr('aria-hidden', 'true');
+    var dialogs = document.querySelectorAll(TILE_SETTINGS_MODALS);
+    var active = document.activeElement;
+    var i, j, inputs;
+    for (i = 0; i < dialogs.length; i++) {
+      if (active && dialogs[i].contains(active) && typeof active.blur === 'function') {
+        active.blur();
+        active = document.activeElement;
+      }
+      inputs = dialogs[i].querySelectorAll('input, textarea, select');
+      for (j = 0; j < inputs.length; j++) {
+        if (typeof inputs[j].blur === 'function') inputs[j].blur();
+      }
+    }
+    $(TILE_SETTINGS_MODALS).each(function() {
+      this.classList.remove('in', 'is-open');
+      this.style.removeProperty('display');
+      this.setAttribute('hidden', '');
+      this.setAttribute('aria-hidden', 'true');
+    });
     $('#tileSettingsBackdrop, .tile-settings-backdrop').remove();
     $('body').removeClass('tile-settings-open');
   }
@@ -1929,10 +1944,14 @@ $(function() {
     armSettingsModalGuard();
     $('<div id="tileSettingsBackdrop" class="tile-settings-backdrop" aria-hidden="true"></div>')
       .appendTo(document.body);
-    $modal.addClass('in is-open').css('display', 'block').attr('aria-hidden', 'false');
+    var el = $modal && $modal[0];
+    if (el) {
+      el.removeAttribute('hidden');
+      el.classList.add('in', 'is-open');
+      el.style.removeProperty('display');
+      el.setAttribute('aria-hidden', 'false');
+    }
     $('body').addClass('tile-settings-open');
-    var $input = $modal.find('input').first();
-    if ($input.length) $input.focus();
   }
 
   $(document).on('click', '.tile-settings-dialog [data-dismiss="tile-settings"]', function(e) {
@@ -2077,8 +2096,9 @@ $(function() {
             mouseDown = false;
             return;
           }
-          // Do not preventDefault on settings tiles: that cancels native dblclick.
-          if (tileHasSettings(x, y)) {
+          // Native click must not paint a settings tile (that kills dblclick).
+          // Synthetic loupe/drag paints may still draw over them.
+          if (tileHasSettings(x, y) && !isLoupeSyntheticEvent(e)) {
             mouseDown = false;
             return;
           }
