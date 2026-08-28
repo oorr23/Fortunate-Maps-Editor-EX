@@ -5,6 +5,7 @@ $(function() {
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var DOUBLE_TAP_MS = 350;
+  var SETTINGS_PAINT_DELAY = DOUBLE_TAP_MS + 50;
   var PINCH_ZOOM_RATIO = 1.08;
   var LOUPE_STEP_PX = 40;
 
@@ -100,6 +101,53 @@ $(function() {
     e.preventDefault();
     applyTheme('light');
   });
+
+  (function bindVirtualKeyboardTriggers() {
+    var vkConfigured = false;
+
+    function vkField(el) {
+      if (!el) return null;
+      if (el.nodeType !== 1) el = el.parentElement;
+      if (!el || !el.closest) return null;
+      var field = el.closest('input, textarea');
+      if (!field) return null;
+      if (field.tagName === 'TEXTAREA') return field;
+      var type = (field.getAttribute('type') || field.type || 'text').toLowerCase();
+      if (type === 'text' || type === 'number' || type === 'url' || type === 'search' || type === 'tel' || type === 'email') {
+        return field;
+      }
+      return null;
+    }
+
+    function configureVk() {
+      var vk = navigator.virtualKeyboard;
+      if (!vk) return null;
+      if (!vkConfigured) {
+        try { vk.overlaysContent = true; } catch (err) {}
+        vkConfigured = true;
+      }
+      return vk;
+    }
+
+    function onGesture(e) {
+      var field = vkField(e.target);
+      if (!field) return;
+      if (document.activeElement !== field) {
+        try { field.focus(); } catch (err) {}
+      }
+      var vk = configureVk();
+      if (vk && typeof vk.show === 'function') {
+        try { vk.show(); } catch (err) {}
+      }
+    }
+
+    if ('onpointerdown' in window) {
+      document.addEventListener('pointerdown', onGesture, true);
+    } else {
+      document.addEventListener('mousedown', onGesture, true);
+      document.addEventListener('touchstart', onGesture, true);
+    }
+  })();
 
   var morePanelsEl = document.querySelector('.more-panels');
   var moreNavEl = document.querySelector('.more-nav');
@@ -519,6 +567,20 @@ $(function() {
     return false;
   }
 
+  // Parked-glass hit: prefer the loupe cell, then the yellow crosshair if that cell misses.
+  function parkedLoupeSettingsCoords(cell) {
+    if (cell && mapHasSettings(cell.x, cell.y)) return { x: cell.x, y: cell.y };
+    if (!cell && mapHasSettings(loupeCenterX, loupeCenterY)) {
+      return { x: loupeCenterX, y: loupeCenterY };
+    }
+    return null;
+  }
+
+  function isPendingSettingsTap(x, y) {
+    return !!(lastSettingsTap && lastSettingsTap.x === x && lastSettingsTap.y === y &&
+      (Date.now() - lastSettingsTap.t) <= DOUBLE_TAP_MS);
+  }
+
   function triggerTile($tile, type) {
     if (!$tile || !$tile.length) return;
     var ev = $.Event(type, { which: 1, button: 0, bubbles: true });
@@ -559,18 +621,43 @@ $(function() {
     pendingSettingsPaint = null;
   }
 
+  function flushSettingsPaint() {
+    var p = pendingSettingsPaint;
+    pendingSettingsPaint = null;
+    settingsPaintTimer = null;
+    if (!p) return;
+    // Second tap must still see the original tile; don't paint until the window closes.
+    if (lastSettingsTap && (Date.now() - lastSettingsTap.t) <= DOUBLE_TAP_MS) {
+      pendingSettingsPaint = p;
+      settingsPaintTimer = setTimeout(flushSettingsPaint, Math.max(16, lastSettingsTap.t + DOUBLE_TAP_MS + 1 - Date.now()));
+      return;
+    }
+    if (parkedLoupePending) {
+      pendingSettingsPaint = p;
+      settingsPaintTimer = setTimeout(flushSettingsPaint, 32);
+      return;
+    }
+    if (p.loupe) {
+      paintLoupeAt(p.clientX, p.clientY, 'start');
+      endLoupePaint();
+      return;
+    }
+    if (p.$tile) {
+      beginPaintAtTile(p.$tile, p.clientX, p.clientY, false);
+      if (!settingsPointerDown) endPaint(p.clientX, p.clientY);
+    }
+  }
+
   function queueSettingsPaint($tile, clientX, clientY) {
     clearSettingsPaint();
     pendingSettingsPaint = { $tile: $tile, clientX: clientX, clientY: clientY };
-    settingsPaintTimer = setTimeout(function() {
-      var p = pendingSettingsPaint;
-      pendingSettingsPaint = null;
-      settingsPaintTimer = null;
-      if (p && p.$tile) {
-        beginPaintAtTile(p.$tile, p.clientX, p.clientY, false);
-        if (!settingsPointerDown) endPaint(p.clientX, p.clientY);
-      }
-    }, DOUBLE_TAP_MS);
+    settingsPaintTimer = setTimeout(flushSettingsPaint, SETTINGS_PAINT_DELAY);
+  }
+
+  function queueLoupeSettingsPaint(clientX, clientY) {
+    clearSettingsPaint();
+    pendingSettingsPaint = { loupe: true, clientX: clientX, clientY: clientY };
+    settingsPaintTimer = setTimeout(flushSettingsPaint, SETTINGS_PAINT_DELAY);
   }
 
   function hideLoupe() {
@@ -1040,11 +1127,18 @@ $(function() {
     pendingDismiss = false;
     holdMovingLoupe = false;
     var cell = loupeCellFromPoint(clientX, clientY);
-    if (!cell) return;
-    parkedLoupePending = { x: cell.x, y: cell.y, clientX: clientX, clientY: clientY };
+    var settings = parkedLoupeSettingsCoords(cell);
+    if (!cell && !settings) return;
+    var px = cell ? cell.x : settings.x;
+    var py = cell ? cell.y : settings.y;
+    parkedLoupePending = { x: px, y: py, clientX: clientX, clientY: clientY };
     holdStart = { clientX: clientX, clientY: clientY };
     lastPointer = { x: clientX, y: clientY };
     clearLongPress();
+    // Don't let tap-1's delayed paint overwrite the tile before tap 2 lifts.
+    if (!isPasteTool() && settings && isPendingSettingsTap(settings.x, settings.y)) {
+      clearSettingsPaint();
+    }
     longPressTimer = setTimeout(function() {
       if (!parkedLoupePending) return;
       var p = parkedLoupePending;
@@ -1089,6 +1183,15 @@ $(function() {
       parkedLoupePending = null;
       if (isPasteTool()) {
         tapAimPasteAt(p.x, p.y, clientX != null ? clientX : p.clientX, clientY != null ? clientY : p.clientY);
+        return;
+      }
+      var cell = (clientX != null && clientY != null) ? loupeCellFromPoint(clientX, clientY) : null;
+      if (!cell) cell = { x: p.x, y: p.y };
+      var settings = parkedLoupeSettingsCoords(cell);
+      if (!settings && mapHasSettings(p.x, p.y)) settings = { x: p.x, y: p.y };
+      if (settings) {
+        if (handleSettingsDoubleTap(settings.x, settings.y)) return;
+        queueLoupeSettingsPaint(p.clientX, p.clientY);
         return;
       }
       paintLoupeAt(p.clientX, p.clientY, 'start');
@@ -1330,7 +1433,7 @@ $(function() {
     }
 
     if (!painting || loupePainting) {
-      if (pendingSettingsPaint && movedPastSlop(t.clientX, t.clientY)) {
+      if (pendingSettingsPaint && pendingSettingsPaint.$tile && movedPastSlop(t.clientX, t.clientY)) {
         e.preventDefault();
         var p = pendingSettingsPaint;
         clearSettingsPaint();
@@ -1491,7 +1594,7 @@ $(function() {
       movePan(e.clientX, e.clientY);
       return;
     }
-    if (pendingSettingsPaint && movedPastSlop(e.clientX, e.clientY)) {
+    if (pendingSettingsPaint && pendingSettingsPaint.$tile && movedPastSlop(e.clientX, e.clientY)) {
       var p = pendingSettingsPaint;
       clearSettingsPaint();
       beginPaintAtTile(p.$tile, e.clientX, e.clientY, false);
@@ -1852,7 +1955,17 @@ $(function() {
       center: function() { return { x: loupeCenterX, y: loupeCenterY }; },
       tracking: function() { return !!(loupeFollow || holdMovingLoupe || loupePainting); },
       dismissing: function() { return !!pendingDismiss; },
-      isEmulatedMouse: isEmulatedMouse
+      isEmulatedMouse: isEmulatedMouse,
+      parkAt: function(x, y) {
+        stopLoupeFollow();
+        setLoupeWorkTile(x, y);
+        var $tile = mapTileAt(x, y);
+        if ($tile.length) {
+          var r = $tile[0].getBoundingClientRect();
+          positionLoupe(r.left + r.width / 2, r.top + r.height / 2);
+        }
+        stampLoupeNow();
+      }
     };
   })();
 
