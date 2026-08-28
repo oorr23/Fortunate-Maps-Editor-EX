@@ -221,11 +221,11 @@ a.selectedTool {
     z-index: 5;
     pointer-events: auto;
     touch-action: none;
-    background: linear-gradient(to left, rgba(255,255,255,0.1), transparent 70%);
+    background: linear-gradient(to left, rgba(153, 255, 153, 0.1), transparent 70%);
 }
 .collab-chat-edge.has-unread {
-    background: linear-gradient(to left, rgba(110, 180, 255, 0.55), transparent 85%);
-    box-shadow: -3px 0 14px rgba(90, 170, 255, 0.55);
+    background: linear-gradient(to left, rgba(153, 255, 153, 0.55), transparent 85%);
+    box-shadow: -3px 0 14px rgba(153, 255, 153, 0.55);
 }
 html.collab-chat-open .collab-chat-edge {
     pointer-events: none;
