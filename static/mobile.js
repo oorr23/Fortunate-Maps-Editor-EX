@@ -147,7 +147,6 @@ $(function() {
       document.addEventListener('touchstart', onGesture, true);
     }
   })();
-  });
 
   var morePanelsEl = document.querySelector('.more-panels');
   var moreNavEl = document.querySelector('.more-nav');
