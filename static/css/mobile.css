@@ -717,6 +717,25 @@ html:not(.layout-desktop) .modal-backdrop {
   z-index: 10050;
 }
 
+/* Tile settings must sit above the loupe (z-index 10000). */
+html.layout-mobile #portalOptions,
+html.layout-mobile #switchOptions,
+html.layout-mobile #spawnOptions,
+html:not(.layout-desktop) #portalOptions,
+html:not(.layout-desktop) #switchOptions,
+html:not(.layout-desktop) #spawnOptions,
+#portalOptions,
+#switchOptions,
+#spawnOptions {
+  z-index: 20000;
+}
+
+html.layout-mobile .modal-backdrop.tile-settings-backdrop,
+html:not(.layout-desktop) .modal-backdrop.tile-settings-backdrop,
+.modal-backdrop.tile-settings-backdrop {
+  z-index: 19900;
+}
+
 html.layout-mobile .modal-dialog,
 html:not(.layout-desktop) .modal-dialog {
   margin: 12vh auto;
@@ -1685,7 +1704,13 @@ html.theme-dark #moreSheet select,
 html.theme-dark #importExport .modal-content,
 html.theme-dark #importExport .form-control,
 html.theme-dark #instructionsModal .modal-content,
-html.theme-dark #instructionsModal .form-control {
+html.theme-dark #instructionsModal .form-control,
+html.theme-dark #portalOptions .modal-content,
+html.theme-dark #portalOptions .form-control,
+html.theme-dark #switchOptions .modal-content,
+html.theme-dark #switchOptions .form-control,
+html.theme-dark #spawnOptions .modal-content,
+html.theme-dark #spawnOptions .form-control {
   background-color: #2a2f38;
   border-color: #3a3f4a;
   color: #f2f2f2;
@@ -1696,7 +1721,10 @@ html.theme-dark #moreSheet .source-link,
 html.theme-dark #moreSheet .source-link a,
 html.theme-dark #moreSheet .help-block a,
 html.theme-dark #importExport,
-html.theme-dark #instructionsModal {
+html.theme-dark #instructionsModal,
+html.theme-dark #portalOptions,
+html.theme-dark #switchOptions,
+html.theme-dark #spawnOptions {
   color: #c8c8c8;
 }
 
@@ -1706,7 +1734,10 @@ html.theme-dark .highlight-color:hover {
 }
 
 html.theme-dark #importExport .modal-content,
-html.theme-dark #instructionsModal .modal-content {
+html.theme-dark #instructionsModal .modal-content,
+html.theme-dark #portalOptions .modal-content,
+html.theme-dark #switchOptions .modal-content,
+html.theme-dark #spawnOptions .modal-content {
   background: #1e2229;
   color: #eee;
 }
@@ -1714,12 +1745,21 @@ html.theme-dark #instructionsModal .modal-content {
 html.theme-dark #importExport .modal-header,
 html.theme-dark #importExport .modal-footer,
 html.theme-dark #instructionsModal .modal-header,
-html.theme-dark #instructionsModal .modal-footer {
+html.theme-dark #instructionsModal .modal-footer,
+html.theme-dark #portalOptions .modal-header,
+html.theme-dark #portalOptions .modal-footer,
+html.theme-dark #switchOptions .modal-header,
+html.theme-dark #switchOptions .modal-footer,
+html.theme-dark #spawnOptions .modal-header,
+html.theme-dark #spawnOptions .modal-footer {
   border-color: #3a3f4a;
 }
 
 html.theme-dark #importExport .close,
-html.theme-dark #instructionsModal .close {
+html.theme-dark #instructionsModal .close,
+html.theme-dark #portalOptions .close,
+html.theme-dark #switchOptions .close,
+html.theme-dark #spawnOptions .close {
   color: #fff;
   opacity: 0.8;
 }
