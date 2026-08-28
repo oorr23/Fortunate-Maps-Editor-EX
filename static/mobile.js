@@ -530,13 +530,26 @@ $(function() {
     return !!(window.TagproMap && TagproMap.openTileSettings && TagproMap.openTileSettings(x, y));
   }
 
+  var lastOpenSettingsAt = 0;
+  var lastOpenSettingsCell = null;
+  var OPEN_SETTINGS_DEBOUNCE_MS = 500;
+
   function commitOpenSettings(x, y) {
     lastSettingsTap = null;
     clearSettingsPaint();
     settingsPointerDown = false;
     parkedLoupePending = null;
     clearLongPress();
-    openSettingsAt(x, y);
+    var now = Date.now();
+    var duplicate = lastOpenSettingsCell
+      && lastOpenSettingsCell.x === x
+      && lastOpenSettingsCell.y === y
+      && (now - lastOpenSettingsAt) < OPEN_SETTINGS_DEBOUNCE_MS;
+    if (!duplicate) {
+      lastOpenSettingsAt = now;
+      lastOpenSettingsCell = { x: x, y: y };
+      openSettingsAt(x, y);
+    }
     hideLoupe();
     refreshTileSettingsControl();
     return true;
