@@ -717,18 +717,36 @@ html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
 }
 
 html.layout-mobile .modal,
-html:not(.layout-desktop) .modal,
-#portalOptions,
-#switchOptions,
-#spawnOptions {
+html:not(.layout-desktop) .modal {
   z-index: 11000;
 }
 
+/* Compact card — never a full-viewport .modal hit layer. */
 #portalOptions,
 #switchOptions,
 #spawnOptions {
-  display: none;
+  position: fixed;
+  left: 50%;
+  top: 12vh;
+  right: auto;
+  bottom: auto;
+  transform: translateX(-50%);
+  z-index: 11000;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  height: auto;
+  margin: 0;
+  display: none !important;
   pointer-events: none;
+  visibility: hidden;
+}
+
+#portalOptions[hidden],
+#switchOptions[hidden],
+#spawnOptions[hidden] {
+  display: none !important;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 #portalOptions.in,
@@ -737,13 +755,17 @@ html:not(.layout-desktop) .modal,
 #switchOptions.is-open,
 #spawnOptions.in,
 #spawnOptions.is-open {
-  display: block;
+  display: block !important;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 #portalOptions .modal-dialog,
 #switchOptions .modal-dialog,
 #spawnOptions .modal-dialog {
-  pointer-events: auto;
+  margin: 0;
+  width: auto !important;
+  max-width: 100%;
 }
 
 .tile-settings-backdrop {
