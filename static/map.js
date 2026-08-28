@@ -1876,21 +1876,126 @@ $(function() {
     controlDown = false;
   })
 
+  function settingsTypeName(t) {
+    if (!t) return '';
+    if (typeof t === 'string') return t;
+    return t.name || '';
+  }
+
+  function isSettingsPortalName(name) {
+    return name === 'portal' || name === 'redPortal' || name === 'bluePortal';
+  }
+
+  function isSettingsSwitchName(name) {
+    return name === 'switch';
+  }
+
+  function isSettingsSpawnName(name) {
+    return name === 'redSpawn' || name === 'blueSpawn';
+  }
+
+  // Object identity plus type.name so restored/cloned tiles still match.
+  // exitPortal has no cooldown modal.
+  function typeHasTileSettings(t) {
+    if (!t) return false;
+    if (isEnterablePortal(t) || t === switchType || t === redSpawnType || t === blueSpawnType) return true;
+    var name = settingsTypeName(t);
+    return isSettingsPortalName(name) || isSettingsSwitchName(name) || isSettingsSpawnName(name);
+  }
+
   function tileHasSettings(x, y) {
     var tile = tiles && tiles[x] && tiles[x][y];
     if (!tile || !tile.type) return false;
-    var t = tile.type;
-    return isEnterablePortal(t) || t === switchType || t === redSpawnType || t === blueSpawnType;
+    return typeHasTileSettings(tile.type);
+  }
+
+  var settingsModalGuardUntil = 0;
+  var settingsModalWaitRelease = false;
+  var settingsModalExtraClicks = 0;
+  var settingsModalGuardBound = false;
+
+  function armSettingsModalGuard() {
+    settingsModalGuardUntil = Date.now() + 400;
+    settingsModalWaitRelease = true;
+    settingsModalExtraClicks = 1;
+  }
+
+  function settingsModalDismissBlocked() {
+    return Date.now() < settingsModalGuardUntil || settingsModalWaitRelease || settingsModalExtraClicks > 0;
+  }
+
+  function bindSettingsModalGuard() {
+    if (settingsModalGuardBound) return;
+    settingsModalGuardBound = true;
+    function blockBackdropDismiss(e) {
+      if (!settingsModalDismissBlocked()) return;
+      var target = e.target;
+      if (!target) return;
+      var onBackdrop = target.classList && target.classList.contains('modal-backdrop');
+      var onModalChrome = (target === e.currentTarget);
+      if (!onBackdrop && !onModalChrome) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (!settingsModalWaitRelease && settingsModalExtraClicks > 0) settingsModalExtraClicks--;
+    }
+    ['portalOptions', 'switchOptions', 'spawnOptions'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('click', blockBackdropDismiss, true);
+    });
+    document.addEventListener('click', function(e) {
+      if (!settingsModalDismissBlocked()) return;
+      var target = e.target;
+      if (!target || !target.classList || !target.classList.contains('modal-backdrop')) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (!settingsModalWaitRelease && settingsModalExtraClicks > 0) settingsModalExtraClicks--;
+    }, true);
+    $(document).on('mouseup touchend touchcancel', function() {
+      if (settingsModalWaitRelease) settingsModalWaitRelease = false;
+    });
+  }
+
+  function forceSettingsModalVisible($el) {
+    $el.addClass('in').css({ display: 'block' }).attr('aria-hidden', 'false');
+    $('body').addClass('modal-open');
+    var $backdrop = $('.modal-backdrop');
+    if (!$backdrop.length) {
+      $backdrop = $('<div class="modal-backdrop fade in tile-settings-backdrop"></div>').appendTo(document.body);
+    }
+    $backdrop.addClass('in tile-settings-backdrop');
+  }
+
+  function showTileSettingsModal($el) {
+    bindSettingsModalGuard();
+    var data = $el.data('bs.modal');
+    if (data && data.options) {
+      data.options.backdrop = 'static';
+      data.options.keyboard = true;
+    }
+    $el.modal({ backdrop: 'static', keyboard: true, show: true });
+    $('.modal-backdrop').addClass('tile-settings-backdrop');
+    armSettingsModalGuard();
+    $el.one('shown.bs.modal', function() {
+      $('.modal-backdrop').addClass('tile-settings-backdrop');
+    });
+    if ($el.css('display') === 'none') forceSettingsModalVisible($el);
+    setTimeout(function() {
+      if ($el.css('display') === 'none' || !$el[0] || $el[0].offsetWidth === 0) {
+        forceSettingsModalVisible($el);
+      }
+      $('.modal-backdrop').addClass('tile-settings-backdrop');
+    }, 0);
   }
 
   function openTileSettings(x, y) {
     var tile = tiles && tiles[x] && tiles[x][y];
     if (!tile || !tile.type) return false;
     var t = tile.type;
-    if (isEnterablePortal(t)) {
+    var name = settingsTypeName(t);
+    if (isEnterablePortal(t) || isSettingsPortalName(name)) {
       var cooldown = (tile.cooldown != undefined) ? tile.cooldown : defaultPortalCooldown;
       $('#portalCooldown').val('').attr('placeholder', cooldown);
-      $('#portalOptions').modal('show');
+      showTileSettingsModal($('#portalOptions'));
       $('#portalSubmit').off('click').on('click', function() {
         var value = parseFloat($('#portalCooldown').val());
         if (!(value >= 0)) value = cooldown;
@@ -1900,10 +2005,10 @@ $(function() {
       });
       return true;
     }
-    if (t === switchType) {
+    if (t === switchType || isSettingsSwitchName(name)) {
       var timer = (tile.timer != undefined) ? tile.timer : defaultButtonTimer;
       $('#switchTimer').val('').attr('placeholder', timer);
-      $('#switchOptions').modal('show');
+      showTileSettingsModal($('#switchOptions'));
       $('#switchSubmit').off('click').on('click', function() {
         var value = parseFloat($('#switchTimer').val());
         if (isNaN(value)) value = timer;
@@ -1913,12 +2018,12 @@ $(function() {
       });
       return true;
     }
-    if (t === redSpawnType || t === blueSpawnType) {
+    if (t === redSpawnType || t === blueSpawnType || isSettingsSpawnName(name)) {
       var radius = (tile.radius != undefined) ? tile.radius : defaultSpawnRadius;
       var weight = (tile.weight != undefined) ? tile.weight : defaultSpawnWeight;
       $('#spawnRadius').val('').attr('placeholder', radius);
       $('#spawnWeight').val('').attr('placeholder', weight);
-      $('#spawnOptions').modal('show');
+      showTileSettingsModal($('#spawnOptions'));
       $('#spawnSubmit').off('click').on('click', function() {
         var nextRadius = parseFloat($('#spawnRadius').val());
         var nextWeight = parseFloat($('#spawnWeight').val());

@@ -634,6 +634,21 @@ html:not(.layout-desktop) #moreSheet .dropdown-menu {
   bottom: 100%;
   margin-top: 0 !important;
   margin-bottom: 4px;
+  z-index: 40;
+}
+
+html.layout-mobile #moreSheet.submenu-open,
+html:not(.layout-desktop) #moreSheet.submenu-open,
+html.layout-mobile #moreSheet.submenu-open .more-panels,
+html:not(.layout-desktop) #moreSheet.submenu-open .more-panels,
+html.layout-mobile.orient-landscape #moreSheet.submenu-open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.submenu-open .more-panels {
+  overflow: visible;
+}
+
+html.layout-mobile.orient-landscape #moreSheet.submenu-open .more-panels,
+html:not(.layout-desktop).orient-landscape #moreSheet.submenu-open .more-panels {
+  z-index: 5;
 }
 
 html.layout-mobile #moreSheet #collab,
@@ -664,6 +679,34 @@ html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
   padding: 6px 8px;
 }
 
+/* iOS Safari skips the VK when text fields are under 16px. Keep buttons at 13px. */
+html.layout-mobile #moreSheet input.form-control,
+html.layout-mobile #moreSheet textarea.form-control,
+html:not(.layout-desktop) #moreSheet input.form-control,
+html:not(.layout-desktop) #moreSheet textarea.form-control,
+html.layout-mobile #fmMapId,
+html.layout-mobile #mapName,
+html.layout-mobile #author,
+html.layout-mobile #resizeWidthTo,
+html.layout-mobile #resizeHeightTo,
+html.layout-mobile #portalCooldown,
+html.layout-mobile #switchTimer,
+html.layout-mobile #spawnRadius,
+html.layout-mobile #spawnWeight,
+html.layout-mobile #collabChatInput,
+html:not(.layout-desktop) #fmMapId,
+html:not(.layout-desktop) #mapName,
+html:not(.layout-desktop) #author,
+html:not(.layout-desktop) #resizeWidthTo,
+html:not(.layout-desktop) #resizeHeightTo,
+html:not(.layout-desktop) #portalCooldown,
+html:not(.layout-desktop) #switchTimer,
+html:not(.layout-desktop) #spawnRadius,
+html:not(.layout-desktop) #spawnWeight,
+html:not(.layout-desktop) #collabChatInput {
+  font-size: 16px;
+}
+
 html.layout-mobile .modal,
 html:not(.layout-desktop) .modal {
   z-index: 10100;
@@ -672,6 +715,25 @@ html:not(.layout-desktop) .modal {
 html.layout-mobile .modal-backdrop,
 html:not(.layout-desktop) .modal-backdrop {
   z-index: 10050;
+}
+
+/* Tile settings must sit above the loupe (z-index 10000). */
+html.layout-mobile #portalOptions,
+html.layout-mobile #switchOptions,
+html.layout-mobile #spawnOptions,
+html:not(.layout-desktop) #portalOptions,
+html:not(.layout-desktop) #switchOptions,
+html:not(.layout-desktop) #spawnOptions,
+#portalOptions,
+#switchOptions,
+#spawnOptions {
+  z-index: 20000;
+}
+
+html.layout-mobile .modal-backdrop.tile-settings-backdrop,
+html:not(.layout-desktop) .modal-backdrop.tile-settings-backdrop,
+.modal-backdrop.tile-settings-backdrop {
+  z-index: 19900;
 }
 
 html.layout-mobile .modal-dialog,
@@ -1120,8 +1182,8 @@ html:not(.layout-desktop).orient-landscape #moreSheet .form-control {
 
 html.layout-mobile.orient-landscape #collabUsername,
 html:not(.layout-desktop).orient-landscape #collabUsername {
-  min-height: 28px;
-  height: 28px;
+  min-height: 36px;
+  height: auto;
 }
 
 html.layout-mobile.orient-landscape .collab-identity,
@@ -1425,8 +1487,8 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
 
   html.layout-mobile #collabUsername,
   html:not(.layout-desktop) #collabUsername {
-    min-height: 28px;
-    height: 28px;
+    min-height: 36px;
+    height: auto;
   }
 
   html.layout-mobile .collab-identity,
@@ -1642,7 +1704,13 @@ html.theme-dark #moreSheet select,
 html.theme-dark #importExport .modal-content,
 html.theme-dark #importExport .form-control,
 html.theme-dark #instructionsModal .modal-content,
-html.theme-dark #instructionsModal .form-control {
+html.theme-dark #instructionsModal .form-control,
+html.theme-dark #portalOptions .modal-content,
+html.theme-dark #portalOptions .form-control,
+html.theme-dark #switchOptions .modal-content,
+html.theme-dark #switchOptions .form-control,
+html.theme-dark #spawnOptions .modal-content,
+html.theme-dark #spawnOptions .form-control {
   background-color: #2a2f38;
   border-color: #3a3f4a;
   color: #f2f2f2;
@@ -1653,7 +1721,10 @@ html.theme-dark #moreSheet .source-link,
 html.theme-dark #moreSheet .source-link a,
 html.theme-dark #moreSheet .help-block a,
 html.theme-dark #importExport,
-html.theme-dark #instructionsModal {
+html.theme-dark #instructionsModal,
+html.theme-dark #portalOptions,
+html.theme-dark #switchOptions,
+html.theme-dark #spawnOptions {
   color: #c8c8c8;
 }
 
@@ -1663,7 +1734,10 @@ html.theme-dark .highlight-color:hover {
 }
 
 html.theme-dark #importExport .modal-content,
-html.theme-dark #instructionsModal .modal-content {
+html.theme-dark #instructionsModal .modal-content,
+html.theme-dark #portalOptions .modal-content,
+html.theme-dark #switchOptions .modal-content,
+html.theme-dark #spawnOptions .modal-content {
   background: #1e2229;
   color: #eee;
 }
@@ -1671,12 +1745,21 @@ html.theme-dark #instructionsModal .modal-content {
 html.theme-dark #importExport .modal-header,
 html.theme-dark #importExport .modal-footer,
 html.theme-dark #instructionsModal .modal-header,
-html.theme-dark #instructionsModal .modal-footer {
+html.theme-dark #instructionsModal .modal-footer,
+html.theme-dark #portalOptions .modal-header,
+html.theme-dark #portalOptions .modal-footer,
+html.theme-dark #switchOptions .modal-header,
+html.theme-dark #switchOptions .modal-footer,
+html.theme-dark #spawnOptions .modal-header,
+html.theme-dark #spawnOptions .modal-footer {
   border-color: #3a3f4a;
 }
 
 html.theme-dark #importExport .close,
-html.theme-dark #instructionsModal .close {
+html.theme-dark #instructionsModal .close,
+html.theme-dark #portalOptions .close,
+html.theme-dark #switchOptions .close,
+html.theme-dark #spawnOptions .close {
   color: #fff;
   opacity: 0.8;
 }
