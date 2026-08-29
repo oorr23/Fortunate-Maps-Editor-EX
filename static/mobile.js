@@ -374,6 +374,9 @@ $(function() {
     if (!drag.moved) {
       $moreSheet.removeClass('more-dragging');
       if (!drag.wasOpen) $moreBackdrop.removeClass('open').attr('hidden', true);
+      if (drag.origin === 'nav' && drag.wasOpen && drag.panelName) {
+        setMorePanel(drag.panelName, { keep: true });
+      }
       return;
     }
     moreIgnoreClickUntil = Date.now() + 350;
