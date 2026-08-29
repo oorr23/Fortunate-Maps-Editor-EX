@@ -536,28 +536,54 @@ $(function() {
 
   var lastOpenSettingsAt = 0;
   var lastOpenSettingsCell = null;
+  var rememberedSettingsCell = null;
   var OPEN_SETTINGS_DEBOUNCE_MS = 80;
 
+  function settingsDialogIsOpen() {
+    return !!(document.body && document.body.classList.contains('tile-settings-open'));
+  }
+
+  function rememberSettingsCell(x, y) {
+    if (x == null || y == null || isNaN(x) || isNaN(y)) return;
+    if (!mapHasSettings(x, y)) return;
+    rememberedSettingsCell = { x: Number(x), y: Number(y) };
+  }
+
+  function forgetSettingsCellIfStale() {
+    if (!rememberedSettingsCell) return;
+    if (!mapHasSettings(rememberedSettingsCell.x, rememberedSettingsCell.y)) {
+      rememberedSettingsCell = null;
+    }
+  }
+
   function commitOpenSettings(x, y, fromNativeDblclick) {
-    lastSettingsTap = null;
     clearSettingsPaint();
     settingsPointerDown = false;
     parkedLoupePending = null;
     clearLongPress();
+    rememberSettingsCell(x, y);
     var now = Date.now();
-    // Collapse only the native dblclick that immediately follows the second
-    // click of the same gesture. 80ms is same-turn / click+dblclick, not a
-    // later close-then-reopen. Different tiles are never duplicates.
-    var companion = fromNativeDblclick
-      && lastOpenSettingsCell
+    var sameCell = lastOpenSettingsCell
       && lastOpenSettingsCell.x === x
-      && lastOpenSettingsCell.y === y
-      && (now - lastOpenSettingsAt) < OPEN_SETTINGS_DEBOUNCE_MS;
-    if (!companion) {
-      lastOpenSettingsAt = now;
-      lastOpenSettingsCell = { x: x, y: y };
-      openSettingsAt(x, y);
+      && lastOpenSettingsCell.y === y;
+    // Native dblclick / the two-click debounce may follow a still click
+    // that already opened this cell. Do not open twice. Closing then
+    // clicking Tile (or the map) is a new gesture because the dialog is gone.
+    var companion = sameCell && (now - lastOpenSettingsAt) < OPEN_SETTINGS_DEBOUNCE_MS;
+    if (fromNativeDblclick && companion) {
+      hideLoupe();
+      refreshTileSettingsControl();
+      return true;
     }
+    if (sameCell && settingsDialogIsOpen()) {
+      hideLoupe();
+      refreshTileSettingsControl();
+      return true;
+    }
+    lastOpenSettingsAt = now;
+    lastOpenSettingsCell = { x: x, y: y };
+    lastSettingsTap = null;
+    openSettingsAt(x, y);
     hideLoupe();
     refreshTileSettingsControl();
     return true;
@@ -644,14 +670,21 @@ $(function() {
   }
 
   function focusedSettingsCell() {
+    forgetSettingsCellIfStale();
     if (loupeVisible && mapHasSettings(loupeCenterX, loupeCenterY)) {
       return { x: loupeCenterX, y: loupeCenterY };
     }
     if (loupeFocusTile && mapHasSettings(loupeFocusTile.x, loupeFocusTile.y)) {
       return { x: loupeFocusTile.x, y: loupeFocusTile.y };
     }
+    if (rememberedSettingsCell && mapHasSettings(rememberedSettingsCell.x, rememberedSettingsCell.y)) {
+      return { x: rememberedSettingsCell.x, y: rememberedSettingsCell.y };
+    }
     if (lastSettingsTap && mapHasSettings(lastSettingsTap.x, lastSettingsTap.y)) {
       return { x: lastSettingsTap.x, y: lastSettingsTap.y };
+    }
+    if (lastOpenSettingsCell && mapHasSettings(lastOpenSettingsCell.x, lastOpenSettingsCell.y)) {
+      return { x: lastOpenSettingsCell.x, y: lastOpenSettingsCell.y };
     }
     return null;
   }
@@ -741,6 +774,25 @@ $(function() {
     clearSettingsPaint();
     if (!$tile || !$tile.length) return;
     pendingSettingsPaint = { $tile: $tile, clientX: clientX, clientY: clientY };
+  }
+
+  // Still click/tap: open settings. Drag past slop: paint. Do not wait for dblclick.
+  function finishSettingsPointer(clientX, clientY) {
+    settingsPointerDown = false;
+    if (painting || !pendingSettingsPaint) return false;
+    var $tile = pendingSettingsPaint.$tile;
+    if (clientX != null && clientY != null && movedPastSlop(clientX, clientY)) {
+      clearSettingsPaint();
+      if ($tile && $tile.length) beginPaintAtTile($tile, clientX, clientY, false);
+      return true;
+    }
+    var x = $tile && $tile.data('x');
+    var y = $tile && $tile.data('y');
+    clearSettingsPaint();
+    suppressLoupe = false;
+    holdStart = null;
+    if (x == null || y == null || !mapHasSettings(x, y)) return false;
+    return commitOpenSettings(x, y);
   }
 
   function hideLoupe() {
@@ -883,6 +935,18 @@ $(function() {
     return isDuplicatePrimaryDown(e);
   }
 
+  // Ghost touch-emulated mouse may still be cancelled. A mouse mousedown that
+  // is only a duplicate of pointerdown must not preventDefault — Chromium
+  // may then drop click/dblclick. Still stopPropagation so the jQuery loupe
+  // handler does not start a second stroke.
+  function ignoreCompatPointer(e) {
+    if (!e) return;
+    var type = e.type || '';
+    var mouseDownDup = pointerKind(e) === 'mouse' && type.indexOf('mouse') === 0 && !isGhostCompatibilityMouse(e);
+    if (!mouseDownDup && e.cancelable !== false) e.preventDefault();
+    e.stopPropagation();
+  }
+
   function isEmulatedMouse(e) {
     return isGhostCompatibilityMouse(e);
   }
@@ -894,6 +958,7 @@ $(function() {
     var y = $tile.data('y');
     if (x == null || y == null || isNaN(x) || isNaN(y)) return;
     loupeFocusTile = { x: Number(x), y: Number(y) };
+    rememberSettingsCell(x, y);
     refreshTileSettingsControl();
   }
 
@@ -1366,7 +1431,7 @@ $(function() {
       if (!cell) cell = { x: p.x, y: p.y };
       if (mapHasSettings(cell.x, cell.y)) {
         captureLoupeFocusTile(mapTileAt(cell.x, cell.y));
-        refreshTileSettingsControl();
+        commitOpenSettings(cell.x, cell.y);
         return;
       }
       paintLoupeAt(p.clientX, p.clientY, 'start');
@@ -1583,8 +1648,7 @@ $(function() {
   function onMapPrimaryDown(e) {
     if (!isPrimaryPointer(e)) return false;
     if (shouldIgnoreCompatPointer(e)) {
-      e.preventDefault();
-      e.stopPropagation();
+      ignoreCompatPointer(e);
       return true;
     }
     var pt = pointerClient(e);
@@ -1650,8 +1714,7 @@ $(function() {
 
     if (HAS_POINTER) {
       if (shouldIgnoreCompatPointer(e)) {
-        e.preventDefault();
-        e.stopPropagation();
+        ignoreCompatPointer(e);
         return;
       }
     }
@@ -1795,12 +1858,8 @@ $(function() {
     if (e.touches.length === 0) {
       if (twoFingerPanning) ignorePaintUntil = Date.now() + 350;
       clearTwoFingerGesture();
-      settingsPointerDown = false;
-      if (!painting && pendingSettingsPaint) {
-        clearSettingsPaint();
-        suppressLoupe = false;
-        holdStart = null;
-      }
+      var t = (e.changedTouches && e.changedTouches[0]) || {};
+      finishSettingsPointer(t.clientX, t.clientY);
       panPointer = null;
       endPan();
       var t = (e.changedTouches && e.changedTouches[0]) || {};
@@ -1822,6 +1881,16 @@ $(function() {
   if (HAS_POINTER) {
     mapEl.addEventListener('pointerdown', function(e) {
       onMapPrimaryDown(e);
+    }, true);
+    mapEl.addEventListener('pointerup', function(e) {
+      if (!isPrimaryPointer(e)) return;
+      if (shouldIgnoreCompatPointer(e)) return;
+      var pt = pointerClient(e);
+      finishSettingsPointer(pt.x, pt.y);
+    }, true);
+    mapEl.addEventListener('pointercancel', function(e) {
+      if (!isPrimaryPointer(e)) return;
+      finishSettingsPointer(pointerClient(e).x, pointerClient(e).y);
     }, true);
   }
 
@@ -1901,12 +1970,7 @@ $(function() {
   $(document).on('mouseup', function(e) {
     if (!e.originalEvent) return;
     if (shouldIgnoreCompatPointer(e)) return;
-    settingsPointerDown = false;
-    if (!painting && pendingSettingsPaint) {
-      clearSettingsPaint();
-      suppressLoupe = false;
-      holdStart = null;
-    }
+    finishSettingsPointer(e.clientX, e.clientY);
     if (parkedLoupePending) {
       endParkedLoupePointer(e.clientX, e.clientY);
       if (panPointer) endPan();
