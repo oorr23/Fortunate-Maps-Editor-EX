@@ -3236,7 +3236,7 @@ $(function() {
   function applyViewTransform() {
     var c = mapCanvasEl();
     if (!c) return;
-    if (!isMobileLayout() || (Math.abs(viewScale - 1) < 1e-6 && Math.abs(viewTx) < 0.05 && Math.abs(viewTy) < 0.05)) {
+    if (Math.abs(viewScale - 1) < 1e-6 && Math.abs(viewTx) < 0.05 && Math.abs(viewTy) < 0.05) {
       c.style.transform = '';
       c.style.transformOrigin = '';
       c.style.willChange = '';
@@ -3256,7 +3256,6 @@ $(function() {
   }
 
   function beginFocalZoom(clientX, clientY) {
-    if (!isMobileLayout()) return null;
     var c = mapCanvasEl();
     if (!c) return null;
     var cr = c.getBoundingClientRect();
@@ -3268,7 +3267,6 @@ $(function() {
   }
 
   function setFocalZoom(focal, scale, clientX, clientY) {
-    if (!isMobileLayout()) return;
     var c = mapCanvasEl();
     if (!c || !focal) return;
     var lim = zoomScaleLimits();
@@ -3286,14 +3284,12 @@ $(function() {
   }
 
   function zoomBy(factor, clientX, clientY) {
-    if (!isMobileLayout()) return;
     var focal = beginFocalZoom(clientX, clientY);
     if (!focal) return;
     setFocalZoom(focal, viewScale * factor, clientX, clientY);
   }
 
   function rebaseTileSizeToView(clientX, clientY) {
-    if (!isMobileLayout()) return;
     var c = mapCanvasEl();
     var el = document.getElementById('map');
     if (!c || !el || !tiles || !tiles.length) return;
