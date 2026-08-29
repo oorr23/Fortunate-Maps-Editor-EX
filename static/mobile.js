@@ -2,6 +2,12 @@ $(function() {
   var LOUPE_TILES = 11;
   var LOUPE_CELL = 24;
   var LOUPE_SIZE = LOUPE_TILES * LOUPE_CELL;
+  // Fisheye loupe: SVG displacement on .loupe-inner only.
+  // Set LOUPE_FISHEYE false to restore the regular grid (no filter).
+  // LOUPE_FISHEYE_SHAPE: 'circle' (default) or 'square' (Chebyshev + rounded-square chrome).
+  var LOUPE_FISHEYE = true;
+  var LOUPE_FISHEYE_POWER = 0.66;
+  var LOUPE_FISHEYE_SHAPE = 'circle';
   var LONG_PRESS_MS = 280;
   var HOLD_SLOP = 12;
   var SETTINGS_HIT_RADIUS_PX = 24;
@@ -1172,14 +1178,106 @@ $(function() {
     refreshTileSettingsControl();
   }
 
+  function fisheyeUnitScale(nx, ny, power) {
+    var r = LOUPE_FISHEYE_SHAPE === 'circle'
+      ? Math.hypot(nx, ny)
+      : Math.max(Math.abs(nx), Math.abs(ny));
+    if (r === 0) return 0;
+    // r = 1 at the inscribed circle (mid-sides). Outside it, identity — those
+    // pixels are clipped by the circular chrome.
+    if (LOUPE_FISHEYE_SHAPE === 'circle' && r > 1) return 1;
+    return Math.pow(r, power - 1);
+  }
+
+  function fisheyeInverse(nx, ny) {
+    var k = fisheyeUnitScale(nx, ny, 1 / LOUPE_FISHEYE_POWER);
+    if (!k) return { nx: 0, ny: 0 };
+    return { nx: nx * k, ny: ny * k };
+  }
+
+  function clampByte(v) {
+    v = Math.round(v);
+    if (v < 0) return 0;
+    if (v > 255) return 255;
+    return v;
+  }
+
+  function generateLoupeFisheyeMap(cssSize, scale) {
+    var canvas = document.createElement('canvas');
+    canvas.width = cssSize;
+    canvas.height = cssSize;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(cssSize, cssSize);
+    var data = img.data;
+    for (var y = 0; y < cssSize; y++) {
+      for (var x = 0; x < cssSize; x++) {
+        var nx = (x + 0.5) / cssSize * 2 - 1;
+        var ny = (y + 0.5) / cssSize * 2 - 1;
+        var src = fisheyeInverse(nx, ny);
+        var srcX = (src.nx + 1) / 2 * cssSize;
+        var srcY = (src.ny + 1) / 2 * cssSize;
+        var dx = srcX - (x + 0.5);
+        var dy = srcY - (y + 0.5);
+        var i = (y * cssSize + x) * 4;
+        // 128 = zero offset; feDisplacementMap: p' = p + scale * (channel - 0.5)
+        data[i] = clampByte((dx / scale + 0.5) * 255);
+        data[i + 1] = clampByte((dy / scale + 0.5) * 255);
+        data[i + 2] = 128;
+        data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas.toDataURL('image/png');
+  }
+
+  function applyLoupeFisheyeFilter() {
+    if (!loupeInner) return;
+    var circleChrome = LOUPE_FISHEYE && LOUPE_FISHEYE_SHAPE === 'circle';
+    $loupe.toggleClass('loupe-circle', circleChrome);
+    if (!LOUPE_FISHEYE) {
+      loupeInner.classList.remove('fisheye');
+      loupeInner.style.filter = 'none';
+      loupeInner.style.webkitFilter = 'none';
+      return;
+    }
+    var xlinkNS = 'http://www.w3.org/1999/xlink';
+    var scale = LOUPE_SIZE;
+    var mapEl = document.getElementById('loupeFisheyeMap');
+    var dispEl = document.getElementById('loupeFisheyeDisplacement');
+    var mapUrl = generateLoupeFisheyeMap(LOUPE_SIZE, scale);
+    if (mapEl) {
+      mapEl.setAttribute('width', String(LOUPE_SIZE));
+      mapEl.setAttribute('height', String(LOUPE_SIZE));
+      mapEl.setAttribute('href', mapUrl);
+      mapEl.setAttributeNS(xlinkNS, 'href', mapUrl);
+    }
+    if (dispEl) dispEl.setAttribute('scale', String(scale));
+    loupeInner.classList.add('fisheye');
+    loupeInner.style.filter = 'url(#loupeFisheyeFilter)';
+    loupeInner.style.webkitFilter = 'url(#loupeFisheyeFilter)';
+  }
+
+  applyLoupeFisheyeFilter();
+
   function loupeCellFromPoint(clientX, clientY) {
     if (!loupeInner) return null;
     var rect = loupeInner.getBoundingClientRect();
     var x = clientX - rect.left;
     var y = clientY - rect.top;
     if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
-    var col = Math.floor(x / (rect.width / LOUPE_TILES));
-    var row = Math.floor(y / (rect.height / LOUPE_TILES));
+    var col;
+    var row;
+    if (LOUPE_FISHEYE) {
+      var nx = (x / rect.width) * 2 - 1;
+      var ny = (y / rect.height) * 2 - 1;
+      if (LOUPE_FISHEYE_SHAPE === 'circle' && Math.hypot(nx, ny) > 1) return null;
+      var mapped = fisheyeInverse(nx, ny);
+      col = Math.floor((mapped.nx + 1) / 2 * LOUPE_TILES);
+      row = Math.floor((mapped.ny + 1) / 2 * LOUPE_TILES);
+    } else {
+      col = Math.floor(x / (rect.width / LOUPE_TILES));
+      row = Math.floor(y / (rect.height / LOUPE_TILES));
+    }
     if (col < 0 || row < 0 || col >= LOUPE_TILES || row >= LOUPE_TILES) return null;
     return { x: loupeOriginX + col, y: loupeOriginY + row };
   }

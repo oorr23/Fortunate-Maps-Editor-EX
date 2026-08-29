@@ -21,6 +21,13 @@
     <script src="layout.js"></script>
     <link rel="stylesheet" type="text/css" href="css/style.css">
     <link rel="stylesheet" type="text/css" href="css/mobile.css">
+    <style>
+      /* In-document so url(#loupeFisheyeFilter) resolves against this page, not the CSS file. */
+      .loupe-inner.fisheye {
+        -webkit-filter: url(#loupeFisheyeFilter);
+        filter: url(#loupeFisheyeFilter);
+      }
+    </style>
 </head>
 
 <body>
@@ -312,6 +319,14 @@
     <div id="loupeInner" class="loupe-inner"></div>
     <div class="loupe-crosshair"></div>
   </div>
+  <svg id="loupeFisheyeSvg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;pointer-events:none">
+    <defs>
+      <filter id="loupeFisheyeFilter" x="0" y="0" width="1" height="1" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feImage id="loupeFisheyeMap" result="map" x="0" y="0" width="264" height="264" preserveAspectRatio="none"></feImage>
+        <feDisplacementMap id="loupeFisheyeDisplacement" in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G" scale="264"></feDisplacementMap>
+      </filter>
+    </defs>
+  </svg>
 
   <input type="file" id="pngFileInput" accept="image/png,.png" style="display:none">
   <input type="file" id="jsonFileInput" accept="application/json,.json,text/plain" style="display:none">

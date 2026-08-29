@@ -73,6 +73,15 @@ body.tile-settings-open .loupe {
   touch-action: none;
 }
 
+.loupe.loupe-circle {
+  border-radius: 50%;
+}
+
+.loupe.loupe-circle .loupe-inner {
+  border-radius: 50%;
+  overflow: hidden;
+}
+
 .loupe-grid {
   width: 440px;
   height: 440px;
