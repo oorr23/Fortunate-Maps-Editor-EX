@@ -22,6 +22,30 @@
 				html.className += skip ? ' splash-skip' : ' splash-play';
 			})();
 		</script>
+		<script>
+			(function () {
+				var pref = 'auto';
+				try {
+					var saved = localStorage.getItem('tagpro-theme');
+					if (saved === 'light' || saved === 'dark' || saved === 'auto') pref = saved;
+				} catch (e) {}
+				var dark = pref !== 'light';
+				if (pref !== 'light' && pref !== 'dark') {
+					dark = true;
+					try {
+						if (window.matchMedia) {
+							if (window.matchMedia('(prefers-color-scheme: dark)').matches) dark = true;
+							else if (window.matchMedia('(prefers-color-scheme: light)').matches) dark = false;
+						}
+					} catch (e) {}
+				}
+				var html = document.documentElement;
+				html.classList.remove('theme-dark', 'theme-light');
+				html.classList.add(dark ? 'theme-dark' : 'theme-light');
+				var meta = document.querySelector('meta[name="theme-color"]');
+				if (meta) meta.setAttribute('content', dark ? '#1a1d23' : '#ddd');
+			})();
+		</script>
 		<style>
 			html.splash-play, html.splash-play body { background: #1a1d23; overflow: hidden; }
 			html.splash-skip #splash { display: none !important; }
@@ -370,6 +394,7 @@
           <div class="form-group" id="themeSwitcher">
             <label>Theme</label>
             <div class="btn-group btn-group-justified">
+              <a href="#" id="themeAutoBtn" class="btn btn-default">Auto</a>
               <a href="#" id="themeDarkBtn" class="btn btn-default">Dark</a>
               <a href="#" id="themeLightBtn" class="btn btn-default">Light</a>
             </div>
