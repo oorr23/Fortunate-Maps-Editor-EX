@@ -82,22 +82,75 @@ $(function() {
   });
 
   var THEME_KEY = 'tagpro-theme';
+  var THEME_COLOR_DARK = '#1a1d23';
+  var THEME_COLOR_LIGHT = '#ddd';
+  var themeMedia = null;
+  var themeMediaOnChange = null;
+
   function readTheme() {
     try {
-      return (localStorage.getItem(THEME_KEY) === 'light') ? 'light' : 'dark';
-    } catch (err) {
-      return 'dark';
-    }
+      var value = localStorage.getItem(THEME_KEY);
+      if (value === 'light' || value === 'dark' || value === 'auto') return value;
+    } catch (err) {}
+    return 'auto';
   }
+
+  function systemColorScheme() {
+    try {
+      if (window.matchMedia) {
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+      }
+    } catch (err) {}
+    return 'dark';
+  }
+
+  function resolvedTheme(pref) {
+    if (pref === 'light' || pref === 'dark') return pref;
+    return systemColorScheme();
+  }
+
+  function setThemeColor(scheme) {
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', scheme === 'light' ? THEME_COLOR_LIGHT : THEME_COLOR_DARK);
+  }
+
+  function stopSystemThemeListener() {
+    if (!themeMedia || !themeMediaOnChange) return;
+    if (themeMedia.removeEventListener) themeMedia.removeEventListener('change', themeMediaOnChange);
+    else if (themeMedia.removeListener) themeMedia.removeListener(themeMediaOnChange);
+    themeMedia = null;
+    themeMediaOnChange = null;
+  }
+
+  function startSystemThemeListener() {
+    if (themeMedia || !window.matchMedia) return;
+    themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+    themeMediaOnChange = function () {
+      applyTheme('auto');
+    };
+    if (themeMedia.addEventListener) themeMedia.addEventListener('change', themeMediaOnChange);
+    else if (themeMedia.addListener) themeMedia.addListener(themeMediaOnChange);
+  }
+
   function applyTheme(theme) {
-    if (theme !== 'light') theme = 'dark';
-    document.documentElement.classList.toggle('theme-dark', theme === 'dark');
-    document.documentElement.classList.toggle('theme-light', theme === 'light');
+    if (theme !== 'light' && theme !== 'dark' && theme !== 'auto') theme = 'auto';
+    var scheme = resolvedTheme(theme);
+    document.documentElement.classList.toggle('theme-dark', scheme === 'dark');
+    document.documentElement.classList.toggle('theme-light', scheme === 'light');
+    $('#themeAutoBtn').toggleClass('active', theme === 'auto');
     $('#themeDarkBtn').toggleClass('active', theme === 'dark');
     $('#themeLightBtn').toggleClass('active', theme === 'light');
+    setThemeColor(scheme);
     try { localStorage.setItem(THEME_KEY, theme); } catch (err) {}
+    if (theme === 'auto') startSystemThemeListener();
+    else stopSystemThemeListener();
   }
   applyTheme(readTheme());
+  $('#themeAutoBtn').on('click', function(e) {
+    e.preventDefault();
+    applyTheme('auto');
+  });
   $('#themeDarkBtn').on('click', function(e) {
     e.preventDefault();
     applyTheme('dark');
