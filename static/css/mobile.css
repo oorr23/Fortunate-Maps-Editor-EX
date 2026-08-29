@@ -437,6 +437,15 @@ html:not(.layout-desktop) a.selectedTool {
   color: #fff;
 }
 
+html.layout-mobile #dockZoomIn,
+html.layout-mobile #dockZoomOut,
+html:not(.layout-desktop) #dockZoomIn,
+html:not(.layout-desktop) #dockZoomOut,
+html.layout-mobile #zoom,
+html:not(.layout-desktop) #zoom {
+  display: none !important;
+}
+
 html.layout-mobile #dockBar,
 html:not(.layout-desktop) #dockBar {
   display: flex;
@@ -721,43 +730,35 @@ html:not(.layout-desktop) .modal {
   z-index: 11000;
 }
 
-/* Compact card parked above the bottom dock (or top of the viewport).
-   Never a full-viewport .modal hit layer over map-center Buttons. */
+/* Host stays in the dock DOM but takes no layout. The open card is
+   position:fixed, centered on the screen. */
+#tileSettingsHost {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
 #portalOptions,
 #switchOptions,
 #spawnOptions {
   position: fixed;
   left: 50%;
-  top: max(8px, env(safe-area-inset-top, 0px));
+  top: 50%;
   right: auto;
   bottom: auto;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 11000;
   width: min(420px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   height: auto;
-  max-height: calc(100dvh - var(--tile-settings-dock-offset, 160px) - 12px);
+  max-height: min(70vh, 360px);
   overflow: auto;
   margin: 0;
   display: none !important;
   pointer-events: none;
   visibility: hidden;
-}
-
-html.layout-mobile #portalOptions.in,
-html.layout-mobile #portalOptions.is-open,
-html.layout-mobile #switchOptions.in,
-html.layout-mobile #switchOptions.is-open,
-html.layout-mobile #spawnOptions.in,
-html.layout-mobile #spawnOptions.is-open,
-html:not(.layout-desktop) #portalOptions.in,
-html:not(.layout-desktop) #portalOptions.is-open,
-html:not(.layout-desktop) #switchOptions.in,
-html:not(.layout-desktop) #switchOptions.is-open,
-html:not(.layout-desktop) #spawnOptions.in,
-html:not(.layout-desktop) #spawnOptions.is-open {
-  top: auto;
-  bottom: var(--tile-settings-dock-offset, 160px);
 }
 
 #portalOptions[hidden],
@@ -818,13 +819,14 @@ html:not(.layout-desktop) #spawnOptions.is-open {
 
 .tile-settings-backdrop {
   position: fixed;
+  left: 0;
   top: 0;
   right: 0;
   bottom: 0;
-  left: 0;
   z-index: 10900;
   background-color: #000;
   opacity: 0.5;
+  pointer-events: auto;
 }
 
 html.layout-mobile .modal-backdrop,
@@ -1061,7 +1063,7 @@ html:not(.layout-desktop).orient-landscape #dock {
   grid-column: 1 / -1;
   grid-row: 2;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 html.layout-mobile.orient-landscape #palette,

@@ -1196,7 +1196,7 @@ $(function() {
     yellowFlagType = new TileType('yellowFlag', 13,1, 128,128,0, "Yellow Flag - Bring this neutral flag to your zone to score."),
     redEndzoneType = new TileType('redEndzone', 14,5, 185,0,0, "Red Endzone - Bring a neutral (yellow) flag to this zone to score."),
     blueEndzoneType = new TileType('blueEndzone', 15,5, 25,0,148, "Blue Endzone - Bring a neutral (yellow) flag to this zone to score."),
-    gravityWellType = new TileType('gravityWell', 13, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat."),
+    gravityWellType = new TileType('gravityWell', 0, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat.", {image: 'gravitywell', imageTileWidth: 1, imageTileHeight: 1}),
     marsBallType = new TileType('marsBall', 12,9, 256,256,256, "Mars Ball - Push into own endzone or opponent flag to win.", {logicFn: exportMarsBall, multiplier: 0.5}), // 2×2 sheet sprite; no centering shift (see sheetBackgroundPosition)
   ];
 
@@ -1905,8 +1905,8 @@ $(function() {
   var TILE_SETTINGS_MODALS = '#portalOptions, #switchOptions, #spawnOptions';
   var SETTINGS_MODAL_GUARD_MS = 500;
 
-  function armSettingsModalGuard() {
-    settingsModalGuardUntil = Date.now() + SETTINGS_MODAL_GUARD_MS;
+  function armSettingsModalGuard(until) {
+    settingsModalGuardUntil = until || (Date.now() + SETTINGS_MODAL_GUARD_MS);
     if (window.TagproLoupe && TagproLoupe.armSettingsModalGuard) {
       TagproLoupe.armSettingsModalGuard(settingsModalGuardUntil);
     }
@@ -1940,21 +1940,47 @@ $(function() {
 
   document.addEventListener('click', swallowGuardedTileSettingsEvent, true);
   document.addEventListener('pointerdown', swallowGuardedTileSettingsEvent, true);
+  document.addEventListener('pointerup', swallowGuardedTileSettingsEvent, true);
 
-  function syncTileSettingsDockOffset() {
-    var root = document.documentElement;
-    if (!root) return;
-    var dock = document.getElementById('dock');
-    var sidebar = document.getElementById('sidebar');
-    var landscape = root.classList.contains('orient-landscape');
-    var offset = 8;
-    if (!landscape && sidebar) {
-      offset = Math.round(sidebar.getBoundingClientRect().height) + 8;
-    } else if (dock) {
-      offset = Math.round(dock.getBoundingClientRect().height) + 8;
-    }
-    root.style.setProperty('--tile-settings-dock-offset', offset + 'px');
+  function placeTileSettingsOverMap(el) {
+    if (!el) return;
+    var pad = 12;
+    var maxW = Math.min(420, Math.max(180, window.innerWidth - pad * 2));
+    var maxH = Math.max(120, window.innerHeight - pad * 2);
+    el.style.left = '50%';
+    el.style.top = '50%';
+    el.style.width = maxW + 'px';
+    el.style.maxWidth = maxW + 'px';
+    el.style.maxHeight = maxH + 'px';
+    el.style.transform = 'translate(-50%, -50%)';
   }
+
+  function showMapSettingsBackdrop() {
+    $('#tileSettingsBackdrop, .tile-settings-backdrop').remove();
+    var bd = document.createElement('div');
+    bd.id = 'tileSettingsBackdrop';
+    bd.className = 'tile-settings-backdrop';
+    bd.setAttribute('aria-hidden', 'true');
+    bd.style.left = '0';
+    bd.style.top = '0';
+    bd.style.width = '100%';
+    bd.style.height = '100%';
+    document.body.appendChild(bd);
+  }
+
+  function relayoutTileSettings() {
+    if (!tileSettingsIsOpen()) return;
+    var open = document.querySelector('#portalOptions.is-open, #switchOptions.is-open, #spawnOptions.is-open');
+    if (open) placeTileSettingsOverMap(open);
+    var bd = document.getElementById('tileSettingsBackdrop');
+    if (!bd) return;
+    bd.style.left = '0';
+    bd.style.top = '0';
+    bd.style.width = '100%';
+    bd.style.height = '100%';
+  }
+
+  window.addEventListener('resize', relayoutTileSettings);
 
   function hideTileSettings() {
     var dialogs = document.querySelectorAll(TILE_SETTINGS_MODALS);
@@ -1973,6 +1999,12 @@ $(function() {
     $(TILE_SETTINGS_MODALS).each(function() {
       this.classList.remove('in', 'is-open');
       this.style.removeProperty('display');
+      this.style.removeProperty('left');
+      this.style.removeProperty('top');
+      this.style.removeProperty('width');
+      this.style.removeProperty('max-width');
+      this.style.removeProperty('max-height');
+      this.style.removeProperty('transform');
       this.setAttribute('hidden', '');
       this.setAttribute('aria-hidden', 'true');
     });
@@ -1983,16 +2015,17 @@ $(function() {
 
   function showTileSettingsModal($modal) {
     hideTileSettings();
-    syncTileSettingsDockOffset();
     armSettingsModalGuard();
-    $('<div id="tileSettingsBackdrop" class="tile-settings-backdrop" aria-hidden="true"></div>')
-      .appendTo(document.body);
+    showMapSettingsBackdrop();
     var el = $modal && $modal[0];
+    var host = document.getElementById('tileSettingsHost');
+    if (el && host && el.parentNode !== host) host.appendChild(el);
     if (el) {
       el.removeAttribute('hidden');
       el.classList.add('in', 'is-open');
       el.style.removeProperty('display');
       el.setAttribute('aria-hidden', 'false');
+      placeTileSettingsOverMap(el);
     }
     $('body').addClass('tile-settings-open');
   }
@@ -2180,6 +2213,7 @@ $(function() {
       }
     })
     .on('dblclick', '.tile', function(e) {
+      if (isMobileLayout()) return;
       var x = $(this).data('x');
       var y = $(this).data('y');
       if (openTileSettings(x, y)) {
@@ -2213,7 +2247,7 @@ $(function() {
           var eyeDropBrushType = tiles[x][y].type;
           setBrushTileType(eyeDropBrushType);
         } else if (tileHasSettings(x, y) && !isLoupeSyntheticEvent(e) && !mouseDown) {
-          // Native still-click on a Button/portal/spawn opens settings; do not paint.
+          // Mobile hold opens settings; native mouseup must not also stamp.
         } else {
           var change = selectedTool.speculateUp(x,y);
           if (change && !selectedTool.previewOnly) {
@@ -3191,6 +3225,11 @@ $(function() {
     return { min: lim.min / tileSize, max: lim.max / tileSize };
   }
 
+  function isZoomedIn() {
+    if (isMobileLayout()) return zoom > 0 || viewScale > 1.05;
+    return zoom > 0;
+  }
+
   function applyViewTransform() {
     var c = mapCanvasEl();
     if (!c) return;
@@ -3855,6 +3894,8 @@ $(function() {
     beginFocalZoom: beginFocalZoom,
     setFocalZoom: setFocalZoom,
     zoomBy: zoomBy,
+    isZoomedIn: isZoomedIn,
+    brushName: function() { return brushTileType && brushTileType.name; },
     rebaseTileSizeToView: rebaseTileSizeToView,
     resetViewTransform: resetViewTransform,
     clearPreviewZoom: clearPreviewZoom,
@@ -3863,6 +3904,7 @@ $(function() {
     paintLoupeCell: paintLoupeCell,
     tileHasSettings: tileHasSettings,
     openTileSettings: openTileSettings,
+    armSettingsModalGuard: armSettingsModalGuard,
     setOwnHighlightColor: setOwnHighlightColor,
     showPeerHighlights: showPeerHighlights,
     clearPeerHighlights: clearPeerHighlights,
