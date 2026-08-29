@@ -94,6 +94,7 @@ $(function() {
     if (!isPhoneLayout()) hideLoupe();
     placeMapMetaFields();
     syncLayoutSwitcher();
+    chromeChanged();
   });
 
   var THEME_KEY = 'tagpro-theme';
@@ -160,6 +161,8 @@ $(function() {
 
   function isLandscapeChrome() {
     var root = document.documentElement;
+    // Gamepad uses a centered More card, not the landscape tab strip.
+    if (root.classList.contains('layout-gamepad')) return false;
     if (root.classList.contains('orient-landscape')) return true;
     if (root.classList.contains('orient-portrait')) return false;
     return !!(window.matchMedia && window.matchMedia('(orientation: landscape)').matches);
@@ -529,6 +532,8 @@ $(function() {
 
   $('#dockUndo').on('click', function() { $('#undo').trigger('click'); });
   $('#dockRedo').on('click', function() { $('#redo').trigger('click'); });
+  $('#dockTest').on('click', function() { $('#test').trigger('click'); });
+  $('#dockClear').on('click', function() { $('#clear').trigger('click'); });
   $('#dockZoomIn').on('click', function() {
     if (this.disabled) return;
     if (window.TagproMap && TagproMap.zoomIn) TagproMap.zoomIn();
@@ -2381,8 +2386,9 @@ $(function() {
     var animating = false;
     var scrollAnimFrame = null;
 
-    function isDesktopPalette() {
-      return document.documentElement.classList.contains('layout-desktop');
+    function isLoopedPalette() {
+      var cl = document.documentElement.classList;
+      return !cl.contains('layout-desktop') && !cl.contains('layout-gamepad');
     }
 
     function axis() {
@@ -2406,7 +2412,7 @@ $(function() {
     }
 
     function jumpLoop() {
-      if (animating || isDesktopPalette()) return;
+      if (animating || !isLoopedPalette()) return;
       if (!setWidth) measure();
       if (setWidth < 8) return;
       var a = axis();
@@ -2450,9 +2456,19 @@ $(function() {
     }
 
     function centerOnSelected(animate) {
-      if (isDesktopPalette()) {
-        el.scrollLeft = 0;
-        el.scrollTop = 0;
+      if (!isLoopedPalette()) {
+        var pick = el.querySelector('.palette-copy .tilePaletteOption.palette-selected') ||
+          el.querySelector('.tilePaletteOption.palette-selected');
+        if (pick && pick.scrollIntoView && document.documentElement.classList.contains('layout-gamepad')) {
+          try {
+            pick.scrollIntoView({ inline: 'center', block: 'nearest', behavior: animate === false ? 'auto' : 'smooth' });
+          } catch (err) {
+            pick.scrollIntoView(false);
+          }
+        } else {
+          el.scrollLeft = 0;
+          el.scrollTop = 0;
+        }
         refreshScale();
         return;
       }
@@ -2490,13 +2506,13 @@ $(function() {
     }
 
     el.addEventListener('scroll', function() {
-      if (isDesktopPalette()) return;
+      if (!isLoopedPalette()) return;
       if (!animating) jumpLoop();
       refreshScale();
     }, { passive: true });
     window.addEventListener('resize', function() {
-      if (isDesktopPalette()) {
-        refreshScale();
+      if (!isLoopedPalette()) {
+        centerOnSelected(false);
         return;
       }
       measure();
@@ -2504,8 +2520,8 @@ $(function() {
     });
     window.addEventListener('orientationchange', function() {
       setTimeout(function() {
-        if (isDesktopPalette()) {
-          refreshScale();
+        if (!isLoopedPalette()) {
+          centerOnSelected(false);
           return;
         }
         measure();
@@ -2513,13 +2529,6 @@ $(function() {
       }, 250);
     });
     document.documentElement.addEventListener('tagpro-layout', function() {
-      if (isDesktopPalette()) {
-        el.scrollLeft = 0;
-        el.scrollTop = 0;
-        refreshScale();
-        return;
-      }
-      measure();
       centerOnSelected(false);
     });
 

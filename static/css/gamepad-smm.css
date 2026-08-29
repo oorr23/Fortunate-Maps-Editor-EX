@@ -1,0 +1,621 @@
+/* Super Mario Maker–inspired Gamepad frame.
+   Only html.layout-gamepad. Auto / Mobile / Desktop chrome is unchanged. */
+
+html:not(.layout-gamepad) .gp-frame-only,
+html:not(.layout-gamepad) #gpBumperL,
+html:not(.layout-gamepad) #gpBumperR,
+html:not(.layout-gamepad) .gp-letter {
+  display: none !important;
+}
+
+html:not(.layout-gamepad) #gpRailLeft,
+html:not(.layout-gamepad) #gpRailRight {
+  display: contents;
+}
+
+/* Restore the original dock order after rail wrappers regroup nodes. */
+html.layout-mobile:not(.layout-gamepad) #dockBar #dockUndo { order: 1; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #dockRedo { order: 2; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #dockZoomOut { order: 3; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #dockZoomIn { order: 4; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #panMode { order: 5; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #tileSettingsBtn { order: 6; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #moreToggle { order: 7; }
+
+html.layout-gamepad,
+html.layout-gamepad body {
+  background: #cfc6b6;
+  color: #2a241c;
+}
+
+html.layout-gamepad.layout-mobile #app,
+html.layout-gamepad.layout-mobile.orient-landscape #app,
+html.layout-gamepad.layout-mobile.orient-portrait #app {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-rows: 44px minmax(0, 1fr);
+  grid-template-areas:
+    "bl pal br"
+    "left map right";
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  background: #cfc6b6;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+html.layout-gamepad.layout-mobile #sidebar,
+html.layout-gamepad.layout-mobile.orient-landscape #sidebar,
+html.layout-gamepad.layout-mobile #dock,
+html.layout-gamepad.layout-mobile.orient-landscape #dock,
+html.layout-gamepad.layout-mobile #dockBar,
+html.layout-gamepad.layout-mobile.orient-landscape #dockBar {
+  display: contents;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  min-width: 0;
+}
+
+html.layout-gamepad.layout-mobile .dock-tools-wrap,
+html.layout-gamepad.layout-mobile.orient-landscape .dock-tools-wrap,
+html.layout-gamepad.layout-mobile #tools,
+html.layout-gamepad.layout-mobile #dockZoomOut,
+html.layout-gamepad.layout-mobile #dockZoomIn,
+html.layout-gamepad.layout-mobile #zoom {
+  display: none !important;
+}
+
+html.layout-gamepad.layout-mobile #tileSettingsHost {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* --- Top ribbon --- */
+html.layout-gamepad.layout-mobile #gpBumperL,
+html.layout-gamepad.layout-mobile.orient-landscape #gpBumperL {
+  display: flex !important;
+  grid-area: bl;
+}
+
+html.layout-gamepad.layout-mobile #gpBumperR,
+html.layout-gamepad.layout-mobile.orient-landscape #gpBumperR {
+  display: flex !important;
+  grid-area: br;
+}
+
+html.layout-gamepad.layout-mobile #palette,
+html.layout-gamepad.layout-mobile.orient-landscape #palette,
+html.layout-gamepad.layout-mobile.orient-portrait #palette {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  grid-area: pal;
+  justify-self: stretch;
+  align-self: stretch;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: 44px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 4px;
+  margin: 0;
+  background: #e8e0d2;
+  box-shadow: inset 0 -2px 0 rgba(80, 60, 30, 0.12);
+  touch-action: pan-x;
+  z-index: 6;
+}
+
+html.layout-gamepad.layout-mobile #palette .palette-track,
+html.layout-gamepad.layout-mobile.orient-landscape #palette .palette-track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+}
+
+html.layout-gamepad.layout-mobile #palette .palette-copy:not(:first-child) {
+  display: none;
+}
+
+html.layout-gamepad.layout-mobile #palette .tileBackground,
+html.layout-gamepad.layout-mobile #palette .tilePaletteOption,
+html.layout-gamepad.layout-mobile.orient-landscape #palette .tileBackground,
+html.layout-gamepad.layout-mobile.orient-landscape #palette .tilePaletteOption {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  transform: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+html.layout-gamepad.layout-mobile #palette .tilePaletteOption.palette-selected,
+html.layout-gamepad.layout-mobile.orient-landscape #palette .tilePaletteOption.palette-selected {
+  transform: none;
+  outline: 2px solid #f5c842;
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+html.layout-gamepad .gp-bumper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #f4efe4;
+  color: #c45a12;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-shadow: 0 2px 0 #b9ae9a, 0 3px 6px rgba(0, 0, 0, 0.22);
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  z-index: 6;
+  position: relative;
+}
+
+html.layout-gamepad .gp-bumper:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #b9ae9a;
+}
+
+/* --- Side rails --- */
+html.layout-gamepad.layout-mobile #gpRailLeft,
+html.layout-gamepad.layout-mobile.orient-landscape #gpRailLeft {
+  display: flex;
+  flex-direction: column;
+  grid-area: left;
+  align-self: stretch;
+  justify-self: stretch;
+  width: 44px;
+  min-width: 44px;
+  gap: 4px;
+  padding: 4px 2px;
+  background: #d8d0c2;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.12);
+  z-index: 6;
+}
+
+html.layout-gamepad.layout-mobile #gpRailRight,
+html.layout-gamepad.layout-mobile.orient-landscape #gpRailRight {
+  display: flex;
+  flex-direction: column;
+  grid-area: right;
+  align-self: stretch;
+  justify-self: stretch;
+  width: 44px;
+  min-width: 44px;
+  gap: 4px;
+  padding: 4px 2px;
+  background: #d8d0c2;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.12);
+  z-index: 6;
+}
+
+html.layout-gamepad.layout-mobile #gpRailLeft .dock-btn,
+html.layout-gamepad.layout-mobile #gpRailRight .dock-btn,
+html.layout-gamepad.layout-mobile.orient-landscape #gpRailLeft .dock-btn,
+html.layout-gamepad.layout-mobile.orient-landscape #gpRailRight .dock-btn,
+html.layout-gamepad.layout-mobile #panMode,
+html.layout-gamepad.layout-mobile #tileSettingsBtn,
+html.layout-gamepad.layout-mobile #moreToggle,
+html.layout-gamepad.layout-mobile #dockUndo,
+html.layout-gamepad.layout-mobile #dockRedo,
+html.layout-gamepad.layout-mobile #dockTest,
+html.layout-gamepad.layout-mobile #dockClear {
+  display: flex !important;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #f4efe4;
+  color: #3a3328;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 2px 0 #b9ae9a, 0 3px 6px rgba(0, 0, 0, 0.2);
+  overflow: visible;
+}
+
+html.layout-gamepad.layout-mobile #tileSettingsBtn,
+html.layout-gamepad.layout-mobile #moreToggle {
+  font-size: 0;
+  gap: 0;
+}
+
+html.layout-gamepad.layout-mobile #tileSettingsBtn .glyphicon,
+html.layout-gamepad.layout-mobile #moreToggle .glyphicon,
+html.layout-gamepad.layout-mobile #gpRailLeft .dock-btn .glyphicon,
+html.layout-gamepad.layout-mobile #gpRailRight .dock-btn .glyphicon {
+  display: block;
+  font-size: 16px;
+  line-height: 1;
+}
+
+html.layout-gamepad.layout-mobile .dock-btn-label {
+  display: none;
+}
+
+html.layout-gamepad.layout-mobile #moreToggle .glyphicon {
+  display: none;
+}
+
+html.layout-gamepad.layout-mobile #moreToggle .gp-letter-plus {
+  position: static;
+  font-size: 22px;
+  font-weight: 800;
+  color: #c45a12;
+  line-height: 1;
+}
+
+html.layout-gamepad .gp-letter {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  color: #c45a12;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+html.layout-gamepad.layout-mobile .dock-btn:active,
+html.layout-gamepad.layout-mobile .dock-btn.active,
+html.layout-gamepad.layout-mobile #panMode.active,
+html.layout-gamepad.pan-mode #panMode {
+  background: #ffe08a;
+  color: #3a3328;
+}
+
+html.layout-gamepad.layout-mobile #tileSettingsBtn.has-settings {
+  background: #ffe08a;
+  border-color: transparent;
+  color: #3a3328;
+}
+
+html.layout-gamepad.layout-mobile #tileSettingsBtn:disabled {
+  opacity: 0.4;
+}
+
+/* --- Map --- */
+html.layout-gamepad.layout-mobile #map,
+html.layout-gamepad.layout-mobile.orient-landscape #map,
+html.layout-gamepad.layout-mobile.orient-portrait #map {
+  grid-area: map;
+  order: unset;
+  flex: unset;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  background: #1a1d23;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+html.layout-gamepad.layout-mobile #map .map-canvas,
+html.layout-gamepad.layout-mobile.orient-landscape #map .map-canvas {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: 0 0;
+}
+
+html.layout-gamepad #map .tileBackground.gp-work-tile {
+  outline: 2px solid rgba(255, 220, 50, 0.95);
+  outline-offset: -2px;
+  position: relative;
+  z-index: 4;
+}
+
+html.layout-gamepad #map .tile.gp-work-tile {
+  outline: none;
+}
+
+/* --- Compact badge legend --- */
+html.layout-gamepad.layout-mobile #gpLegend,
+html.layout-gamepad.layout-mobile.orient-landscape #gpLegend {
+  display: flex;
+  grid-area: map;
+  align-self: end;
+  justify-self: center;
+  z-index: 5;
+  pointer-events: none;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding: 3px 8px;
+  max-width: calc(100% - 8px);
+  background: rgba(40, 34, 28, 0.72);
+  color: #f4efe4;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+html.layout-gamepad .gp-hint-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+html.layout-gamepad .gp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #f4efe4;
+  color: #c45a12;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 1px 0 #b9ae9a;
+}
+
+/* --- More: centered SMM2-style card --- */
+html.layout-gamepad.layout-mobile .more-sheet-header,
+html.layout-gamepad.layout-mobile.orient-landscape .more-sheet-header,
+html.layout-gamepad.layout-mobile #moreClose,
+html.layout-gamepad.layout-mobile.orient-landscape #moreClose {
+  display: flex !important;
+  align-items: center;
+}
+
+html.layout-gamepad.layout-mobile #moreClose,
+html.layout-gamepad.layout-mobile.orient-landscape #moreClose {
+  display: inline-flex !important;
+  min-width: 44px;
+  min-height: 40px;
+  border-radius: 8px;
+  background: #f4efe4;
+  color: #3a3328;
+  border: 0;
+  box-shadow: 0 2px 0 #b9ae9a;
+}
+
+html.layout-gamepad.layout-mobile .more-backdrop,
+html.layout-gamepad.layout-mobile.orient-landscape .more-backdrop {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(40, 34, 28, 0.45);
+  z-index: 10900;
+}
+
+html.layout-gamepad.layout-mobile .more-backdrop.open,
+html.layout-gamepad.layout-mobile.orient-landscape .more-backdrop.open {
+  display: block !important;
+  bottom: 0;
+}
+
+html.layout-gamepad.layout-mobile #moreSheet,
+html.layout-gamepad.layout-mobile.orient-landscape #moreSheet,
+html.layout-gamepad.layout-mobile.orient-portrait #moreSheet {
+  grid-row: 1 / -1 !important;
+  grid-column: 1 / -1 !important;
+  justify-self: center;
+  align-self: center;
+  display: none !important;
+  flex-direction: column;
+  position: fixed !important;
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 72px));
+  max-width: calc(100vw - 72px);
+  max-height: min(78vh, calc(100vh - 72px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  z-index: 11000;
+  margin: 0;
+  padding: 14px 14px 16px;
+  background: #f4efe4;
+  color: #2a241c;
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 2px 0 #b9ae9a;
+}
+
+html.layout-gamepad.layout-mobile #moreSheet.open,
+html.layout-gamepad.layout-mobile.orient-landscape #moreSheet.open {
+  display: flex !important;
+}
+
+html.layout-gamepad.layout-mobile .more-panels,
+html.layout-gamepad.layout-mobile.orient-landscape .more-panels,
+html.layout-gamepad.layout-mobile.orient-landscape #moreSheet.open .more-panels,
+html.layout-gamepad.layout-mobile.orient-landscape #moreSheet.more-dragging .more-panels {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  max-height: none;
+  overflow: visible;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none !important;
+  pointer-events: auto;
+  visibility: visible;
+  z-index: auto;
+  transition: none;
+}
+
+html.layout-gamepad.layout-mobile .more-nav,
+html.layout-gamepad.layout-mobile.orient-landscape .more-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+html.layout-gamepad.layout-mobile .more-nav-btn,
+html.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: #fffdf8;
+  color: #3a3328;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 0 #b9ae9a, 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+html.layout-gamepad.layout-mobile .more-nav-btn:not(.gp-focus)::before,
+html.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn:not(.gp-focus)::before,
+html.layout-gamepad.layout-mobile .more-nav-btn:not(.gp-focus)::after,
+html.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn:not(.gp-focus)::after {
+  content: none !important;
+  display: none !important;
+  border: 0 !important;
+}
+
+html.layout-gamepad.layout-mobile .more-nav-btn.active,
+html.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn.active {
+  background: #ffe08a;
+  color: #2a241c;
+}
+
+html.layout-gamepad.layout-mobile .more-panel,
+html.layout-gamepad.layout-mobile.orient-landscape .more-panel {
+  padding: 0;
+}
+
+html.layout-gamepad.layout-mobile .more-help,
+html.layout-gamepad.layout-mobile.orient-landscape .more-help,
+html.layout-gamepad.layout-mobile .source-link,
+html.layout-gamepad.layout-mobile.orient-landscape .source-link {
+  display: block;
+}
+
+html.layout-gamepad.layout-mobile #moreSheet .btn,
+html.layout-gamepad.layout-mobile.orient-landscape #moreSheet .btn,
+html.layout-gamepad.layout-mobile #moreSheet .form-control,
+html.layout-gamepad.layout-mobile.orient-landscape #moreSheet .form-control {
+  min-height: 44px;
+  border-radius: 8px;
+}
+
+html.layout-gamepad.theme-dark #moreSheet .btn,
+html.layout-gamepad.theme-dark #moreSheet .form-control,
+html.layout-gamepad.theme-dark #moreSheet .input-group-addon,
+html.layout-gamepad.theme-dark #moreSheet select {
+  background-color: #fffdf8;
+  border-color: #d2c8b6;
+  color: #2a241c;
+}
+
+html.layout-gamepad.theme-dark #moreSheet .help-block,
+html.layout-gamepad.theme-dark #moreSheet .source-link,
+html.layout-gamepad.theme-dark #moreSheet .source-link a,
+html.layout-gamepad.theme-dark #moreSheet .help-block a {
+  color: #5a5246;
+}
+
+html.layout-gamepad.theme-dark .fm-extras-heading {
+  border-top-color: #d2c8b6;
+  color: #5a5246;
+}
+
+/* Orange L-corner focus instead of the default blue outline. */
+html.layout-gamepad .gp-focus {
+  outline: none !important;
+  box-shadow: none !important;
+  position: relative;
+  z-index: 3;
+}
+
+html.layout-gamepad .gp-focus::before,
+html.layout-gamepad.layout-mobile .gp-focus::before,
+html.layout-gamepad.layout-mobile.orient-landscape .gp-focus::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  z-index: 6;
+  border: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  background:
+    linear-gradient(#f5a623, #f5a623) 0 0 / 12px 3px no-repeat,
+    linear-gradient(#f5a623, #f5a623) 0 0 / 3px 12px no-repeat,
+    linear-gradient(#f5a623, #f5a623) 100% 0 / 12px 3px no-repeat,
+    linear-gradient(#f5a623, #f5a623) 100% 0 / 3px 12px no-repeat,
+    linear-gradient(#f5a623, #f5a623) 0 100% / 12px 3px no-repeat,
+    linear-gradient(#f5a623, #f5a623) 0 100% / 3px 12px no-repeat,
+    linear-gradient(#f5a623, #f5a623) 100% 100% / 12px 3px no-repeat,
+    linear-gradient(#f5a623, #f5a623) 100% 100% / 3px 12px no-repeat;
+}
+
+html.layout-gamepad .collab-chat-edge {
+  top: 44px;
+  right: 44px;
+  height: auto;
+  bottom: 0;
+  z-index: 3;
+}
+
+html.layout-gamepad .gp-focus::after {
+  content: none !important;
+}
+
+@media (max-width: 960px) {
+  html.layout-gamepad.layout-mobile #app,
+  html.layout-gamepad.layout-mobile.orient-landscape #app {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-rows: 44px minmax(0, 1fr);
+  }
+}
