@@ -79,6 +79,7 @@ $(function() {
   document.documentElement.addEventListener('tagpro-layout', function() {
     finishLivePinch();
     if (!isPhoneLayout()) hideLoupe();
+    placeMapMetaFields();
   });
 
   var THEME_KEY = 'tagpro-theme';
@@ -105,6 +106,35 @@ $(function() {
   $('#themeLightBtn').on('click', function(e) {
     e.preventDefault();
     applyTheme('light');
+  });
+
+  function isDesktopLayout() {
+    return document.documentElement.classList.contains('layout-desktop');
+  }
+
+  function placeMapMetaFields() {
+    var fields = document.getElementById('mapMetaFields');
+    var desktopHost = document.getElementById('mapMetaHost');
+    var modalHost = document.getElementById('mapMetaModalHost');
+    if (!fields || !desktopHost || !modalHost) return;
+    var host = isDesktopLayout() ? desktopHost : modalHost;
+    if (fields.parentNode !== host) host.appendChild(fields);
+  }
+
+  placeMapMetaFields();
+
+  $('.fm-proxy-save').on('click', function(e) {
+    e.preventDefault();
+    $('#save').trigger('click');
+  });
+  $('.fm-proxy-clear').on('click', function(e) {
+    e.preventDefault();
+    $('#clear').trigger('click');
+  });
+  $('.fm-proxy-test').on('click', function(e) {
+    e.preventDefault();
+    var id = this.getAttribute('data-test');
+    if (id) $('#' + id).trigger('click');
   });
 
   var morePanelsEl = document.querySelector('.more-panels');
@@ -2284,6 +2314,10 @@ $(function() {
     var animating = false;
     var scrollAnimFrame = null;
 
+    function isDesktopPalette() {
+      return document.documentElement.classList.contains('layout-desktop');
+    }
+
     function axis() {
       var vertical = window.getComputedStyle(track).flexDirection.indexOf('column') === 0;
       return vertical
@@ -2305,7 +2339,7 @@ $(function() {
     }
 
     function jumpLoop() {
-      if (animating) return;
+      if (animating || isDesktopPalette()) return;
       if (!setWidth) measure();
       if (setWidth < 8) return;
       var a = axis();
@@ -2349,6 +2383,12 @@ $(function() {
     }
 
     function centerOnSelected(animate) {
+      if (isDesktopPalette()) {
+        el.scrollLeft = 0;
+        el.scrollTop = 0;
+        refreshScale();
+        return;
+      }
       measure();
       var selected = el.querySelectorAll('.tilePaletteOption.palette-selected');
       if (!selected.length) {
@@ -2383,18 +2423,37 @@ $(function() {
     }
 
     el.addEventListener('scroll', function() {
+      if (isDesktopPalette()) return;
       if (!animating) jumpLoop();
       refreshScale();
     }, { passive: true });
     window.addEventListener('resize', function() {
+      if (isDesktopPalette()) {
+        refreshScale();
+        return;
+      }
       measure();
       centerOnSelected(false);
     });
     window.addEventListener('orientationchange', function() {
       setTimeout(function() {
+        if (isDesktopPalette()) {
+          refreshScale();
+          return;
+        }
         measure();
         centerOnSelected(false);
       }, 250);
+    });
+    document.documentElement.addEventListener('tagpro-layout', function() {
+      if (isDesktopPalette()) {
+        el.scrollLeft = 0;
+        el.scrollTop = 0;
+        refreshScale();
+        return;
+      }
+      measure();
+      centerOnSelected(false);
     });
 
     requestAnimationFrame(function() {

@@ -259,9 +259,57 @@
       </nav>
 
       <div class="more-panels">
+        <div class="fm-desktop-chrome fm-desktop-only">
+          <div class="form-group fm-order-actions">
+            <div class="btn-group btn-group-justified">
+              <div class="btn-group">
+                <button type="button" class="btn btn-default" title="Instructions" data-toggle="modal" data-target="#instructionsModal">
+                  <span class="glyphicon glyphicon-info-sign"></span> Instructions
+                </button>
+              </div>
+              <div class="btn-group">
+                <button type="button" class="btn btn-default fm-proxy-save" title="Save map to cache">
+                  <span class="glyphicon glyphicon-floppy-disk"></span> Storage
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group fm-order-io">
+            <div class="btn-group btn-group-justified">
+              <div class="btn-group">
+                <button type="button" class="btn btn-default" title="Import map" data-toggle="dropdown">
+                  <span class="glyphicon glyphicon-import"></span> Import <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="#importExport" data-target="#importExport" data-toggle="modal"><span class="glyphicon glyphicon-file"></span> PNG/JSON files</a></li>
+                  <li><a href="#importExport" data-target="#importExport" data-toggle="modal"><span class="glyphicon glyphicon-cloud"></span> Fortunate Maps</a></li>
+                </ul>
+              </div>
+              <div class="btn-group">
+                <button type="button" class="btn btn-default" title="Test map" data-toggle="dropdown">
+                  <span class="glyphicon glyphicon-play"></span> Test <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="#" class="fm-proxy-test" data-test="test">North America (Dallas)</a></li>
+                  <li><a href="#" class="fm-proxy-test" data-test="testeu">European (Paris)</a></li>
+                </ul>
+              </div>
+              <div class="btn-group">
+                <button type="button" class="btn btn-default" title="Export map" data-toggle="dropdown">
+                  <span class="glyphicon glyphicon-export"></span> Export <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-right" role="menu">
+                  <li><a href="#importExport" data-target="#importExport" data-toggle="modal"><span class="glyphicon glyphicon-file"></span> PNG/JSON files</a></li>
+                  <li><a href="#importExport" data-target="#importExport" data-toggle="modal"><span class="glyphicon glyphicon-cloud"></span> Fortunate Maps</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="more-panel" data-panel="file" hidden>
           <div class="form-group">
-            <div class="btn-group btn-group-justified">
+            <div class="btn-group btn-group-justified fm-hide-desktop">
               <div class="btn-group">
                 <button id='clear' class='btn btn-default' title="Clear map"><span class="glyphicon glyphicon-remove"></span> Clear</button>
               </div>
@@ -276,40 +324,46 @@
                 </ul>
               </div>
             </div>
-            <button type="button" id="collab" class="btn btn-default" title="Copy a live collab link" style="margin-top:8px">
-              <span class="glyphicon glyphicon-link"></span> Collab
-            </button>
-            <p class="help-block" id="collabStatus" style="margin:8px 0 0;font-size:12px;"></p>
-            <div class="collab-identity">
-              <input type="text" id="collabUsername" class="form-control" placeholder="Name" maxlength="32" autocomplete="nickname">
+            <div class="fm-collab-block fm-order-extras-collab">
+              <h3 class="fm-extras-heading">Collab</h3>
+              <button type="button" id="collab" class="btn btn-default" title="Copy a live collab link" style="margin-top:8px">
+                <span class="glyphicon glyphicon-link"></span> Collab
+              </button>
+              <p class="help-block" id="collabStatus" style="margin:8px 0 0;font-size:12px;"></p>
+              <div class="collab-identity">
+                <input type="text" id="collabUsername" class="form-control" placeholder="Name" maxlength="32" autocomplete="nickname">
+              </div>
+              <div id="collabUsers" class="collab-users"></div>
             </div>
-            <div id="collabUsers" class="collab-users"></div>
           </div>
 
           <div class="form-group">
             <div class="row">
-              <div class="col-xs-4 panel-undo-zoom">
-                <div id="undoRedo" class="btn-group btn-group-justified" role="toolbar">
-                  <a id="undo" class="btn btn-default" title="Undo"><span class="glyphicon glyphicon-share-alt" style="-moz-transform: scale(-1, 1); -webkit-transform: scale(-1, 1); -o-transform: scale(-1, 1); -ms-transform: scale(-1, 1); transform: scale(-1, 1);"></span></a>
-                  <a id="redo" class="btn btn-default" title="Redo"><span class="glyphicon glyphicon-share-alt"></span></a>
+              <div class="fm-undo-zoom-row fm-order-undo">
+                <div class="col-xs-4 panel-undo-zoom">
+                  <div id="undoRedo" class="btn-group btn-group-justified" role="toolbar">
+                    <a class="btn btn-default fm-desktop-only fm-proxy-clear" title="Clear map"><span class="glyphicon glyphicon-remove"></span></a>
+                    <a id="undo" class="btn btn-default" title="Undo"><span class="glyphicon glyphicon-share-alt" style="-moz-transform: scale(-1, 1); -webkit-transform: scale(-1, 1); -o-transform: scale(-1, 1); -ms-transform: scale(-1, 1); transform: scale(-1, 1);"></span></a>
+                    <a id="redo" class="btn btn-default" title="Redo"><span class="glyphicon glyphicon-share-alt"></span></a>
+                  </div>
+                </div>
+
+                <div class="col-xs-4 panel-undo-zoom">
+                  <div id="zoom" class="btn-group btn-group-justified" role="toolbar">
+                    <a id="zoomOut" class="btn btn-default" title="Zoom out"><span class="glyphicon glyphicon-zoom-out"></span></a>
+                    <a id="zoomIn" class="btn btn-default" title="Zoom in"><span class="glyphicon glyphicon-zoom-in"></span></a>
+                  </div>
                 </div>
               </div>
 
-              <div class="col-xs-4 panel-undo-zoom">
-                <div id="zoom" class="btn-group btn-group-justified" role="toolbar">
-                  <a id="zoomOut" class="btn btn-default" title="Zoom out"><span class="glyphicon glyphicon-zoom-out"></span></a>
-                  <a id="zoomIn" class="btn btn-default" title="Zoom in"><span class="glyphicon glyphicon-zoom-in"></span></a>
-                </div>
-              </div>
-
-              <div class="col-xs-4">
-                <button class="btn btn-default btn-block" title="Import or export map" data-target="#importExport" data-toggle="modal">
+              <div class="col-xs-4 fm-file-io-col">
+                <button class="btn btn-default btn-block fm-hide-desktop" title="Import or export map" data-target="#importExport" data-toggle="modal">
                   <span class="glyphicon glyphicon-import"></span> / <span class="glyphicon glyphicon-export"></span>
                 </button>
-                <button type="button" id="instructions" class="btn btn-default btn-block" title="Instructions" data-toggle="modal" data-target="#instructionsModal" style="margin-top:8px">
+                <button type="button" id="instructions" class="btn btn-default btn-block fm-hide-desktop" title="Instructions" data-toggle="modal" data-target="#instructionsModal" style="margin-top:8px">
                   <span class="glyphicon glyphicon-info-sign"></span> Instructions
                 </button>
-                <div id="collabColors" class="collab-colors" role="group" aria-label="Cursor color">
+                <div id="collabColors" class="collab-colors fm-order-extras-collab" role="group" aria-label="Cursor color">
                   <div data-color="green" class="highlight-color highlight-green green" title="Green"></div>
                   <div data-color="blue" class="highlight-color highlight-blue blue" title="Blue"></div>
                   <div data-color="red" class="highlight-color highlight-red red" title="Red"></div>
@@ -324,11 +378,12 @@
             </div>
           </div>
 
-          <p class="source-link"><a href="https://github.com/raikutro/fortunatemaps">FortunateMaps editor</a> · <a href="https://github.com/PeterReid/tagpro-map-editor">Original source</a> · <a href="https://github.com/PeterReid/tagpro-map-editor/blob/master/LICENSE.txt">AGPL-3.0</a></p>
+          <p class="source-link fm-order-license"><a href="https://github.com/raikutro/fortunatemaps">FortunateMaps editor</a> · <a href="https://github.com/PeterReid/tagpro-map-editor">Original source</a> · <a href="https://github.com/PeterReid/tagpro-map-editor/blob/master/LICENSE.txt">AGPL-3.0</a></p>
         </div>
 
         <div class="more-panel" data-panel="map" hidden>
-          <div class="form-group">
+          <div id="mapMetaHost" class="form-group fm-order-meta"></div>
+          <div class="form-group fm-order-size">
             <div class="input-group">
               <span class="input-group-addon">Map Size:</span>
               <input type="text" class="form-control" placeholder="56x24" id="mapSize" inputmode="numeric" autocomplete="off" aria-label="Map size as width x height">
@@ -343,7 +398,7 @@
             <p class="help-block more-help">Example: <code>56x24</code>. The default view shows the whole map.</p>
           </div>
 
-          <div class="form-group">
+          <div class="form-group fm-order-symmetry">
             <select id="symmetry" class="form-control">
               <option selected>No Symmetry</option>
               <option value="Horizontal">Horizontal Symmetry</option>
@@ -354,7 +409,8 @@
           </div>
         </div>
 
-        <div class="more-panel" data-panel="layout" hidden>
+        <div class="more-panel fm-order-extras-appearance" data-panel="layout" hidden>
+          <h3 class="fm-extras-heading">Appearance</h3>
           <div class="form-group" id="layoutSwitcher">
             <label>Layout</label>
             <div class="btn-group btn-group-justified">
@@ -366,7 +422,7 @@
           </div>
         </div>
 
-        <div class="more-panel" data-panel="theme" hidden>
+        <div class="more-panel fm-order-extras-appearance" data-panel="theme" hidden>
           <div class="form-group" id="themeSwitcher">
             <label>Theme</label>
             <div class="btn-group btn-group-justified">
@@ -395,7 +451,7 @@
       </div>
     </div>
 
-    <div id="palette"></div>
+    <div id="palette" class="fm-order-palette"></div>
 
     <div id="dock">
       <div id="tileSettingsHost">
@@ -461,7 +517,7 @@
     </div>
   </div>
       </div>
-      <div class="form-group dock-tools-wrap" style="margin-bottom: 5px;">
+      <div class="form-group dock-tools-wrap fm-order-tools" style="margin-bottom: 5px;">
         <div id="tools" role="toolbar">
           <div class="btn-group btn-group-justified">
             <a id="toolPencil" data-tool-id="toolPencil" class="btn btn-default btn-sm" title="Pencil - paint a single pixel."><span class="glyphicon glyphicon-pencil"></span></a>
@@ -570,13 +626,17 @@
               <a id="export" class="btn btn-default" title="Export map"><span class="glyphicon glyphicon-export"></span> Export</a>
             </div>
           </div>
-          <div class="form-group">
-            <label for="mapName">Map Name</label>
-            <input type="text" class="form-control" id="mapName" placeholder="Untitled">
-          </div>
-          <div class="form-group">
-            <label for="author">Map Author</label>
-            <input type="text" class="form-control" id="author" placeholder="Anonymous">
+          <div id="mapMetaModalHost">
+            <div id="mapMetaFields">
+              <div class="form-group">
+                <label for="mapName">Map Name</label>
+                <input type="text" class="form-control" id="mapName" placeholder="Untitled">
+              </div>
+              <div class="form-group">
+                <label for="author">Map Author</label>
+                <input type="text" class="form-control" id="author" placeholder="Anonymous">
+              </div>
+            </div>
           </div>
         </div>
 
