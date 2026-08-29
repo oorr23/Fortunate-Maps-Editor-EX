@@ -475,10 +475,10 @@ $(function() {
     if (this.disabled) return;
     if (window.TagproMap && TagproMap.zoomOut) TagproMap.zoomOut();
   });
-  $('#tileSettingsBtn, #loupeTileSettings').on('click', function(e) {
+  $('#tileSettingsBtn').on('click', function(e) {
     openFocusedTileSettings(e);
   });
-  $('#tileSettingsBtn, #loupeTileSettings').on('pointerdown mousedown touchstart', function(e) {
+  $('#tileSettingsBtn').on('pointerdown mousedown touchstart', function(e) {
     e.stopPropagation();
   });
   $map.on('mouseup', '.tile', function() {
@@ -494,7 +494,7 @@ $(function() {
   }
 
   function isLoupeSettingsControl(el) {
-    return !!(el && $(el).closest('#loupeTileSettings, #tileSettingsBtn').length);
+    return !!(el && $(el).closest('#tileSettingsBtn').length);
   }
 
   function tileFromPoint(clientX, clientY) {
@@ -544,11 +544,13 @@ $(function() {
       || name === 'redSpawn' || name === 'blueSpawn';
   }
 
-  // Dialogue on hold only when zoomed in and not placing a portal/button/spawn.
+  // Hold opens the dialog when zoomed in, or when the magnifier is already open.
+  // Placing a portal/button/spawn still paints instead.
   function shouldOpenSettingsOnHold() {
-    if (!mapIsZoomedIn()) return false;
     if (brushIsSettingsDeploy()) return false;
-    return true;
+    if (mapIsZoomedIn()) return true;
+    if (loupeVisible) return true;
+    return false;
   }
 
   // Buttons are a 14px circle. A click on the neighboring gravity well
@@ -712,14 +714,8 @@ $(function() {
     var cell = focusedSettingsCell();
     var on = !!cell;
     var $dock = $('#tileSettingsBtn');
-    var $loupeBtn = $('#loupeTileSettings');
     $dock.prop('disabled', !on).attr('aria-disabled', on ? 'false' : 'true');
     $dock.toggleClass('has-settings', on);
-    if (loupeVisible && !loupeFollow && !holdMovingLoupe && mapHasSettings(loupeCenterX, loupeCenterY)) {
-      $loupeBtn.removeAttr('hidden').prop('disabled', false);
-    } else {
-      $loupeBtn.attr('hidden', 'hidden').prop('disabled', true);
-    }
   }
 
   function openFocusedTileSettings(e) {

@@ -311,7 +311,6 @@
   <div id="loupe" class="loupe" aria-hidden="true">
     <div id="loupeInner" class="loupe-inner"></div>
     <div class="loupe-crosshair"></div>
-    <button type="button" id="loupeTileSettings" class="loupe-tile-settings" hidden>Tile settings</button>
   </div>
 
   <input type="file" id="pngFileInput" accept="image/png,.png" style="display:none">
@@ -413,7 +412,7 @@
         </div>
         <div class="modal-body instructions-body">
           <p><strong>Draw.</strong> Pick a tile from the palette carousel, then tap or drag on the map. Dock tools (brush, line, fill, and the rest) paint many tiles at once.</p>
-          <p><strong>Tile settings.</strong> Portals, buttons, and team spawns have extra options. While zoomed in, hold the tile for 0.75 seconds (a near miss still counts); or use Tile settings in the dock. A tap paints. If you are not zoomed in, hold opens the magnifier instead. Painting with a portal, button, or spawn selected does not open the dialog.</p>
+          <p><strong>Tile settings.</strong> Portals, buttons, and team spawns have extra options. While zoomed in, or while the magnifier is open, hold the tile for 0.75 seconds to open the dialog (centered). A tap paints. If you are not zoomed in, hold opens the magnifier instead. Painting with a portal, button, or spawn selected does not open the dialog. Tile in the dock also opens settings.</p>
           <ul>
             <li>Portal: cooldown in milliseconds (0 = none).</li>
             <li>Button: timer in seconds (0 = off when you leave; negative = stays on).</li>

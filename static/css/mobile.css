@@ -54,29 +54,6 @@ html, body {
   pointer-events: none;
 }
 
-.loupe-tile-settings {
-  position: absolute;
-  left: 50%;
-  bottom: -48px;
-  transform: translateX(-50%);
-  z-index: 3;
-  pointer-events: auto;
-  white-space: nowrap;
-  min-height: 40px;
-  padding: 6px 12px;
-  border: 1px solid #3a3f4a;
-  border-radius: 10px;
-  background: #2a2f38;
-  color: #f2f2f2;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
-}
-
-.loupe-tile-settings[hidden] {
-  display: none !important;
-}
-
 body.modal-open .loupe,
 body.tile-settings-open .loupe {
   pointer-events: none;
