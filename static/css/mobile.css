@@ -648,10 +648,8 @@ html:not(.layout-desktop) #moreSheet .form-group:last-child {
 
 html.layout-mobile #themeSwitcher > label,
 html.layout-mobile #layoutSwitcher > label,
-html.layout-mobile #texturePackSection > label,
 html:not(.layout-desktop) #themeSwitcher > label,
-html:not(.layout-desktop) #layoutSwitcher > label,
-html:not(.layout-desktop) #texturePackSection > label {
+html:not(.layout-desktop) #layoutSwitcher > label {
   display: none;
 }
 

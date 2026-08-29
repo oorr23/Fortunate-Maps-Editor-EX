@@ -254,9 +254,8 @@
       <nav class="more-nav" aria-label="Map options">
         <button type="button" class="more-nav-btn" data-panel="file" aria-expanded="false">File</button>
         <button type="button" class="more-nav-btn" data-panel="map" aria-expanded="false">Map</button>
-        <button type="button" class="more-nav-btn" data-panel="theme" aria-expanded="false">Theme</button>
         <button type="button" class="more-nav-btn" data-panel="layout" aria-expanded="false">Layout</button>
-        <button type="button" class="more-nav-btn" data-panel="textures" aria-expanded="false">Texture pack</button>
+        <button type="button" class="more-nav-btn" data-panel="theme" aria-expanded="false">Theme</button>
       </nav>
 
       <div class="more-panels">
@@ -355,16 +354,6 @@
           </div>
         </div>
 
-        <div class="more-panel" data-panel="theme" hidden>
-          <div class="form-group" id="themeSwitcher">
-            <label>Theme</label>
-            <div class="btn-group btn-group-justified">
-              <a href="#" id="themeDarkBtn" class="btn btn-default">Dark</a>
-              <a href="#" id="themeLightBtn" class="btn btn-default">Light</a>
-            </div>
-          </div>
-        </div>
-
         <div class="more-panel" data-panel="layout" hidden>
           <div class="form-group" id="layoutSwitcher">
             <label>Layout</label>
@@ -377,7 +366,14 @@
           </div>
         </div>
 
-        <div class="more-panel" data-panel="textures" hidden>
+        <div class="more-panel" data-panel="theme" hidden>
+          <div class="form-group" id="themeSwitcher">
+            <label>Theme</label>
+            <div class="btn-group btn-group-justified">
+              <a href="#" id="themeDarkBtn" class="btn btn-default">Dark</a>
+              <a href="#" id="themeLightBtn" class="btn btn-default">Light</a>
+            </div>
+          </div>
           <div class="form-group" id="texturePackSection">
             <label for="texturePackSelect">Texture pack</label>
             <select id="texturePackSelect" class="form-control">
