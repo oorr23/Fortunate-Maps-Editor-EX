@@ -172,8 +172,9 @@ html:not(.layout-desktop) #map {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  /* flex-start keeps overflow before the start reachable; pinMapCanvas / margin:auto center a smaller map. */
+  align-items: flex-start;
+  justify-content: flex-start;
   order: 1;
   flex: 1 1 auto;
   min-width: 0;
@@ -1650,8 +1651,8 @@ html.layout-desktop #map {
   position: fixed;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   top: 0;
   bottom: 0;
   right: 0;

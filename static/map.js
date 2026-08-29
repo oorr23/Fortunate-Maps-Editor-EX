@@ -3295,7 +3295,9 @@ $(function() {
     var c = mapCanvasEl();
     var el = document.getElementById('map');
     if (!c || !el || !tiles || !tiles.length) return;
-    if (!(viewScale > 0) || Math.abs(viewScale - 1) < 0.02) return;
+    if (!(viewScale > 0)) return;
+    var identity = Math.abs(viewScale - 1) < 1e-6 && Math.abs(viewTx) < 0.05 && Math.abs(viewTy) < 0.05;
+    if (identity) return;
 
     var center = mapViewCenter();
     if (clientX == null) clientX = center.x;
@@ -3309,25 +3311,19 @@ $(function() {
     var lim = minMaxTileSize();
     var next = Math.round(visual);
     next = Math.max(lim.min, Math.min(lim.max, next));
-    if (next === oldTile) return;
-
-    var leftover = visual / next;
-    if (Math.abs(leftover - 1) < 0.002) leftover = 1;
     var ratio = next / oldTile;
 
     viewScale = 1;
     viewTx = 0;
     viewTy = 0;
     applyViewTransform();
-    applyTilePixelSize(next);
+    if (next !== oldTile) applyTilePixelSize(next);
     pinMapCanvas();
 
     var cr2 = c.getBoundingClientRect();
-    viewScale = leftover;
-    viewTx = clientX - cr2.left - localX * ratio * leftover;
-    viewTy = clientY - cr2.top - localY * ratio * leftover;
-    applyViewTransform();
-    zoom = zoomLevelFromTileSize(next);
+    el.scrollLeft += (cr2.left + localX * ratio) - clientX;
+    el.scrollTop += (cr2.top + localY * ratio) - clientY;
+    zoom = zoomLevelFromTileSize(tileSize);
     enableZoomButtons();
     if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
