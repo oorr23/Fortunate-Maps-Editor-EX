@@ -10,7 +10,7 @@
   function readOverride() {
     try {
       var value = global.localStorage && global.localStorage.getItem(STORAGE_KEY);
-      if (value === 'mobile' || value === 'desktop') return value;
+      if (value === 'mobile' || value === 'desktop' || value === 'gamepad') return value;
     } catch (err) {}
     return null;
   }
@@ -42,18 +42,28 @@
   }
 
   function chooseLayout(force) {
-    if (force === 'mobile' || force === 'desktop') return force;
+    if (force === 'mobile' || force === 'desktop' || force === 'gamepad') return force;
     var override = readOverride();
     if (override) return override;
+    // Auto never picks gamepad — that layout is explicit only.
     return detectDesktop() ? 'desktop' : 'mobile';
+  }
+
+  function applyLayoutClasses(el, layout) {
+    if (!el || !el.classList) return;
+    el.classList.remove('layout-mobile', 'layout-desktop', 'layout-gamepad');
+    if (layout === 'gamepad') {
+      el.classList.add('layout-mobile', 'layout-gamepad');
+    } else if (layout) {
+      el.classList.add('layout-' + layout);
+    }
   }
 
   function applyLayout(force) {
     var layout = chooseLayout(force);
     var root = document.documentElement;
     var previous = root.getAttribute('data-layout');
-    root.classList.remove('layout-mobile', 'layout-desktop');
-    root.classList.add('layout-' + layout);
+    applyLayoutClasses(root, layout);
     root.setAttribute('data-layout', layout);
     root.setAttribute('data-layout-override', readOverride() || 'auto');
     var width = global.innerWidth || (root && root.clientWidth) || 0;
@@ -61,10 +71,7 @@
     var landscape = mq('(orientation: landscape)') || (width >= height && width > 0);
     root.classList.toggle('orient-landscape', !!landscape);
     root.classList.toggle('orient-portrait', !landscape);
-    if (document.body) {
-      document.body.classList.remove('layout-mobile', 'layout-desktop');
-      document.body.classList.add('layout-' + layout);
-    }
+    if (document.body) applyLayoutClasses(document.body, layout);
     if (previous && previous !== layout) {
       try {
         root.dispatchEvent(new CustomEvent('tagpro-layout', { detail: { layout: layout } }));
@@ -74,7 +81,7 @@
   }
 
   function setOverride(value) {
-    if (value !== 'mobile' && value !== 'desktop') value = null;
+    if (value !== 'mobile' && value !== 'desktop' && value !== 'gamepad') value = null;
     writeOverride(value);
     return applyLayout();
   }

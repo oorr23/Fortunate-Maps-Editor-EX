@@ -52,9 +52,10 @@ $(function() {
 
   function syncLayoutSwitcher() {
     var override = (window.TagproLayout && window.TagproLayout.getOverride && window.TagproLayout.getOverride()) || null;
-    $('#layoutAuto, #layoutMobileBtn, #layoutDesktopBtn').removeClass('active');
+    $('#layoutAuto, #layoutMobileBtn, #layoutDesktopBtn, #layoutGamepadBtn').removeClass('active');
     if (override === 'mobile') $('#layoutMobileBtn').addClass('active');
     else if (override === 'desktop') $('#layoutDesktopBtn').addClass('active');
+    else if (override === 'gamepad') $('#layoutGamepadBtn').addClass('active');
     else $('#layoutAuto').addClass('active');
   }
 
@@ -80,11 +81,19 @@ $(function() {
     syncLayoutSwitcher();
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);
   });
+  $('#layoutGamepadBtn').on('click', function(e) {
+    e.preventDefault();
+    if (window.TagproLayout) TagproLayout.setOverride('gamepad');
+    closeMore();
+    syncLayoutSwitcher();
+    if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);
+  });
 
   document.documentElement.addEventListener('tagpro-layout', function() {
     finishLivePinch();
     if (!isPhoneLayout()) hideLoupe();
     placeMapMetaFields();
+    syncLayoutSwitcher();
   });
 
   var THEME_KEY = 'tagpro-theme';
@@ -210,6 +219,19 @@ $(function() {
     syncLandscapeBackdrop();
     if (!$moreSheet.attr('data-open')) setMorePanel('file');
   }
+
+  window.TagproMore = {
+    open: openMore,
+    close: closeMore,
+    toggle: function() {
+      if ($moreSheet.hasClass('open')) closeMore();
+      else openMore();
+    },
+    setPanel: setMorePanel,
+    isOpen: function() {
+      return $moreSheet.hasClass('open');
+    }
+  };
 
   $('#moreToggle').on('click', function() {
     if ($moreSheet.hasClass('open')) closeMore();
@@ -1203,6 +1225,20 @@ $(function() {
     return $(row.children[x]).find('.tile').first();
   }
 
+  function markWorkTile() {
+    var mapRoot = document.getElementById('map');
+    if (!mapRoot) return;
+    var old = mapRoot.querySelectorAll('.gp-work-tile');
+    for (var i = 0; i < old.length; i++) old[i].classList.remove('gp-work-tile');
+    var $tile = mapTileAt(loupeCenterX, loupeCenterY);
+    if (!$tile || !$tile.length) return;
+    $tile[0].classList.add('gp-work-tile');
+    var bg = $tile[0].parentNode;
+    if (bg && bg.classList && bg.classList.contains('tileBackground')) {
+      bg.classList.add('gp-work-tile');
+    }
+  }
+
   function setLoupeWorkTile(x, y) {
     if (x == null || y == null || isNaN(x) || isNaN(y)) return;
     loupeCenterX = Number(x);
@@ -1210,6 +1246,31 @@ $(function() {
     clampLoupeCenter();
     loupeFocusTile = { x: loupeCenterX, y: loupeCenterY };
     refreshTileSettingsControl();
+    markWorkTile();
+  }
+
+  function paintWorkTile(phase) {
+    if (phase === 'end') {
+      endLoupePaint();
+      return;
+    }
+    var $tile = mapTileAt(loupeCenterX, loupeCenterY);
+    if (!$tile.length) return;
+    if (phase === 'start') {
+      painting = true;
+      loupePainting = false;
+      lastTileEl = $tile[0];
+      triggerTile($tile, 'mousedown');
+      triggerTile($tile, 'mouseenter');
+      captureLoupeFocusTile($tile);
+    } else {
+      if (lastTileEl && lastTileEl !== $tile[0]) {
+        triggerTile($(lastTileEl), 'mouseleave');
+        triggerTile($tile, 'mouseenter');
+      }
+      triggerTile($tile, 'mousemove');
+      lastTileEl = $tile[0];
+    }
   }
 
   function loupeCellFromPoint(clientX, clientY) {
@@ -2475,10 +2536,13 @@ $(function() {
       refresh: function() {
         if (loupeVisible) renderLoupe();
         refreshTileSettingsControl();
+        markWorkTile();
       },
       hide: hideLoupe,
       visible: function() { return loupeVisible; },
       center: function() { return { x: loupeCenterX, y: loupeCenterY }; },
+      setWorkTile: setLoupeWorkTile,
+      paintWorkTile: paintWorkTile,
       tracking: function() { return !!(loupeFollow || holdMovingLoupe || loupePainting); },
       dismissing: function() { return !!pendingDismiss; },
       isEmulatedMouse: isEmulatedMouse,

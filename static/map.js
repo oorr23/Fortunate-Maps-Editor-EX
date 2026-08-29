@@ -1431,6 +1431,7 @@ $(function() {
     if (typeof tilesRebuiltListener === 'function') {
       try { tilesRebuiltListener(); } catch (err) {}
     }
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
   function confirmLargeMap(nextW, nextH) {

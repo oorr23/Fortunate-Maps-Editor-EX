@@ -417,8 +417,9 @@
               <a href="#" id="layoutAuto" class="btn btn-default">Auto</a>
               <a href="#" id="layoutMobileBtn" class="btn btn-default">Mobile</a>
               <a href="#" id="layoutDesktopBtn" class="btn btn-default">Desktop</a>
+              <a href="#" id="layoutGamepadBtn" class="btn btn-default">Gamepad</a>
             </div>
-            <p class="help-block more-help">Mobile is the default. Desktop is used only on wide screens with a mouse.</p>
+            <p class="help-block more-help">Gamepad is for handhelds/Steam Deck; Auto never picks it.</p>
           </div>
         </div>
 
@@ -570,6 +571,7 @@
         <button type="button" class="dock-btn" id="tileSettingsBtn" title="Tile settings for the yellow-crosshair or focused tile" disabled aria-disabled="true"><span class="glyphicon glyphicon-cog"></span> Tile</button>
         <button type="button" class="dock-btn" id="moreToggle" title="More options"><span class="glyphicon glyphicon-option-horizontal"></span> More</button>
       </div>
+      <div id="gpLegend" class="gp-legend" aria-hidden="true">A paint · B undo · shoulders palette · Start more</div>
     </div>
   </aside>
 
@@ -694,6 +696,7 @@
           <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
           <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row. Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
           <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe in from the right edge of the screen for room chat (join/leave lines and messages). Esc, a swipe back, or a tap outside closes it.</p>
+          <p><strong>Gamepad.</strong> Choose Layout → Gamepad on a Steam Deck or other handheld. Left stick or D-pad steps the yellow work tile; right stick pans the map. A paints (hold A and move for a trail). B undo, X redo, Y tile settings. Shoulders change palette tiles; triggers zoom. Select cycles tools; Start opens More. L3 scrolls the work tile into view. Connecting a pad never switches layout by itself — press A on the hint, or pick Gamepad in Appearance.</p>
           <p>Happy map making.</p>
         </div>
         <div class="modal-footer">
@@ -717,9 +720,12 @@
     </form>
   </aside>
   
+  <div id="gpHint" class="gp-hint" hidden role="status">Press A to use Gamepad layout</div>
+
   <script type="text/javascript" src="textures.js"></script>
   <script type="text/javascript" src="map.js"></script>
   <script type="text/javascript" src="collab.js"></script>
   <script type="text/javascript" src="mobile.js"></script>
+  <script type="text/javascript" src="gamepad.js"></script>
 
 </body></html>

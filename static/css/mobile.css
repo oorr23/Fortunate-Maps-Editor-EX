@@ -2089,3 +2089,64 @@ html:not(.layout-desktop) .modal-dialog {
   width: auto !important;
   max-width: calc(100vw - 24px);
 }
+
+#layoutSwitcher .btn-group-justified > .btn {
+  font-size: 12px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.gp-legend {
+  display: none;
+}
+
+html.layout-gamepad .gp-legend {
+  display: block;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #c8c4bb;
+  text-align: center;
+  padding: 2px 8px 4px;
+  letter-spacing: 0.01em;
+}
+
+html.layout-gamepad #map .tileBackground.gp-work-tile {
+  outline: 2px solid rgba(255, 220, 50, 0.95);
+  outline-offset: -2px;
+  position: relative;
+  z-index: 4;
+}
+
+html.layout-gamepad #map .tile.gp-work-tile {
+  outline: none;
+}
+
+.gp-hint {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 12000;
+  max-width: calc(100vw - 24px);
+  background: rgba(20, 22, 28, 0.94);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+
+.gp-hint[hidden] {
+  display: none !important;
+}
+
+.gp-focus {
+  outline: 3px solid #4db8ff !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45);
+  position: relative;
+  z-index: 2;
+}
