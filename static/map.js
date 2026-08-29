@@ -2720,9 +2720,11 @@ $(function() {
 
   var $track = $("<div class='palette-track'></div>");
   for (var copy = 0; copy < 3; copy++) {
+    var $copy = $("<div class='palette-copy'></div>");
     for (var i = 0; i < paletteOrder.length; i++) {
-      $track.append(makePaletteButton(paletteOrder[i]));
+      $copy.append(makePaletteButton(paletteOrder[i]));
     }
+    $track.append($copy);
   }
   $palette.append($track);
   setBrushTileType(floorType);

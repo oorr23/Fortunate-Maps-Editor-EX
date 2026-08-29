@@ -1,3 +1,7 @@
+.palette-copy {
+    display: contents;
+}
+
 div.tileRow {
     height:40px;
     font-size: 0;
