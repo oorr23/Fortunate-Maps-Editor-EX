@@ -1937,6 +1937,7 @@ $(function() {
     });
     $('#tileSettingsBackdrop, .tile-settings-backdrop').remove();
     $('body').removeClass('tile-settings-open');
+    if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
   function showTileSettingsModal($modal) {
@@ -2164,6 +2165,8 @@ $(function() {
         if (controlDown) {
           var eyeDropBrushType = tiles[x][y].type;
           setBrushTileType(eyeDropBrushType);
+        } else if (tileHasSettings(x, y) && !isLoupeSyntheticEvent(e) && !mouseDown) {
+          // Native still-click on a Button/portal/spawn opens settings; do not paint.
         } else {
           var change = selectedTool.speculateUp(x,y);
           if (change && !selectedTool.previewOnly) {
