@@ -10,6 +10,178 @@
 		<meta name="theme-color" content="#1a1d23">
 		<meta name="format-detection" content="telephone=no">
 		<title>TagPro Map Editor</title>
+		<script>
+			(function () {
+				var KEY = 'tagpro-load-screen';
+				var html = document.documentElement;
+				var skip = false;
+				try {
+					skip = sessionStorage.getItem(KEY) === '1';
+					if (!skip) sessionStorage.setItem(KEY, '1');
+				} catch (e) {}
+				html.className += skip ? ' splash-skip' : ' splash-play';
+			})();
+		</script>
+		<style>
+			html.splash-play, html.splash-play body { background: #1a1d23; overflow: hidden; }
+			html.splash-skip #splash { display: none !important; }
+			#splash {
+				position: fixed;
+				inset: 0;
+				z-index: 20000;
+				background: #1a1d23;
+				color: #fff;
+				-webkit-user-select: none;
+				user-select: none;
+				touch-action: none;
+				opacity: 1;
+				transition: opacity 0.32s ease;
+			}
+			#splash.splash-out { opacity: 0; pointer-events: none; }
+			.splash-floor {
+				position: absolute;
+				inset: 0;
+				background-color: #1a1d23;
+				background-image:
+					linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+					linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+				background-size: 40px 40px;
+				background-position: center;
+			}
+			.splash-floor::before,
+			.splash-floor::after {
+				content: "";
+				position: absolute;
+				width: 55%;
+				height: 55%;
+				pointer-events: none;
+			}
+			.splash-floor::before {
+				left: -12%;
+				top: 22%;
+				background: radial-gradient(circle, rgba(226,60,60,0.28), transparent 68%);
+			}
+			.splash-floor::after {
+				right: -12%;
+				top: 22%;
+				background: radial-gradient(circle, rgba(45,110,255,0.28), transparent 68%);
+			}
+			.splash-stage {
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				width: 280px;
+				height: 220px;
+				margin: -110px 0 0 -140px;
+			}
+			.splash-arena {
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				width: 240px;
+				height: 160px;
+				margin: -80px 0 0 -120px;
+				border-radius: 6px;
+				background-color: #252a33;
+				background-image:
+					linear-gradient(rgba(0,0,0,0.28) 1px, transparent 1px),
+					linear-gradient(90deg, rgba(0,0,0,0.28) 1px, transparent 1px);
+				background-size: 40px 40px;
+				background-position: center;
+				box-shadow: 0 0 0 8px #3d4552, 0 10px 28px rgba(0,0,0,0.45);
+			}
+			.splash-ring {
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				width: 200px;
+				height: 200px;
+				margin: -100px 0 0 -100px;
+				animation: splash-orbit 3s cubic-bezier(0.45, 0.05, 0.2, 1) both;
+			}
+			.splash-ball {
+				position: absolute;
+				left: 50%;
+				width: 52px;
+				height: 52px;
+				margin-left: -26px;
+				border-radius: 50%;
+				animation: splash-counter 3s cubic-bezier(0.45, 0.05, 0.2, 1) both;
+			}
+			.splash-ball::after {
+				content: "";
+				position: absolute;
+				left: 16%;
+				top: 14%;
+				width: 38%;
+				height: 26%;
+				border-radius: 50%;
+				background: rgba(255,255,255,0.88);
+			}
+			.splash-ball-red {
+				top: 0;
+				background: radial-gradient(circle at 32% 28%, #ff9b9b 0%, #ff3b3b 34%, #c01010 72%, #7a0808 100%);
+				box-shadow: inset -5px -7px 12px rgba(0,0,0,0.35), 0 8px 16px rgba(0,0,0,0.4);
+			}
+			.splash-ball-blue {
+				bottom: 0;
+				background: radial-gradient(circle at 32% 28%, #9ec4ff 0%, #3b6bff 34%, #1038c0 72%, #08187a 100%);
+				box-shadow: inset -5px -7px 12px rgba(0,0,0,0.35), 0 8px 16px rgba(0,0,0,0.4);
+			}
+			.splash-mark {
+				position: absolute;
+				left: 0;
+				right: 0;
+				top: 50%;
+				margin-top: -28px;
+				z-index: 1;
+				text-align: center;
+				font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+				animation: splash-mark-in 3s ease both;
+			}
+			.splash-tag, .splash-pro {
+				font-weight: 800;
+				font-size: 34px;
+				letter-spacing: 0.01em;
+				line-height: 1.1;
+			}
+			.splash-tag { color: #ff4d4d; }
+			.splash-pro { color: #4d8dff; }
+			.splash-sub {
+				display: block;
+				margin-top: 6px;
+				font-size: 12px;
+				font-weight: 650;
+				letter-spacing: 0.28em;
+				text-transform: uppercase;
+				color: #d5cfc4;
+			}
+			@keyframes splash-orbit {
+				0% { transform: rotate(-90deg) scale(1.58); }
+				100% { transform: rotate(270deg) scale(1); }
+			}
+			@keyframes splash-counter {
+				0% { transform: rotate(90deg); }
+				100% { transform: rotate(-270deg); }
+			}
+			@keyframes splash-mark-in {
+				0%, 6% { opacity: 0; transform: translateY(8px); }
+				28%, 100% { opacity: 1; transform: translateY(0); }
+			}
+			@media (max-width: 360px) {
+				.splash-stage { width: 240px; margin-left: -120px; }
+				.splash-ring { width: 168px; height: 168px; margin: -84px 0 0 -84px; }
+				.splash-ball { width: 44px; height: 44px; margin-left: -22px; }
+				.splash-tag, .splash-pro { font-size: 28px; }
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.splash-ring, .splash-ball, .splash-mark { animation: none !important; }
+				.splash-ring { transform: none; }
+				.splash-ball-red { top: 50%; left: 0; margin: -26px 0 0 0; }
+				.splash-ball-blue { top: 50%; bottom: auto; left: auto; right: 0; margin: -26px 0 0 0; }
+				.splash-mark { opacity: 1; transform: none; }
+			}
+		</style>
 		<script src="generatepng.js"></script>
 		<script src="webtoolkit.base64.js"></script>
 		<script src="jquery-2.1.0.min.js"></script>
@@ -24,6 +196,51 @@
 </head>
 
 <body>
+
+  <div id="splash" role="status" aria-live="polite" aria-label="TagPro Map Editor">
+    <div class="splash-floor" aria-hidden="true"></div>
+    <div class="splash-stage">
+      <div class="splash-arena" aria-hidden="true"></div>
+      <div class="splash-ring" aria-hidden="true">
+        <span class="splash-ball splash-ball-red"></span>
+        <span class="splash-ball splash-ball-blue"></span>
+      </div>
+      <div class="splash-mark">
+        <span class="splash-tag">Tag</span><span class="splash-pro">Pro</span>
+        <span class="splash-sub">Map Editor</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var HOLD_MS = 3000;
+      var FADE_MS = 320;
+      var splash = document.getElementById('splash');
+      var html = document.documentElement;
+      if (!splash) return;
+      if (/\bsplash-skip\b/.test(html.className)) {
+        if (splash.parentNode) splash.parentNode.removeChild(splash);
+        return;
+      }
+      var held = false;
+      var ready = document.readyState !== 'loading';
+      function dismiss() {
+        if (!held || !ready) return;
+        if (/\bsplash-out\b/.test(splash.className)) return;
+        splash.className += ' splash-out';
+        setTimeout(function () {
+          if (splash.parentNode) splash.parentNode.removeChild(splash);
+          html.className = html.className.replace(/\bsplash-play\b/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+        }, FADE_MS);
+      }
+      function onReady() {
+        ready = true;
+        dismiss();
+      }
+      if (!ready) document.addEventListener('DOMContentLoaded', onReady);
+      setTimeout(function () { held = true; dismiss(); }, HOLD_MS);
+    })();
+  </script>
 
   <div id="app">
   <aside id="sidebar">
