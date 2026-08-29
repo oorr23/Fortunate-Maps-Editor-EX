@@ -646,9 +646,7 @@ html:not(.layout-desktop) #moreSheet .form-group:last-child {
   margin-bottom: 0;
 }
 
-html.layout-mobile #themeSwitcher > label,
 html.layout-mobile #layoutSwitcher > label,
-html:not(.layout-desktop) #themeSwitcher > label,
 html:not(.layout-desktop) #layoutSwitcher > label {
   display: none;
 }
