@@ -170,9 +170,33 @@ $(function() {
     }
   }
 
+  function officialEntryFromId(id) {
+    return {
+      id: id,
+      name: id,
+      author: '',
+      tiles: '/textures/' + id + '/tiles.png',
+      speedpad: '/textures/' + id + '/speedpad.png',
+      speedpadRed: '/textures/' + id + '/speedpadred.png',
+      speedpadBlue: '/textures/' + id + '/speedpadblue.png',
+      portal: '/textures/' + id + '/portal.png',
+      portalRed: '/textures/' + id + '/portalred.png',
+      portalBlue: '/textures/' + id + '/portalblue.png',
+      gravityWell: '/images/gravitywell.png'
+    };
+  }
+
+  function packFromIdImmediate(id) {
+    if (!id || id === EDITOR_DEFAULT.id) return clonePack(EDITOR_DEFAULT);
+    if (id === 'imported') return imported ? clonePack(imported) : packFromIdImmediate('classic');
+    var entry = findOfficial(id);
+    if (entry) return packFromOfficial(entry);
+    return packFromOfficial(officialEntryFromId(id));
+  }
+
   function packById(id) {
     if (!id || id === EDITOR_DEFAULT.id) return clonePack(EDITOR_DEFAULT);
-    if (id === 'imported') return imported ? clonePack(imported) : clonePack(EDITOR_DEFAULT);
+    if (id === 'imported') return imported ? clonePack(imported) : packFromIdImmediate('classic');
     var entry = findOfficial(id);
     return entry ? packFromOfficial(entry) : clonePack(EDITOR_DEFAULT);
   }
@@ -394,6 +418,33 @@ $(function() {
     });
   }
 
+  function savedPackId() {
+    var saved = 'classic';
+    try { saved = localStorage.getItem(ID_KEY) || saved; } catch (err) {}
+    return saved;
+  }
+
+  function syncTilesheetCss() {
+    var tilesUrl = (current && current.urls && current.urls.tiles) || EDITOR_DEFAULT.urls.tiles;
+    var sheet = document.getElementById('texturePackSheet');
+    if (!sheet) {
+      sheet = document.createElement('style');
+      sheet.id = 'texturePackSheet';
+      document.head.appendChild(sheet);
+    }
+    sheet.textContent = 'div.tileQuadrant{background-image:url("' + String(tilesUrl).replace(/"/g, '\\"') + '") !important;}';
+  }
+
+  function applySavedPackSync() {
+    loadImported();
+    current = packFromIdImmediate(savedPackId());
+    var label = current.name + (current.author ? ' — ' + current.author : '');
+    setStatus(label);
+    syncTilesheetCss();
+  }
+
+  applySavedPackSync();
+
   window.TagproTextures = {
     urlFor: urlFor,
     tilesUrl: function() { return current.urls.tiles; },
@@ -469,11 +520,25 @@ $(function() {
     return done.promise();
   }
 
-  loadImported();
   loadCatalog().always(function() {
     fillSelect();
-    var saved = 'classic';
-    try { saved = localStorage.getItem(ID_KEY) || saved; } catch (err) {}
+    var saved = savedPackId();
+    var pack = packById(saved);
+    var sameTiles = current && current.urls && pack.urls && current.urls.tiles === pack.urls.tiles;
+    if (sameTiles && current.id === pack.id) {
+      current = clonePack(pack);
+      persist(current);
+      syncSelect();
+      setStatus(current.name + (current.author ? ' — ' + current.author : ''));
+      applying = true;
+      preload(pack.urls.tiles).then(function() {
+        applying = false;
+      }).catch(function() {
+        applying = false;
+        applyById(saved);
+      });
+      return;
+    }
     applyById(saved);
   });
 });

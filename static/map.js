@@ -1626,6 +1626,7 @@ $(function() {
     $('#mapName').val('Untitled');
     $('#author').val('Anonymous');
   };
+  redrawTextures();
   clearMap();
 
   var symmetry = 'None';
