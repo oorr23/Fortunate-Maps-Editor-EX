@@ -1903,9 +1903,10 @@ $(function() {
 
   var settingsModalGuardUntil = 0;
   var TILE_SETTINGS_MODALS = '#portalOptions, #switchOptions, #spawnOptions';
+  var SETTINGS_MODAL_GUARD_MS = 500;
 
   function armSettingsModalGuard() {
-    settingsModalGuardUntil = Date.now() + 300;
+    settingsModalGuardUntil = Date.now() + SETTINGS_MODAL_GUARD_MS;
     if (window.TagproLoupe && TagproLoupe.armSettingsModalGuard) {
       TagproLoupe.armSettingsModalGuard(settingsModalGuardUntil);
     }
@@ -1913,6 +1914,46 @@ $(function() {
 
   function tileSettingsIsOpen() {
     return $('body').hasClass('tile-settings-open');
+  }
+
+  function isGuardedTileSettingsTarget(el) {
+    if (!el) return false;
+    if (el.id === 'tileSettingsBackdrop') return true;
+    if (el.closest) {
+      if (el.closest('#tileSettingsBackdrop, .tile-settings-backdrop, .modal-backdrop')) return true;
+      if (el.closest('.tile-settings-dialog')) return true;
+      if (el.closest('[data-dismiss="tile-settings"]')) return true;
+    }
+    if (el.classList && (el.classList.contains('tile-settings-backdrop') || el.classList.contains('modal-backdrop'))) {
+      return true;
+    }
+    return false;
+  }
+
+  function swallowGuardedTileSettingsEvent(e) {
+    if (!settingsModalGuardUntil || Date.now() >= settingsModalGuardUntil) return;
+    if (!isGuardedTileSettingsTarget(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  }
+
+  document.addEventListener('click', swallowGuardedTileSettingsEvent, true);
+  document.addEventListener('pointerdown', swallowGuardedTileSettingsEvent, true);
+
+  function syncTileSettingsDockOffset() {
+    var root = document.documentElement;
+    if (!root) return;
+    var dock = document.getElementById('dock');
+    var sidebar = document.getElementById('sidebar');
+    var landscape = root.classList.contains('orient-landscape');
+    var offset = 8;
+    if (!landscape && sidebar) {
+      offset = Math.round(sidebar.getBoundingClientRect().height) + 8;
+    } else if (dock) {
+      offset = Math.round(dock.getBoundingClientRect().height) + 8;
+    }
+    root.style.setProperty('--tile-settings-dock-offset', offset + 'px');
   }
 
   function hideTileSettings() {
@@ -1942,6 +1983,7 @@ $(function() {
 
   function showTileSettingsModal($modal) {
     hideTileSettings();
+    syncTileSettingsDockOffset();
     armSettingsModalGuard();
     $('<div id="tileSettingsBackdrop" class="tile-settings-backdrop" aria-hidden="true"></div>')
       .appendTo(document.body);
@@ -1956,6 +1998,11 @@ $(function() {
   }
 
   $(document).on('click', '.tile-settings-dialog [data-dismiss="tile-settings"]', function(e) {
+    if (settingsModalGuardUntil && Date.now() < settingsModalGuardUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     hideTileSettings();
   });

@@ -721,24 +721,43 @@ html:not(.layout-desktop) .modal {
   z-index: 11000;
 }
 
-/* Compact card — never a full-viewport .modal hit layer. */
+/* Compact card parked above the bottom dock (or top of the viewport).
+   Never a full-viewport .modal hit layer over map-center Buttons. */
 #portalOptions,
 #switchOptions,
 #spawnOptions {
   position: fixed;
   left: 50%;
-  top: 12vh;
+  top: max(8px, env(safe-area-inset-top, 0px));
   right: auto;
   bottom: auto;
   transform: translateX(-50%);
   z-index: 11000;
-  width: max-content;
+  width: min(420px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   height: auto;
+  max-height: min(32vh, 180px);
+  overflow: auto;
   margin: 0;
   display: none !important;
   pointer-events: none;
   visibility: hidden;
+}
+
+html.layout-mobile #portalOptions.in,
+html.layout-mobile #portalOptions.is-open,
+html.layout-mobile #switchOptions.in,
+html.layout-mobile #switchOptions.is-open,
+html.layout-mobile #spawnOptions.in,
+html.layout-mobile #spawnOptions.is-open,
+html:not(.layout-desktop) #portalOptions.in,
+html:not(.layout-desktop) #portalOptions.is-open,
+html:not(.layout-desktop) #switchOptions.in,
+html:not(.layout-desktop) #switchOptions.is-open,
+html:not(.layout-desktop) #spawnOptions.in,
+html:not(.layout-desktop) #spawnOptions.is-open {
+  top: auto;
+  bottom: var(--tile-settings-dock-offset, 160px);
 }
 
 #portalOptions[hidden],
@@ -766,6 +785,35 @@ html:not(.layout-desktop) .modal {
   margin: 0;
   width: auto !important;
   max-width: 100%;
+}
+
+#portalOptions .modal-header,
+#switchOptions .modal-header,
+#spawnOptions .modal-header,
+#portalOptions .modal-footer,
+#switchOptions .modal-footer,
+#spawnOptions .modal-footer {
+  padding: 8px 12px;
+}
+
+#portalOptions .modal-body,
+#switchOptions .modal-body,
+#spawnOptions .modal-body {
+  padding: 8px 12px;
+}
+
+#portalOptions .modal-title,
+#switchOptions .modal-title,
+#spawnOptions .modal-title {
+  font-size: 16px;
+}
+
+#portalOptions .modal-body p,
+#switchOptions .modal-body p,
+#spawnOptions .modal-body p {
+  font-size: 12px;
+  line-height: 1.35;
+  margin-bottom: 6px;
 }
 
 .tile-settings-backdrop {

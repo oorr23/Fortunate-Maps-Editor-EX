@@ -537,6 +537,7 @@ $(function() {
   var lastOpenSettingsAt = 0;
   var lastOpenSettingsCell = null;
   var rememberedSettingsCell = null;
+  var pendingOpenSettingsTimer = 0;
   var OPEN_SETTINGS_DEBOUNCE_MS = 80;
 
   function settingsDialogIsOpen() {
@@ -557,6 +558,10 @@ $(function() {
   }
 
   function commitOpenSettings(x, y, fromNativeDblclick) {
+    if (pendingOpenSettingsTimer) {
+      clearTimeout(pendingOpenSettingsTimer);
+      pendingOpenSettingsTimer = 0;
+    }
     clearSettingsPaint();
     settingsPointerDown = false;
     parkedLoupePending = null;
@@ -713,6 +718,21 @@ $(function() {
     return commitOpenSettings(cell.x, cell.y);
   }
 
+  // Remember the cell now; insert the dialog after this gesture's leftover
+  // click has targeted the map. Chromium: pointerup → mouseup → click (map)
+  // → timeout (show). Click/dblclick may also call commitOpenSettings; the
+  // companion debounce and open-dialog check prevent a second open.
+  function queueOpenSettings(x, y) {
+    rememberSettingsCell(x, y);
+    refreshTileSettingsControl();
+    if (pendingOpenSettingsTimer) clearTimeout(pendingOpenSettingsTimer);
+    pendingOpenSettingsTimer = setTimeout(function() {
+      pendingOpenSettingsTimer = 0;
+      commitOpenSettings(x, y);
+    }, 0);
+    return true;
+  }
+
   function triggerTile($tile, type) {
     if (!$tile || !$tile.length) return;
     var ev = $.Event(type, { which: 1, button: 0, bubbles: true });
@@ -747,22 +767,31 @@ $(function() {
   var settingsModalGuardUntil = 0;
 
   function armSettingsModalGuard(until) {
-    settingsModalGuardUntil = until || (Date.now() + 300);
+    settingsModalGuardUntil = until || (Date.now() + 500);
   }
 
-  function isSettingsBackdropEl(el) {
+  function isGuardedTileSettingsTarget(el) {
     if (!el) return false;
     if (el.id === 'tileSettingsBackdrop') return true;
+    if (el.closest) {
+      if (el.closest('#tileSettingsBackdrop, .tile-settings-backdrop, .modal-backdrop')) return true;
+      if (el.closest('.tile-settings-dialog')) return true;
+      if (el.closest('[data-dismiss="tile-settings"]')) return true;
+    }
     if (!el.classList) return false;
     return el.classList.contains('tile-settings-backdrop') || el.classList.contains('modal-backdrop');
   }
 
-  document.addEventListener('click', function(e) {
+  function swallowGuardedTileSettingsEvent(e) {
     if (!settingsModalGuardUntil || Date.now() >= settingsModalGuardUntil) return;
-    if (!isSettingsBackdropEl(e.target)) return;
+    if (!isGuardedTileSettingsTarget(e.target)) return;
     e.preventDefault();
     e.stopPropagation();
-  }, true);
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  }
+
+  document.addEventListener('click', swallowGuardedTileSettingsEvent, true);
+  document.addEventListener('pointerdown', swallowGuardedTileSettingsEvent, true);
 
   function clearSettingsPaint() {
     pendingSettingsPaint = null;
@@ -792,7 +821,7 @@ $(function() {
     suppressLoupe = false;
     holdStart = null;
     if (x == null || y == null || !mapHasSettings(x, y)) return false;
-    return commitOpenSettings(x, y);
+    return queueOpenSettings(x, y);
   }
 
   function hideLoupe() {
@@ -1431,7 +1460,7 @@ $(function() {
       if (!cell) cell = { x: p.x, y: p.y };
       if (mapHasSettings(cell.x, cell.y)) {
         captureLoupeFocusTile(mapTileAt(cell.x, cell.y));
-        commitOpenSettings(cell.x, cell.y);
+        queueOpenSettings(cell.x, cell.y);
         return;
       }
       paintLoupeAt(p.clientX, p.clientY, 'start');
