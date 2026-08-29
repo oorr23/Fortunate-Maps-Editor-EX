@@ -210,6 +210,13 @@
       if (typeof el.focus === 'function') el.focus();
       return;
     }
+    if (el.classList && el.classList.contains('more-nav-btn')) {
+      var panel = el.getAttribute('data-panel');
+      if (global.TagproMore && TagproMore.setPanel) {
+        TagproMore.setPanel(panel, { keep: true });
+        return;
+      }
+    }
     clickEl(el);
   }
 
@@ -224,7 +231,10 @@
       if (modal && global.jQuery) $(modal).modal('hide');
       return;
     }
-    if (uiMode() === 'more') clickId('moreClose');
+    if (uiMode() === 'more') {
+      if (global.TagproMore && TagproMore.close) TagproMore.close();
+      else clickId('moreClose');
+    }
     setGpFocus(null);
   }
 
@@ -368,7 +378,8 @@
   }
 
   function toggleMore() {
-    clickId('moreToggle');
+    if (global.TagproMore && TagproMore.toggle) TagproMore.toggle();
+    else clickId('moreToggle');
   }
 
   function panMap(pad) {
@@ -470,10 +481,8 @@
     if (selectEdge) nextTool();
     if (startEdge) {
       toggleMore();
-      requestAnimationFrame(function () {
-        var first = document.querySelector('#moreSheet.open .more-nav-btn');
-        if (first) setGpFocus(first);
-      });
+      var first = document.querySelector('#moreSheet.open .more-nav-btn');
+      if (first) setGpFocus(first);
     }
     if (l3Edge) ensureWorkTileVisible(true);
   }

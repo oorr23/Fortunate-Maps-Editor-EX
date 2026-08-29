@@ -215,6 +215,19 @@ $(function() {
     if (!$moreSheet.attr('data-open')) setMorePanel('file');
   }
 
+  window.TagproMore = {
+    open: openMore,
+    close: closeMore,
+    toggle: function() {
+      if ($moreSheet.hasClass('open')) closeMore();
+      else openMore();
+    },
+    setPanel: setMorePanel,
+    isOpen: function() {
+      return $moreSheet.hasClass('open');
+    }
+  };
+
   $('#moreToggle').on('click', function() {
     if ($moreSheet.hasClass('open')) closeMore();
     else openMore();
