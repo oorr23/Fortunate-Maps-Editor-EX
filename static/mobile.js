@@ -347,7 +347,9 @@ $(function() {
         }
       }
       moreDrag.moved = true;
-      var name = moreDrag.panelName || $moreSheet.attr('data-open') || 'file';
+      var name = moreDrag.wasOpen
+        ? ($moreSheet.attr('data-open') || moreDrag.panelName || 'file')
+        : (moreDrag.panelName || $moreSheet.attr('data-open') || 'file');
       setMorePanel(name, { keep: true });
       $moreSheet.addClass('more-dragging');
       $moreBackdrop.addClass('open').removeAttr('hidden');
