@@ -45,6 +45,11 @@ $(function() {
     return !document.documentElement.classList.contains('layout-desktop');
   }
 
+  // Chromium synthesizes ctrlKey for trackpad pinch; Safari may use metaKey.
+  function isPinchWheel(e) {
+    return !!(e && (e.ctrlKey || e.metaKey));
+  }
+
   function syncLayoutSwitcher() {
     var override = (window.TagproLayout && window.TagproLayout.getOverride && window.TagproLayout.getOverride()) || null;
     $('#layoutAuto, #layoutMobileBtn, #layoutDesktopBtn').removeClass('active');
@@ -1689,7 +1694,7 @@ $(function() {
     pinchLastZoomAt = pinchDistance(t0, t1);
     twoFingerOnLoupe = bothTouchesOnLoupe(t0, t1);
     pinchLive = null;
-    if (isPhoneLayout() && !twoFingerOnLoupe && window.TagproMap && TagproMap.beginFocalZoom && lastPinchMid) {
+    if (!twoFingerOnLoupe && window.TagproMap && TagproMap.beginFocalZoom && lastPinchMid) {
       pinchLive = {
         startDist: pinchLastZoomAt,
         focal: TagproMap.beginFocalZoom(lastPinchMid.x, lastPinchMid.y)
@@ -1713,7 +1718,7 @@ $(function() {
     }
     lastPinchMid = mid;
     var dist = pinchDistance(t0, t1);
-    if (isPhoneLayout() && pinchLive && pinchLive.startDist && pinchLive.focal && window.TagproMap && TagproMap.setFocalZoom) {
+    if (pinchLive && pinchLive.startDist && pinchLive.focal && window.TagproMap && TagproMap.setFocalZoom) {
       TagproMap.setFocalZoom(pinchLive.focal, pinchLive.focal.baseScale * Math.pow(dist / pinchLive.startDist, PINCH_ZOOM_GAIN), mid.x, mid.y);
       pinchLastZoomAt = dist;
       return;
@@ -1735,7 +1740,7 @@ $(function() {
       wheelPinchTimer = 0;
     }
     var mid = lastPinchMid;
-    var skipRebase = twoFingerOnLoupe || !isPhoneLayout();
+    var skipRebase = twoFingerOnLoupe;
     pinchLive = null;
     if (skipRebase) return;
     if (window.TagproMap && TagproMap.rebaseTileSizeToView) {
@@ -1851,7 +1856,6 @@ $(function() {
   mapEl.addEventListener('touchstart', function(e) {
     noteTouch();
     if (e.touches.length === 2) {
-      if (!isPhoneLayout()) return;
       e.preventDefault();
       beginTwoFingerGesture(e.touches[0], e.touches[1]);
       return;
@@ -1920,7 +1924,6 @@ $(function() {
 
   mapEl.addEventListener('touchmove', function(e) {
     if (e.touches.length === 2) {
-      if (!isPhoneLayout()) return;
       e.preventDefault();
       twoFingerPanning = true;
       handleTwoFingerMove(e.touches[0], e.touches[1]);
@@ -1996,11 +1999,9 @@ $(function() {
       return;
     }
     if (e.touches.length === 1 && twoFingerPanning) {
-      var wasOnLoupe = twoFingerOnLoupe;
       clearTwoFingerGesture();
       painting = false;
       ignorePaintUntil = Date.now() + 350;
-      if (!isPhoneLayout() && !wasOnLoupe) return;
       return;
     }
     if (e.touches.length === 0) {
@@ -2155,9 +2156,8 @@ $(function() {
   });
 
   function applyMapWheel(e) {
-    if (!isPhoneLayout()) return;
     // Trackpads send wheel (and ctrl+wheel for pinch), not Touch Events.
-    if (e.ctrlKey || e.metaKey) {
+    if (isPinchWheel(e)) {
       if (window.TagproMap && TagproMap.zoomBy) {
         TagproMap.zoomBy(Math.pow(1.0016, -e.deltaY), e.clientX, e.clientY);
       }
@@ -2170,6 +2170,7 @@ $(function() {
       }, 140);
       return;
     }
+    if (!isPhoneLayout()) return;
     var dx = e.deltaX;
     var dy = e.deltaY;
     if (e.deltaMode === 1) {
@@ -2181,7 +2182,12 @@ $(function() {
   }
 
   mapEl.addEventListener('wheel', function(e) {
-    // Desktop: leave the event alone so a laptop touchpad stays a normal wheel.
+    if (isPinchWheel(e)) {
+      e.preventDefault();
+      applyMapWheel(e);
+      return;
+    }
+    // Desktop: leave non-pinch wheel alone so trackpad pan and mouse ticks stay native overflow.
     if (!isPhoneLayout()) return;
     e.preventDefault();
     if (loupeVisible && pointInLoupe(e.clientX, e.clientY)) {
@@ -2275,13 +2281,15 @@ $(function() {
     onLoupePrimaryDown(e);
   });
   loupeEl.addEventListener('wheel', function(e) {
-    if (!isPhoneLayout()) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.ctrlKey || e.metaKey) {
+    if (isPinchWheel(e)) {
+      e.preventDefault();
+      e.stopPropagation();
       applyMapWheel(e);
       return;
     }
+    if (!isPhoneLayout()) return;
+    e.preventDefault();
+    e.stopPropagation();
     accumulateLoupePan(e.deltaX, e.deltaY, wheelAcc);
   }, { passive: false });
 
@@ -2297,11 +2305,9 @@ $(function() {
   });
 
   document.addEventListener('gesturestart', function(e) {
-    if (!isPhoneLayout()) return;
     if ($(e.target).closest('#map').length) e.preventDefault();
   });
   document.addEventListener('gesturechange', function(e) {
-    if (!isPhoneLayout()) return;
     if ($(e.target).closest('#map').length) e.preventDefault();
   });
 
