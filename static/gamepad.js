@@ -523,7 +523,26 @@
   });
   document.documentElement.addEventListener('tagpro-layout', onLayout);
 
+  function bindBumpers() {
+    function onBumper(dir) {
+      return function (e) {
+        if (!isGamepadLayout()) return;
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (uiMode()) return;
+        stepPalette(dir);
+      };
+    }
+    var left = document.getElementById('gpBumperL');
+    var right = document.getElementById('gpBumperR');
+    if (left) left.addEventListener('click', onBumper(-1));
+    if (right) right.addEventListener('click', onBumper(1));
+  }
+
   $(function () {
+    bindBumpers();
     if (hasPad() && !isGamepadLayout()) showHint();
     if (shouldPoll()) ensureLoop();
     if (isGamepadLayout() && global.TagproLoupe && TagproLoupe.setWorkTile) {
@@ -531,4 +550,8 @@
       TagproLoupe.setWorkTile(c.x, c.y);
     }
   });
+
+  global.TagproGamepad = {
+    stepPalette: stepPalette
+  };
 })(window);
