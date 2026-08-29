@@ -736,7 +736,7 @@ html:not(.layout-desktop) .modal {
   width: min(420px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
   height: auto;
-  max-height: min(32vh, 180px);
+  max-height: calc(100dvh - var(--tile-settings-dock-offset, 160px) - 12px);
   overflow: auto;
   margin: 0;
   display: none !important;
