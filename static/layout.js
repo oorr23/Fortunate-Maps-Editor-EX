@@ -3,6 +3,11 @@
   var DESKTOP_MIN_WIDTH = 1024;
   var PORTRAIT_DESKTOP_MIN_WIDTH = 1280;
   var sessionOverride = null;
+  var OVERRIDES = { mobile: 1, desktop: 1, gamepad: 1, steamdeck: 1 };
+
+  function isOverride(value) {
+    return !!(value && OVERRIDES[value]);
+  }
 
   function mq(query) {
     return !!(global.matchMedia && global.matchMedia(query).matches);
@@ -15,14 +20,12 @@
   }
 
   function readOverride() {
-    if (sessionOverride === 'mobile' || sessionOverride === 'desktop' || sessionOverride === 'gamepad') {
-      return sessionOverride;
-    }
+    if (isOverride(sessionOverride)) return sessionOverride;
     return null;
   }
 
   function writeOverride(value) {
-    sessionOverride = (value === 'mobile' || value === 'desktop' || value === 'gamepad') ? value : null;
+    sessionOverride = isOverride(value) ? value : null;
   }
 
   function detectDesktop() {
@@ -42,18 +45,20 @@
   }
 
   function chooseLayout(force) {
-    if (force === 'mobile' || force === 'desktop' || force === 'gamepad') return force;
+    if (isOverride(force)) return force;
     var override = readOverride();
     if (override) return override;
-    // Auto never picks gamepad — that layout is explicit only.
+    // Auto never picks GamePad or Steam Deck — those layouts are explicit only.
     return detectDesktop() ? 'desktop' : 'mobile';
   }
 
   function applyLayoutClasses(el, layout) {
     if (!el || !el.classList) return;
-    el.classList.remove('layout-mobile', 'layout-desktop', 'layout-gamepad');
+    el.classList.remove('layout-mobile', 'layout-desktop', 'layout-gamepad', 'layout-steamdeck');
     if (layout === 'gamepad') {
       el.classList.add('layout-mobile', 'layout-gamepad');
+    } else if (layout === 'steamdeck') {
+      el.classList.add('layout-mobile', 'layout-gamepad', 'layout-steamdeck');
     } else if (layout) {
       el.classList.add('layout-' + layout);
     }
@@ -81,7 +86,7 @@
   }
 
   function setOverride(value) {
-    if (value !== 'mobile' && value !== 'desktop' && value !== 'gamepad') value = null;
+    if (!isOverride(value)) value = null;
     writeOverride(value);
     return applyLayout();
   }

@@ -2136,10 +2136,40 @@ html:not(.layout-desktop) .modal-dialog {
   max-width: calc(100vw - 24px);
 }
 
+#layoutSwitcher .btn-group-justified {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
 #layoutSwitcher .btn-group-justified > .btn {
-  font-size: 12px;
-  padding-left: 4px;
-  padding-right: 4px;
+  display: table-cell;
+  width: 20%;
+  min-width: 36px;
+  min-height: 40px;
+  height: 40px;
+  padding: 8px 2px;
+  font-size: 0;
+  line-height: 1;
+  vertical-align: middle;
+  text-align: center;
+}
+
+#layoutSwitcher .layout-scheme-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
+  line-height: 18px;
+  vertical-align: middle;
+}
+
+#layoutSwitcher .btn-group-justified > .btn .glyphicon.layout-scheme-icon {
+  top: 0;
+}
+
+#layoutSwitcher svg.layout-scheme-icon {
+  overflow: visible;
 }
 
 .gp-legend {
@@ -2239,17 +2269,17 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .fm-toast {
   bottom: calc(52px + env(safe-area-inset-bottom, 0px));
 }
 
-/* Mobile (not Console): tools + dock on the right, chat on the bottom. */
+/* Mobile (not GamePad/Steam Deck): tools + dock on the left, chat on the bottom. */
 html.layout-mobile:not(.layout-gamepad) #app {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
+  grid-template-columns: 56px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
 }
 
 html.layout-mobile:not(.layout-gamepad) #map {
   order: unset;
   flex: unset;
-  grid-column: 1;
+  grid-column: 2;
   grid-row: 1;
   width: auto;
   height: auto;
@@ -2260,15 +2290,15 @@ html.layout-mobile:not(.layout-gamepad) #sidebar {
   flex-direction: column;
   order: unset;
   flex: unset;
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
   width: 56px;
   min-width: 56px;
   height: 100%;
   min-height: 0;
   padding-bottom: 0;
-  padding-right: env(safe-area-inset-right, 0px);
-  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
+  padding-left: env(safe-area-inset-left, 0px);
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
 }
 
 html.layout-mobile:not(.layout-gamepad) #palette {
@@ -2363,8 +2393,8 @@ html.layout-mobile:not(.layout-gamepad) .dock-btn-label {
 
 html.layout-mobile:not(.layout-gamepad) #moreSheet {
   position: fixed;
-  left: 0;
-  right: 56px;
+  left: 56px;
+  right: 0;
   bottom: 0;
   width: auto;
   max-height: min(52vh, 420px);
@@ -2372,8 +2402,8 @@ html.layout-mobile:not(.layout-gamepad) #moreSheet {
 
 html.layout-mobile:not(.layout-gamepad) .collab-chat {
   top: auto;
-  left: 0;
-  right: 56px;
+  left: 56px;
+  right: 0;
   bottom: 0;
   width: auto;
   height: min(50vh, 380px);
@@ -2388,8 +2418,8 @@ html.layout-mobile:not(.layout-gamepad) .collab-chat.is-open {
 }
 
 html.layout-mobile:not(.layout-gamepad) .collab-chat-edge {
-  left: 0;
-  right: 56px;
+  left: 56px;
+  right: 0;
   top: auto;
   bottom: 0;
   width: auto;
@@ -2412,7 +2442,7 @@ html.layout-mobile:not(.layout-gamepad).orient-landscape #sidebar,
 html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #sidebar {
   display: contents;
   width: auto;
-  padding-right: 0;
+  padding-left: 0;
   box-shadow: none;
 }
 
@@ -2426,27 +2456,29 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #map {
 
 html.layout-mobile:not(.layout-gamepad).orient-landscape #palette,
 html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #palette {
-  grid-column: 1;
+  grid-column: 3;
   grid-row: 1;
   justify-self: stretch;
   align-self: stretch;
   flex: unset;
   width: 56px;
-  padding-left: calc(2px + env(safe-area-inset-left, 0px));
-  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
+  padding-left: 2px;
+  padding-right: calc(2px + env(safe-area-inset-right, 0px));
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
 }
 
 html.layout-mobile:not(.layout-gamepad).orient-landscape #dock,
 html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #dock {
-  grid-column: 3;
+  grid-column: 1;
   grid-row: 1;
   flex: unset;
   width: 56px;
   min-width: 56px;
   height: auto;
   align-self: stretch;
-  padding-right: env(safe-area-inset-right, 0px);
-  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: 2px;
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
 }
 
 html.layout-mobile:not(.layout-gamepad).orient-landscape #moreSheet,
@@ -2467,6 +2499,12 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat {
   bottom: calc(36px + env(safe-area-inset-bottom, 0px));
 }
 
+html.layout-mobile:not(.layout-gamepad).orient-landscape .collab-chat-edge,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat-edge {
+  left: 56px;
+  right: 56px;
+}
+
 @media (orientation: landscape) {
   html.layout-mobile:not(.layout-gamepad) #app,
   html:not(.layout-desktop):not(.layout-gamepad) #app {
@@ -2478,7 +2516,7 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat {
   html:not(.layout-desktop):not(.layout-gamepad) #sidebar {
     display: contents;
     width: auto;
-    padding-right: 0;
+    padding-left: 0;
     box-shadow: none;
   }
 
@@ -2492,27 +2530,29 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat {
 
   html.layout-mobile:not(.layout-gamepad) #palette,
   html:not(.layout-desktop):not(.layout-gamepad) #palette {
-    grid-column: 1;
+    grid-column: 3;
     grid-row: 1;
     justify-self: stretch;
     align-self: stretch;
     flex: unset;
     width: 56px;
-    padding-left: calc(2px + env(safe-area-inset-left, 0px));
-    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
+    padding-left: 2px;
+    padding-right: calc(2px + env(safe-area-inset-right, 0px));
+    box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
   }
 
   html.layout-mobile:not(.layout-gamepad) #dock,
   html:not(.layout-desktop):not(.layout-gamepad) #dock {
-    grid-column: 3;
+    grid-column: 1;
     grid-row: 1;
     flex: unset;
     width: 56px;
     min-width: 56px;
     height: auto;
     align-self: stretch;
-    padding-right: env(safe-area-inset-right, 0px);
-    box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: 2px;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
   }
 
   html.layout-mobile:not(.layout-gamepad) #moreSheet,
@@ -2531,5 +2571,11 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat {
     left: 56px;
     right: 56px;
     bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.layout-mobile:not(.layout-gamepad) .collab-chat-edge,
+  html:not(.layout-desktop):not(.layout-gamepad) .collab-chat-edge {
+    left: 56px;
+    right: 56px;
   }
 }

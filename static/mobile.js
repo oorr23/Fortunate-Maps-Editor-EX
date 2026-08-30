@@ -52,10 +52,11 @@ $(function() {
 
   function syncLayoutSwitcher() {
     var override = (window.TagproLayout && window.TagproLayout.getOverride && window.TagproLayout.getOverride()) || null;
-    $('#layoutAuto, #layoutMobileBtn, #layoutDesktopBtn, #layoutGamepadBtn').removeClass('active');
+    $('#layoutAuto, #layoutMobileBtn, #layoutDesktopBtn, #layoutGamepadBtn, #layoutSteamDeckBtn').removeClass('active');
     if (override === 'mobile') $('#layoutMobileBtn').addClass('active');
     else if (override === 'desktop') $('#layoutDesktopBtn').addClass('active');
     else if (override === 'gamepad') $('#layoutGamepadBtn').addClass('active');
+    else if (override === 'steamdeck') $('#layoutSteamDeckBtn').addClass('active');
     else $('#layoutAuto').addClass('active');
   }
 
@@ -84,6 +85,13 @@ $(function() {
   $('#layoutGamepadBtn').on('click', function(e) {
     e.preventDefault();
     if (window.TagproLayout) TagproLayout.setOverride('gamepad');
+    closeMore();
+    syncLayoutSwitcher();
+    if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);
+  });
+  $('#layoutSteamDeckBtn').on('click', function(e) {
+    e.preventDefault();
+    if (window.TagproLayout) TagproLayout.setOverride('steamdeck');
     closeMore();
     syncLayoutSwitcher();
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(false);

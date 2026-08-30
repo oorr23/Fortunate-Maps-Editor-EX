@@ -417,13 +417,14 @@
           <h3 class="fm-extras-heading">Layout</h3>
           <div class="form-group" id="layoutSwitcher">
             <label>Layout</label>
-            <div class="btn-group btn-group-justified">
-              <a href="#" id="layoutAuto" class="btn btn-default">Auto</a>
-              <a href="#" id="layoutDesktopBtn" class="btn btn-default">Desktop</a>
-              <a href="#" id="layoutMobileBtn" class="btn btn-default">Mobile</a>
-              <a href="#" id="layoutGamepadBtn" class="btn btn-default">Console</a>
+            <div class="btn-group btn-group-justified" role="group" aria-label="Control scheme">
+              <a href="#" id="layoutAuto" class="btn btn-default" title="Auto" aria-label="Auto"><svg class="layout-scheme-icon" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M14.1 5.4A6.2 6.2 0 0 0 4.4 5.1L5.8 6.5H2.2V2.9l1.3 1.3A7.7 7.7 0 0 1 16 4.8l-1.9.6zM3.9 12.6A6.2 6.2 0 0 0 13.6 12.9L12.2 11.5h3.6v3.6l-1.3-1.3A7.7 7.7 0 0 1 2 13.2l1.9-.6z"/></svg></a>
+              <a href="#" id="layoutDesktopBtn" class="btn btn-default" title="Desktop" aria-label="Desktop"><svg class="layout-scheme-icon" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2.4 2.4h13.2c.8 0 1.4.6 1.4 1.4v8.2c0 .8-.6 1.4-1.4 1.4H10v1.2h2.4v1.2H5.6v-1.2H8v-1.2H2.4c-.8 0-1.4-.6-1.4-1.4V3.8c0-.8.6-1.4 1.4-1.4zm0 1.4v8.2h13.2V3.8H2.4z"/></svg></a>
+              <a href="#" id="layoutMobileBtn" class="btn btn-default" title="Mobile" aria-label="Mobile"><span class="glyphicon glyphicon-phone layout-scheme-icon" aria-hidden="true"></span></a>
+              <a href="#" id="layoutGamepadBtn" class="btn btn-default" title="GamePad" aria-label="GamePad"><svg class="layout-scheme-icon" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" d="M4.6 5.2h8.8c2 0 3.6 1.5 3.6 3.5s-1.6 3.5-3.6 3.5H4.6C2.6 12.2 1 10.7 1 8.7s1.6-3.5 3.6-3.5zm.6 2.4h.9V6.7h.9v.9h.9v.9h-.9v.9h-.9v-.9h-.9V7.6zm6.6.1a.85.85 0 1 1 0 1.7.85.85 0 0 1 0-1.7zm-1.5 1.5a.85.85 0 1 1 0 1.7.85.85 0 0 1 0-1.7z"/></svg></a>
+              <a href="#" id="layoutSteamDeckBtn" class="btn btn-default" title="Steam Deck" aria-label="Steam Deck"><svg class="layout-scheme-icon" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path fill="currentColor" fill-rule="evenodd" d="M4.2 3.2h9.6c1.9 0 3.4 1.7 3.4 3.7v4.2c0 2-1.5 3.7-3.4 3.7H4.2c-1.9 0-3.4-1.7-3.4-3.7V6.9c0-2 1.5-3.7 3.4-3.7zm2 2.4h5.6c.5 0 .9.4.9.9v4.2c0 .5-.4.9-.9.9H6.2c-.5 0-.9-.4-.9-.9V6.5c0-.5.4-.9.9-.9z"/></svg></a>
             </div>
-            <p class="help-block more-help">Console is for handhelds/Steam Deck; Auto never picks it.</p>
+            <p class="help-block more-help">GamePad and Steam Deck are explicit; Auto never picks them.</p>
           </div>
         </div>
 
@@ -744,8 +745,8 @@
           <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
           <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row (Mirror map vertically copies the map downward and swaps teams). Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
           <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. On a phone, swipe up from the bottom of the map for room chat. On desktop, swipe in from the right edge. Esc, a swipe back, or a tap outside closes it.</p>
-          <p><strong>Phone.</strong> Tools and the dock sit on the right; swipe them if they overflow. In landscape, tiles stay on the left. Tap File, Map, Layout, or Appearance to open that tab; swipe up on that strip for chat. Pan: one-finger drag moves the map; tap Pan again to paint. Pinch with two fingers to zoom; two-finger drag pans. Dock Test uses the last server; hold Test to pick NA or EU this time.</p>
-          <p id="gpInstructions"><strong>Console.</strong> Choose Layout → Console on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests (hold Play to pick NA/EU), tile settings, + for More, B undo, Down redo, and clear. D-pad Left and Right focus those side menus so A can click them. Left stick steps the yellow work tile; right stick pans the map. <span id="gpBindsHelp">A paints (hold A and move for a trail). X opens chat. B undo, Down redo, Y tile settings. D-pad Up tests (hold to pick a server). Shoulders change palette tiles; triggers zoom. Select opens the tools wheel. Start opens More. L3 scrolls the work tile into view.</span> Swipe up from the bottom of the map for chat, or tap the handle. Connecting a pad never switches layout by itself — press the physical A button on the hint (even if Paint is remapped), or pick Console in Layout. Change any of these under More → Controller, or hold Start to open that tab. Set a preferred test server there too.</p>
+          <p><strong>Phone.</strong> Tools and the dock sit on the left; swipe them if they overflow. In landscape, tiles stay on the right. Tap File, Map, Layout, or Appearance to open that tab; swipe up on that strip for chat. Pan: one-finger drag moves the map; tap Pan again to paint. Pinch with two fingers to zoom; two-finger drag pans. Dock Test uses the last server; hold Test to pick NA or EU this time.</p>
+          <p id="gpInstructions"><strong>GamePad.</strong> Choose Layout → GamePad for a generic pad layout. Steam Deck in Layout is the same chrome (SMM frame, rails, tools wheel, Controller tab) chosen from the handheld icon. The frame is tap squares: L/R cycle palette tiles, play tests (hold Play to pick NA/EU), tile settings, + for More, B undo, Down redo, and clear. D-pad Left and Right focus those side menus so A can click them. Left stick steps the yellow work tile; right stick pans the map. <span id="gpBindsHelp">A paints (hold A and move for a trail). X opens chat. B undo, Down redo, Y tile settings. D-pad Up tests (hold to pick a server). Shoulders change palette tiles; triggers zoom. Select opens the tools wheel. Start opens More. L3 scrolls the work tile into view.</span> Swipe up from the bottom of the map for chat, or tap the handle. Connecting a pad never switches layout by itself — press the physical A button on the hint (even if Paint is remapped), or pick GamePad in Layout. Change any of these under More → Controller, or hold Start to open that tab. Set a preferred test server there too.</p>
           <p>Happy map making.</p>
         </div>
         <div class="modal-footer">
@@ -795,7 +796,7 @@
   <div id="gpBindsSheet" class="gp-binds-sheet" hidden aria-hidden="true">
     <div class="gp-binds-card">
       <h3>Controller bindings</h3>
-      <p class="help-block">Click a control, then press the new button. Restore default settings returns every action to its original binding. The Console connect hint always means the physical A button, even if you remap Paint.</p>
+      <p class="help-block">Click a control, then press the new button. Restore default settings returns every action to its original binding. The GamePad connect hint always means the physical A button, even if you remap Paint.</p>
       <div id="gpBindsList" class="gp-binds-list"></div>
       <div class="gp-binds-actions">
         <button type="button" id="gpBindsRestore" class="btn btn-default btn-block">Restore default settings</button>
@@ -822,7 +823,7 @@
     </div>
   </div>
 
-  <div id="gpHint" class="gp-hint" hidden role="status">Press A to use Console layout</div>
+  <div id="gpHint" class="gp-hint" hidden role="status">Press A to use GamePad layout</div>
 
   <script type="text/javascript" src="textures.js"></script>
   <script type="text/javascript" src="map.js"></script>

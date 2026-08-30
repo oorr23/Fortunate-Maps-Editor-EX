@@ -333,7 +333,7 @@
     var testGroup = document.getElementById('gpTestServerGroup');
     var legendGroup = document.getElementById('gpLegendGroup');
     var override = global.TagproLayout && TagproLayout.getOverride && TagproLayout.getOverride();
-    var show = isGamepadLayout() || override === 'gamepad';
+    var show = isGamepadLayout() || override === 'gamepad' || override === 'steamdeck';
     if (group) {
       if (show) group.removeAttribute('hidden');
       else {
