@@ -118,7 +118,9 @@ $(function() {
   }
 
   function chatVertical() {
-    return document.documentElement.classList.contains('layout-gamepad');
+    var root = document.documentElement;
+    if (root.classList.contains('layout-desktop')) return false;
+    return root.classList.contains('layout-mobile') || root.classList.contains('layout-gamepad');
   }
 
   function chatPanelWidth() {
@@ -205,6 +207,9 @@ $(function() {
     $('#collabChat').addClass('is-open').attr('aria-hidden', 'false');
     document.documentElement.classList.add('collab-chat-open');
     clearChatInlineTransform();
+    if (window.TagproMore && TagproMore.isOpen && TagproMore.isOpen() && TagproMore.close) {
+      TagproMore.close();
+    }
   }
 
   function closeChat() {
@@ -233,9 +238,11 @@ $(function() {
     return !!el.closest('input, textarea, button, a, select');
   }
 
-  function beginChatSwipe(e, origin) {
+  function beginChatSwipe(e, origin, opts) {
+    opts = opts || {};
     if (e.touches && e.touches.length > 1) return;
-    if (origin === 'edge' && chatOpen) return;
+    if ((origin === 'edge' || origin === 'tabs') && chatOpen) return;
+    if (origin === 'tabs' && !chatVertical()) return;
     if (origin === 'panel' && !chatOpen) return;
     if (origin === 'panel' && swipeIgnoreTarget(e.target)) return;
     if ($('.modal.in:visible').length) return;
@@ -252,7 +259,8 @@ $(function() {
       startY: pt.clientY,
       size: chatPanelSize(),
       vertical: vertical,
-      moved: false
+      moved: false,
+      noToggle: !!opts.noToggle || origin === 'tabs'
     };
   }
 
@@ -294,14 +302,19 @@ $(function() {
     var origin = chatSwipe.origin;
     var moved = chatSwipe.moved;
     var vertical = chatSwipe.vertical;
+    var noToggle = !!chatSwipe.noToggle;
     var threshold = Math.min(48, chatSwipe.size * 0.28);
     chatSwipe = null;
     clearChatInlineTransform();
     if (!moved) {
-      if (origin === 'edge' && vertical) toggleChat();
+      if (origin === 'edge' && vertical && !noToggle) toggleChat();
       return;
     }
-    var shouldOpen = origin === 'edge' ? (-primary > threshold) : (primary < threshold);
+    if (origin === 'tabs' && window.TagproMore && TagproMore.ignoreClicks) {
+      TagproMore.ignoreClicks(350);
+    }
+    var fromClosed = origin === 'edge' || origin === 'tabs';
+    var shouldOpen = fromClosed ? (-primary > threshold) : (primary < threshold);
     if (shouldOpen) openChat();
     else closeChat();
   }
@@ -378,17 +391,25 @@ $(function() {
       }
     }
 
-    function onStart(origin) {
-      return function(e) {
-        if (e.type === 'mousedown' && e.button !== 0) return;
-        if (e.type === 'pointerdown' && e.button !== 0 && e.pointerType === 'mouse') return;
-        beginChatSwipe(e, origin);
-        if (!chatSwipe) return;
-        if (e.type.indexOf('pointer') === 0) attachFollow('pointer');
-        else if (e.type.indexOf('touch') === 0) attachFollow('touch');
-        else attachFollow('mouse');
-      };
+    function startChatGesture(e, origin, opts) {
+      if (e.type === 'mousedown' && e.button !== 0) return false;
+      if (e.type === 'pointerdown' && e.button !== 0 && e.pointerType === 'mouse') return false;
+      beginChatSwipe(e, origin, opts);
+      if (!chatSwipe) return false;
+      if (e.type.indexOf('pointer') === 0) attachFollow('pointer');
+      else if (e.type.indexOf('touch') === 0) attachFollow('touch');
+      else attachFollow('mouse');
+      return true;
     }
+
+    function onStart(origin) {
+      return function(e) { startChatGesture(e, origin); };
+    }
+
+    window.TagproCollab.beginEdgeSwipe = function(e, opts) {
+      opts = opts || {};
+      return startChatGesture(e, opts.origin || 'tabs', opts);
+    };
 
     if ('onpointerdown' in window) {
       edge.addEventListener('pointerdown', onStart('edge'));
@@ -786,7 +807,8 @@ $(function() {
     open: openChat,
     close: closeChat,
     toggle: toggleChat,
-    isOpen: function() { return chatOpen; }
+    isOpen: function() { return chatOpen; },
+    beginEdgeSwipe: function() { return false; }
   };
 
   if (window.TagproMap) {

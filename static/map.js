@@ -2831,7 +2831,6 @@ $(function() {
       lastDrawingToolId = toolId;
     }
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(true);
-    if (window.TagproTools && TagproTools.syncGroupFromActive) TagproTools.syncGroupFromActive();
   });
 
   var selectedTool = pencil;

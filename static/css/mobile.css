@@ -313,63 +313,6 @@ html:not(.layout-desktop) .dock-tools-wrap {
   flex: 0 0 auto;
 }
 
-.tool-group-chips {
-  display: none;
-}
-
-html.layout-mobile:not(.layout-gamepad) .tool-group-chips,
-html:not(.layout-desktop):not(.layout-gamepad) .tool-group-chips {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  gap: 4px;
-  height: 30px;
-  margin: 0 0 4px;
-  padding: 0 2px;
-}
-
-html.layout-mobile:not(.layout-gamepad) .tool-group-chip,
-html:not(.layout-desktop):not(.layout-gamepad) .tool-group-chip {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid #3a3f4a;
-  border-radius: 999px;
-  background: #2a2f38;
-  color: #d8d8d8;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 26px;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html.layout-mobile:not(.layout-gamepad) .tool-group-chip.active,
-html:not(.layout-desktop):not(.layout-gamepad) .tool-group-chip.active {
-  background: #c0392b;
-  border-color: #e15a4a;
-  color: #fff;
-}
-
-html.theme-light.layout-mobile:not(.layout-gamepad) .tool-group-chip,
-html.theme-light:not(.layout-desktop):not(.layout-gamepad) .tool-group-chip {
-  background: #ececef;
-  border-color: #c8c8ce;
-  color: #333;
-}
-
-html.theme-light.layout-mobile:not(.layout-gamepad) .tool-group-chip.active,
-html.theme-light:not(.layout-desktop):not(.layout-gamepad) .tool-group-chip.active {
-  background: #c0392b;
-  border-color: #a32e22;
-  color: #fff;
-}
-
-html.layout-mobile:not(.layout-gamepad) #tools .btn.tool-group-hidden,
-html:not(.layout-desktop):not(.layout-gamepad) #tools .btn.tool-group-hidden {
-  display: none !important;
-}
-
 html.layout-mobile #tools,
 html:not(.layout-desktop) #tools {
   display: flex;
@@ -611,10 +554,6 @@ html:not(.layout-desktop) .more-sheet-header {
   font-weight: 600;
   font-size: 16px;
   flex-shrink: 0;
-}
-
-.more-grabber {
-  display: none;
 }
 
 html.layout-mobile #moreClose,
@@ -1203,51 +1142,6 @@ html:not(.layout-desktop).orient-landscape #moreToggle {
   display: none !important;
 }
 
-html.layout-mobile:not(.layout-gamepad).orient-landscape .more-grabber,
-html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .more-grabber {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  width: 100%;
-  min-height: 28px;
-  margin: 0;
-  padding: 5px 8px 2px;
-  border: 0;
-  background: transparent;
-  color: #c8c8c8;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html.layout-mobile:not(.layout-gamepad).orient-landscape .more-grabber-handle,
-html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .more-grabber-handle {
-  display: block;
-  width: 42px;
-  height: 4px;
-  border-radius: 999px;
-  background: #8a909a;
-}
-
-html.layout-mobile:not(.layout-gamepad).orient-landscape .more-grabber-label,
-html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .more-grabber-label {
-  display: block;
-}
-
-html.theme-light.layout-mobile:not(.layout-gamepad).orient-landscape .more-grabber,
-html.theme-light:not(.layout-desktop):not(.layout-gamepad).orient-landscape .more-grabber {
-  color: #555;
-}
-
-html.theme-light.layout-mobile:not(.layout-gamepad).orient-landscape .more-grabber-handle,
-html.theme-light:not(.layout-desktop):not(.layout-gamepad).orient-landscape .more-grabber-handle {
-  background: #9a9aa2;
-}
-
 html.layout-mobile.orient-landscape .more-backdrop,
 html:not(.layout-desktop).orient-landscape .more-backdrop {
   display: none;
@@ -1263,7 +1157,7 @@ html:not(.layout-desktop).orient-landscape .more-backdrop {
 html.layout-mobile.orient-landscape .more-backdrop.open,
 html:not(.layout-desktop).orient-landscape .more-backdrop.open {
   display: block;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
 }
 
 html.layout-mobile.orient-landscape .more-nav,
@@ -1536,46 +1430,6 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
     display: none !important;
   }
 
-  html.layout-mobile:not(.layout-gamepad) .more-grabber,
-  html:not(.layout-desktop):not(.layout-gamepad) .more-grabber {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    width: 100%;
-    min-height: 28px;
-    margin: 0;
-    padding: 5px 8px 2px;
-    border: 0;
-    background: transparent;
-    color: #c8c8c8;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    line-height: 1;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  html.layout-mobile:not(.layout-gamepad) .more-grabber-handle,
-  html:not(.layout-desktop):not(.layout-gamepad) .more-grabber-handle {
-    display: block;
-    width: 42px;
-    height: 4px;
-    border-radius: 999px;
-    background: #8a909a;
-  }
-
-  html.theme-light.layout-mobile:not(.layout-gamepad) .more-grabber,
-  html.theme-light:not(.layout-desktop):not(.layout-gamepad) .more-grabber {
-    color: #555;
-  }
-
-  html.theme-light.layout-mobile:not(.layout-gamepad) .more-grabber-handle,
-  html.theme-light:not(.layout-desktop):not(.layout-gamepad) .more-grabber-handle {
-    background: #9a9aa2;
-  }
-
   html.layout-mobile .more-backdrop,
   html:not(.layout-desktop) .more-backdrop {
     display: none;
@@ -1591,7 +1445,7 @@ html:not(.layout-desktop) .dock-btn .dock-flip {
   html.layout-mobile .more-backdrop.open,
   html:not(.layout-desktop) .more-backdrop.open {
     display: block !important;
-    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(36px + env(safe-area-inset-bottom, 0px));
   }
 
   html.layout-mobile #moreSheet,
@@ -1886,9 +1740,7 @@ html.layout-desktop #moreBackdrop,
 html.layout-desktop #moreClose,
 html.layout-desktop .more-sheet-header,
 html.layout-desktop .more-nav,
-html.layout-desktop .more-help,
-html.layout-desktop .more-grabber,
-html.layout-desktop .tool-group-chips {
+html.layout-desktop .more-help {
   display: none !important;
 }
 
@@ -2380,4 +2232,304 @@ html.layout-gamepad .fm-toast {
 html.layout-mobile.orient-landscape .fm-toast,
 html:not(.layout-desktop).orient-landscape .fm-toast {
   bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape .fm-toast,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .fm-toast {
+  bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Mobile (not Console): tools + dock on the right, chat on the bottom. */
+html.layout-mobile:not(.layout-gamepad) #app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+html.layout-mobile:not(.layout-gamepad) #map {
+  order: unset;
+  flex: unset;
+  grid-column: 1;
+  grid-row: 1;
+  width: auto;
+  height: auto;
+}
+
+html.layout-mobile:not(.layout-gamepad) #sidebar {
+  display: flex;
+  flex-direction: column;
+  order: unset;
+  flex: unset;
+  grid-column: 2;
+  grid-row: 1;
+  width: 56px;
+  min-width: 56px;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 0;
+  padding-right: env(safe-area-inset-right, 0px);
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
+}
+
+html.layout-mobile:not(.layout-gamepad) #palette {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 38%;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: 6px 2px 4px;
+  box-shadow: none;
+}
+
+html.layout-mobile:not(.layout-gamepad) #palette .palette-track {
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+html.layout-mobile:not(.layout-gamepad) #dock {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 62%;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  padding: 2px;
+  gap: 4px;
+  overflow: hidden;
+}
+
+html.layout-mobile:not(.layout-gamepad) .dock-tools-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 !important;
+}
+
+html.layout-mobile:not(.layout-gamepad) #tools {
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+html.layout-mobile:not(.layout-gamepad) #tools .btn-group-justified {
+  flex-direction: column;
+  width: 100%;
+  height: max-content;
+}
+
+html.layout-mobile:not(.layout-gamepad) #tools .btn-group-justified > .btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  height: 40px;
+}
+
+html.layout-mobile:not(.layout-gamepad) #dockBar,
+html.layout-mobile:not(.layout-gamepad) #gpRailLeft,
+html.layout-mobile:not(.layout-gamepad) #gpRailRight {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+html.layout-mobile:not(.layout-gamepad) #dockBar {
+  gap: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 48%;
+}
+
+html.layout-mobile:not(.layout-gamepad) .dock-btn {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+html.layout-mobile:not(.layout-gamepad) .dock-btn-label {
+  display: none !important;
+}
+
+html.layout-mobile:not(.layout-gamepad) #moreSheet {
+  position: fixed;
+  left: 0;
+  right: 56px;
+  bottom: 0;
+  width: auto;
+  max-height: min(52vh, 420px);
+}
+
+html.layout-mobile:not(.layout-gamepad) .collab-chat {
+  top: auto;
+  left: 0;
+  right: 56px;
+  bottom: 0;
+  width: auto;
+  height: min(50vh, 380px);
+  max-height: min(50vh, 380px);
+  transform: translateY(100%);
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  border-radius: 12px 12px 0 0;
+}
+
+html.layout-mobile:not(.layout-gamepad) .collab-chat.is-open {
+  transform: translateY(0);
+}
+
+html.layout-mobile:not(.layout-gamepad) .collab-chat-edge {
+  left: 0;
+  right: 56px;
+  top: auto;
+  bottom: 0;
+  width: auto;
+  height: 22px;
+  background: linear-gradient(to top, rgba(153, 255, 153, 0.1), transparent 70%);
+}
+
+html.layout-mobile:not(.layout-gamepad) .collab-chat-edge.has-unread {
+  background: linear-gradient(to top, rgba(153, 255, 153, 0.55), transparent 85%);
+  box-shadow: 0 -3px 14px rgba(153, 255, 153, 0.55);
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape #app,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #app {
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape #sidebar,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #sidebar {
+  display: contents;
+  width: auto;
+  padding-right: 0;
+  box-shadow: none;
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape #map,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #map {
+  grid-column: 2;
+  grid-row: 1;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape #palette,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #palette {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: stretch;
+  align-self: stretch;
+  flex: unset;
+  width: 56px;
+  padding-left: calc(2px + env(safe-area-inset-left, 0px));
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape #dock,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #dock {
+  grid-column: 3;
+  grid-row: 1;
+  flex: unset;
+  width: 56px;
+  min-width: 56px;
+  height: auto;
+  align-self: stretch;
+  padding-right: env(safe-area-inset-right, 0px);
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape #moreSheet,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape #moreSheet {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  max-height: none;
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape .collab-chat,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat {
+  left: 56px;
+  right: 56px;
+  bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (orientation: landscape) {
+  html.layout-mobile:not(.layout-gamepad) #app,
+  html:not(.layout-desktop):not(.layout-gamepad) #app {
+    grid-template-columns: 56px minmax(0, 1fr) 56px;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  html.layout-mobile:not(.layout-gamepad) #sidebar,
+  html:not(.layout-desktop):not(.layout-gamepad) #sidebar {
+    display: contents;
+    width: auto;
+    padding-right: 0;
+    box-shadow: none;
+  }
+
+  html.layout-mobile:not(.layout-gamepad) #map,
+  html:not(.layout-desktop):not(.layout-gamepad) #map {
+    grid-column: 2;
+    grid-row: 1;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  html.layout-mobile:not(.layout-gamepad) #palette,
+  html:not(.layout-desktop):not(.layout-gamepad) #palette {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: stretch;
+    align-self: stretch;
+    flex: unset;
+    width: 56px;
+    padding-left: calc(2px + env(safe-area-inset-left, 0px));
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.28);
+  }
+
+  html.layout-mobile:not(.layout-gamepad) #dock,
+  html:not(.layout-desktop):not(.layout-gamepad) #dock {
+    grid-column: 3;
+    grid-row: 1;
+    flex: unset;
+    width: 56px;
+    min-width: 56px;
+    height: auto;
+    align-self: stretch;
+    padding-right: env(safe-area-inset-right, 0px);
+    box-shadow: -4px 0 18px rgba(0, 0, 0, 0.28);
+  }
+
+  html.layout-mobile:not(.layout-gamepad) #moreSheet,
+  html:not(.layout-desktop):not(.layout-gamepad) #moreSheet {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-height: none;
+  }
+
+  html.layout-mobile:not(.layout-gamepad) .collab-chat,
+  html:not(.layout-desktop):not(.layout-gamepad) .collab-chat {
+    left: 56px;
+    right: 56px;
+    bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  }
 }

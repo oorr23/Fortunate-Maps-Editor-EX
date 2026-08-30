@@ -206,6 +206,11 @@ $(function() {
     $moreBackdrop.css('bottom', h + 'px');
   }
 
+  function ignoreMoreClicks(ms) {
+    moreIgnoreClickUntil = Date.now() + (ms || 350);
+    ignorePaintUntil = Date.now() + (ms || 350);
+  }
+
   function closeMore() {
     moreSnapToken += 1;
     if (moreSnapTimer) {
@@ -221,6 +226,9 @@ $(function() {
 
   function openMore() {
     setPanMode(false);
+    if (window.TagproCollab && TagproCollab.isOpen && TagproCollab.isOpen() && TagproCollab.close) {
+      TagproCollab.close();
+    }
     $moreSheet.addClass('open').removeClass('more-dragging');
     $moreBackdrop.addClass('open').removeAttr('hidden');
     syncLandscapeBackdrop();
@@ -237,25 +245,31 @@ $(function() {
     setPanel: setMorePanel,
     isOpen: function() {
       return $moreSheet.hasClass('open');
-    }
+    },
+    ignoreClicks: ignoreMoreClicks
   };
 
   $('#moreToggle').on('click', function() {
     if ($moreSheet.hasClass('open')) closeMore();
     else openMore();
   });
-  $('#moreGrabber').on('click', function(e) {
-    e.preventDefault();
-    openMore();
-    setMorePanel('file', { keep: true });
-  });
   $('#moreClose, #moreBackdrop').on('click', closeMore);
   $('.more-nav-btn').on('click', function(e) {
-    if (isLandscapeChrome() || Date.now() < moreIgnoreClickUntil) {
+    if (Date.now() < moreIgnoreClickUntil) {
       e.preventDefault();
       return;
     }
-    setMorePanel($(this).attr('data-panel'));
+    var name = $(this).attr('data-panel');
+    if (isLandscapeChrome()) {
+      e.preventDefault();
+      if ($moreSheet.hasClass('open') && ($moreSheet.attr('data-open') === name)) closeMore();
+      else {
+        setMorePanel(name, { keep: true });
+        openMore();
+      }
+      return;
+    }
+    setMorePanel(name);
   });
 
   function moreEventPoint(e) {
@@ -446,7 +460,9 @@ $(function() {
       $moreSheet.removeClass('more-dragging');
       if (!drag.wasOpen) $moreBackdrop.removeClass('open').attr('hidden', true);
       if (drag.origin === 'nav' && drag.wasOpen && drag.panelName) {
-        setMorePanel(drag.panelName, { keep: true });
+        ignoreMoreClicks(350);
+        if ($moreSheet.attr('data-open') === drag.panelName) closeMore();
+        else setMorePanel(drag.panelName, { keep: true });
       }
       return;
     }
@@ -477,6 +493,12 @@ $(function() {
         if (e.type === 'pointerdown' && e.button !== 0 && e.pointerType === 'mouse') return;
         if (origin === 'panel' && !$moreSheet.hasClass('open')) return;
         if (origin === 'panel' && moreIgnoreTarget(e.target)) return;
+        if (origin === 'nav' && !$moreSheet.hasClass('open')) {
+          if (window.TagproCollab && TagproCollab.beginEdgeSwipe) {
+            TagproCollab.beginEdgeSwipe(e, { origin: 'tabs', noToggle: true });
+          }
+          return;
+        }
         var name = origin === 'nav' ? morePanelNameFromEvent(e) : ($moreSheet.attr('data-open') || '');
         if (origin === 'nav' && !name) return;
         beginMoreDrag(e, origin, name);
@@ -2671,22 +2693,19 @@ $(function() {
     var looping = false;
     var animating = false;
     var scrollAnimFrame = null;
-    var chips = document.getElementById('toolGroupChips');
-    var currentGroup = 'draw';
 
     function isDesktopLayout() {
       return document.documentElement.classList.contains('layout-desktop');
     }
 
-    function isGamepadLayout() {
-      return document.documentElement.classList.contains('layout-gamepad');
+    function axis() {
+      var vertical = window.getComputedStyle(el).flexDirection.indexOf('column') === 0;
+      return vertical
+        ? { pos: 'scrollTop', client: 'clientHeight', start: 'top', size: 'height', offset: 'offsetHeight' }
+        : { pos: 'scrollLeft', client: 'clientWidth', start: 'left', size: 'width', offset: 'offsetWidth' };
     }
 
-    function useGroupFilter() {
-      return !isDesktopLayout() && !isGamepadLayout();
-    }
-
-    function allOriginalButtons() {
+    function canonicalButtons() {
       var all = group.querySelectorAll('.btn');
       var out = [];
       for (var i = 0; i < all.length; i++) {
@@ -2695,54 +2714,8 @@ $(function() {
       return out;
     }
 
-    function applyGroupFilter() {
-      var filter = useGroupFilter() ? currentGroup : '';
-      var buttons = group.querySelectorAll('.btn');
-      for (var i = 0; i < buttons.length; i++) {
-        var g = buttons[i].getAttribute('data-tool-group') || '';
-        var hide = !!(filter && g && g !== filter);
-        buttons[i].classList.toggle('tool-group-hidden', hide);
-      }
-    }
-
-    function setChipState(name) {
-      if (!chips) return;
-      var list = chips.querySelectorAll('.tool-group-chip');
-      for (var i = 0; i < list.length; i++) {
-        var on = list[i].getAttribute('data-tool-group') === name;
-        list[i].classList.toggle('active', on);
-        list[i].setAttribute('aria-pressed', on ? 'true' : 'false');
-      }
-    }
-
-    function setToolGroup(name, opts) {
-      opts = opts || {};
-      if (name !== 'draw' && name !== 'edit' && name !== 'map') name = 'draw';
-      currentGroup = name;
-      setChipState(name);
-      applyGroupFilter();
-      if (!opts.skipSync) centerOnActive(false);
-    }
-
-    function syncGroupFromActive() {
-      if (!useGroupFilter()) return;
-      var src = el.querySelector('.btn.active:not(.tool-group-hidden)') || el.querySelector('.btn.active');
-      if (!src) return;
-      var g = src.getAttribute('data-tool-group');
-      if (g && g !== currentGroup) setToolGroup(g);
-    }
-
-    function canonicalButtons() {
-      var all = allOriginalButtons();
-      var out = [];
-      for (var i = 0; i < all.length; i++) {
-        if (!all[i].classList.contains('tool-group-hidden')) out.push(all[i]);
-      }
-      return out;
-    }
-
     function ensureToolIds() {
-      var buttons = allOriginalButtons();
+      var buttons = canonicalButtons();
       for (var i = 0; i < buttons.length; i++) {
         var btn = buttons[i];
         if (!btn.getAttribute('data-tool-id')) {
@@ -2774,7 +2747,8 @@ $(function() {
     }
 
     function measure() {
-      setWidth = looping ? group.scrollWidth / 3 : 0;
+      var a = axis();
+      setWidth = looping ? (a.pos === 'scrollTop' ? group.scrollHeight : group.scrollWidth) / 3 : 0;
       return setWidth;
     }
 
@@ -2782,24 +2756,30 @@ $(function() {
       if (animating || !looping) return;
       if (!setWidth) measure();
       if (setWidth < 8) return;
-      if (el.scrollLeft <= 4) el.scrollLeft += setWidth;
-      else if (el.scrollLeft >= setWidth * 2 - 4) el.scrollLeft -= setWidth;
+      var a = axis();
+      if (el[a.pos] <= 4) el[a.pos] += setWidth;
+      else if (el[a.pos] >= setWidth * 2 - 4) el[a.pos] -= setWidth;
     }
 
     function syncLoopMode() {
       ensureToolIds();
-      applyGroupFilter();
       removeClones();
       looping = false;
       setWidth = 0;
       el.classList.remove('tools-looping');
       if (isDesktopLayout()) {
         el.scrollLeft = 0;
+        el.scrollTop = 0;
         return;
       }
       void group.offsetWidth;
-      if (group.scrollWidth <= el.clientWidth) {
+      var a = axis();
+      var overflow = a.pos === 'scrollTop'
+        ? group.scrollHeight > el.clientHeight
+        : group.scrollWidth > el.clientWidth;
+      if (!overflow) {
         el.scrollLeft = 0;
+        el.scrollTop = 0;
         return;
       }
       addClones();
@@ -2807,28 +2787,30 @@ $(function() {
       el.classList.add('tools-looping');
       void group.offsetWidth;
       measure();
-      if (el.scrollLeft < 4) el.scrollLeft = setWidth;
+      if (el[a.pos] < 4) el[a.pos] = setWidth;
       else jumpLoop();
     }
 
     function scrollLeftToCenter(btn) {
+      var a = axis();
       var elRect = el.getBoundingClientRect();
       var btnRect = btn.getBoundingClientRect();
-      return el.scrollLeft + (btnRect.left + btnRect.width / 2) - (elRect.left + el.clientWidth / 2);
+      return el[a.pos] + (btnRect[a.start] + btnRect[a.size] / 2) - (elRect[a.start] + el[a.client] / 2);
     }
 
     function itemCenter(btn) {
-      return btn.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft + btn.offsetWidth / 2;
+      var a = axis();
+      return btn.getBoundingClientRect()[a.start] - el.getBoundingClientRect()[a.start] + el[a.pos] + btn[a.offset] / 2;
     }
 
     function nearestActive() {
       var selected = el.querySelectorAll('.btn.active');
       if (!selected.length) return null;
-      var viewCenter = el.scrollLeft + el.clientWidth / 2;
-      var target = null;
+      var a = axis();
+      var viewCenter = el[a.pos] + el[a.client] / 2;
+      var target = selected[0];
       var best = Infinity;
       for (var i = 0; i < selected.length; i++) {
-        if (selected[i].classList.contains('tool-group-hidden')) continue;
         var d = Math.abs(itemCenter(selected[i]) - viewCenter);
         if (d < best) {
           best = d;
@@ -2853,14 +2835,15 @@ $(function() {
 
     function animateScrollTo(to, duration) {
       if (scrollAnimFrame) cancelAnimationFrame(scrollAnimFrame);
-      var from = el.scrollLeft;
+      var a = axis();
+      var from = el[a.pos];
       var dist = to - from;
       var start = null;
       animating = true;
       function step(now) {
         if (start === null) start = now;
         var t = Math.min(1, (now - start) / duration);
-        el.scrollLeft = from + dist * easeInOutCubic(t);
+        el[a.pos] = from + dist * easeInOutCubic(t);
         if (t < 1) {
           scrollAnimFrame = requestAnimationFrame(step);
         } else {
@@ -2872,14 +2855,19 @@ $(function() {
     }
 
     function centerOnActive(animate) {
+      var a = axis();
       // Rebuild clones on size/layout changes (animate !== true), not on tool taps.
       if (animate !== true) syncLoopMode();
-      else if (!isDesktopLayout() && !looping && group.scrollWidth > el.clientWidth) {
-        syncLoopMode();
+      else if (!isDesktopLayout() && !looping) {
+        var overflow = a.pos === 'scrollTop'
+          ? group.scrollHeight > el.clientHeight
+          : group.scrollWidth > el.clientWidth;
+        if (overflow) syncLoopMode();
       }
 
       if (!looping) {
         el.scrollLeft = 0;
+        el.scrollTop = 0;
         return;
       }
 
@@ -2889,12 +2877,12 @@ $(function() {
         return;
       }
       var left = scrollLeftToCenter(active);
-      if (Math.abs(el.scrollLeft - left) < 2) {
+      if (Math.abs(el[a.pos] - left) < 2) {
         jumpLoop();
         return;
       }
       if (animate === false) {
-        el.scrollLeft = left;
+        el[a.pos] = left;
         jumpLoop();
         return;
       }
@@ -2909,27 +2897,10 @@ $(function() {
       setTimeout(function() { centerOnActive(false); }, 250);
     });
     document.documentElement.addEventListener('tagpro-layout', function() {
-      if (!useGroupFilter()) applyGroupFilter();
       centerOnActive(false);
     });
-    if (chips) {
-      chips.addEventListener('click', function(e) {
-        var btn = e.target.closest ? e.target.closest('.tool-group-chip') : null;
-        if (!btn) return;
-        e.preventDefault();
-        setToolGroup(btn.getAttribute('data-tool-group') || 'draw');
-      });
-    }
-    requestAnimationFrame(function() {
-      setToolGroup('draw', { skipSync: true });
-      centerOnActive(false);
-    });
+    requestAnimationFrame(function() { centerOnActive(false); });
 
-    window.TagproTools = {
-      centerOnActive: centerOnActive,
-      setGroup: setToolGroup,
-      syncGroupFromActive: syncGroupFromActive,
-      refresh: function() { centerOnActive(false); }
-    };
+    window.TagproTools = { centerOnActive: centerOnActive };
   })();
 });

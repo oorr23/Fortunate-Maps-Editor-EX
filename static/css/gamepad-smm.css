@@ -83,9 +83,7 @@ html.layout-gamepad.layout-mobile.orient-landscape #dockBar {
 html.layout-gamepad.layout-mobile .dock-tools-wrap,
 html.layout-gamepad.layout-mobile.orient-landscape .dock-tools-wrap,
 html.layout-gamepad.layout-mobile #tools,
-html.layout-gamepad.layout-mobile #zoom,
-html.layout-gamepad .more-grabber,
-html.layout-gamepad .tool-group-chips {
+html.layout-gamepad.layout-mobile #zoom {
   display: none !important;
 }
 
