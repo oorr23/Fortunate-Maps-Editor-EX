@@ -2,27 +2,27 @@
   var STORAGE_KEY = 'tagpro-layout-override';
   var DESKTOP_MIN_WIDTH = 1024;
   var PORTRAIT_DESKTOP_MIN_WIDTH = 1280;
+  var sessionOverride = null;
 
   function mq(query) {
     return !!(global.matchMedia && global.matchMedia(query).matches);
   }
 
-  function readOverride() {
+  function clearStoredOverride() {
     try {
-      var value = global.localStorage && global.localStorage.getItem(STORAGE_KEY);
-      if (value === 'mobile' || value === 'desktop' || value === 'gamepad') return value;
+      if (global.localStorage) global.localStorage.removeItem(STORAGE_KEY);
     } catch (err) {}
+  }
+
+  function readOverride() {
+    if (sessionOverride === 'mobile' || sessionOverride === 'desktop' || sessionOverride === 'gamepad') {
+      return sessionOverride;
+    }
     return null;
   }
 
   function writeOverride(value) {
-    try {
-      if (!value) {
-        global.localStorage.removeItem(STORAGE_KEY);
-      } else {
-        global.localStorage.setItem(STORAGE_KEY, value);
-      }
-    } catch (err) {}
+    sessionOverride = (value === 'mobile' || value === 'desktop' || value === 'gamepad') ? value : null;
   }
 
   function detectDesktop() {
@@ -90,6 +90,7 @@
     return !document.documentElement.classList.contains('layout-desktop');
   }
 
+  clearStoredOverride();
   applyLayout();
 
   global.addEventListener('resize', function () { applyLayout(); });
