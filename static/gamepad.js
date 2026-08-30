@@ -17,6 +17,7 @@
   var prev = {};
   var repeats = {};
   var swapAX = false;
+  var desktopNav = false;
 
   function readSwapAX() {
     try {
@@ -92,6 +93,23 @@
     return document.documentElement.classList.contains('layout-gamepad');
   }
 
+  function isDesktopLayout() {
+    return document.documentElement.classList.contains('layout-desktop');
+  }
+
+  function isPhoneChrome() {
+    return document.documentElement.classList.contains('layout-mobile') && !isGamepadLayout();
+  }
+
+  function syncHasGamepad() {
+    var on = hasPad();
+    document.documentElement.classList.toggle('has-gamepad', on);
+    if (!on) {
+      desktopNav = false;
+      if (!isGamepadLayout()) setGpFocus(null);
+    }
+  }
+
   function firstPad() {
     if (!navigator.getGamepads) return null;
     var pads = navigator.getGamepads();
@@ -142,7 +160,21 @@
 
   function shouldPoll() {
     if (hintVisible()) return true;
-    return hasPad() && isGamepadLayout();
+    if (hasPad()) return true;
+    return isGamepadLayout();
+  }
+
+  function startFromHint() {
+    if (isDesktopLayout()) {
+      desktopNav = true;
+      var desk = overlayFocusables();
+      setGpFocus(desk[0] || null);
+      return;
+    }
+    if (global.TagproMore && TagproMore.open) TagproMore.open();
+    else toggleMore();
+    var first = document.querySelector('#moreSheet.open .more-nav-btn');
+    if (first) setGpFocus(first);
   }
 
   function ensureLoop() {
@@ -176,9 +208,15 @@
   function uiMode() {
     if (document.body && document.body.classList.contains('tile-settings-open')) return 'dialog';
     if (document.querySelector('.modal.in')) return 'modal';
+    if (isDesktopLayout()) {
+      if (chatIsOpen()) return 'chat';
+      if (desktopNav) return 'desktop';
+      return null;
+    }
     var sheet = document.getElementById('moreSheet');
     if (sheet && sheet.classList.contains('open')) return 'more';
     if (chatIsOpen()) return 'chat';
+    if (isPhoneChrome()) return 'dock';
     return null;
   }
 
@@ -220,9 +258,28 @@
     var nodes = root.querySelectorAll('a[href], button, input, select, textarea, .btn, .highlight-color, [data-toggle], [role="button"]');
     var out = [];
     for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].classList && nodes[i].classList.contains('gp-frame-only')) continue;
+      if (nodes[i].id === 'gpBumperL' || nodes[i].id === 'gpBumperR') continue;
       if (isShown(nodes[i])) out.push(nodes[i]);
     }
     return out;
+  }
+
+  function dockFocusables() {
+    var ids = ['moreToggle', 'dockUndo', 'dockRedo', 'dockZoomOut', 'dockZoomIn', 'panMode', 'tileSettingsBtn'];
+    var list = [];
+    var i;
+    for (i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (!el) continue;
+      if (el.classList && el.classList.contains('gp-frame-only')) continue;
+      if (isShown(el)) list.push(el);
+    }
+    return list;
+  }
+
+  function desktopFocusables() {
+    return collectFocusables(document.getElementById('sidebar') || document.getElementById('moreSheet'));
   }
 
   function overlayFocusables() {
@@ -239,6 +296,8 @@
     if (mode === 'chat') {
       return collectFocusables(document.getElementById('collabChat'));
     }
+    if (mode === 'desktop') return desktopFocusables();
+    if (mode === 'dock') return dockFocusables();
     if (mode !== 'more') return list;
     var sheet = document.getElementById('moreSheet');
     if (!sheet) return list;
@@ -282,12 +341,15 @@
 
   function activateFocus() {
     var el = gpFocusEl || document.querySelector('.gp-focus');
+    var hadFocus = !!el;
     if (!el) {
       var list = overlayFocusables();
       el = list[0];
       setGpFocus(el);
     }
     if (!el) return;
+    var mode = uiMode();
+    if (!hadFocus && (mode === 'dock' || mode === 'desktop')) return;
     var tag = (el.tagName || '').toLowerCase();
     var type = (el.getAttribute('type') || '').toLowerCase();
     if (tag === 'textarea' || (tag === 'input' && type !== 'button' && type !== 'submit' && type !== 'checkbox' && type !== 'radio' && type !== 'color')) {
@@ -302,6 +364,10 @@
       }
     }
     clickEl(el);
+    if (el.id === 'moreToggle') {
+      var first = document.querySelector('#moreSheet.open .more-nav-btn');
+      if (first) setGpFocus(first);
+    }
   }
 
   function closeOverlay() {
@@ -320,6 +386,8 @@
       else clickId('moreClose');
     } else if (uiMode() === 'chat') {
       if (global.TagproCollab && TagproCollab.close) TagproCollab.close();
+    } else if (uiMode() === 'desktop') {
+      desktopNav = false;
     }
     setGpFocus(null);
   }
@@ -493,48 +561,7 @@
     return down && !was;
   }
 
-  function handlePad(pad) {
-    var now = Date.now();
-    var a = buttonDown(pad, 0);
-    var b = buttonDown(pad, 1);
-    var x = buttonDown(pad, 2);
-    var aEdge = rising('a', a);
-    var bEdge = rising('b', b);
-    var xEdge = rising('x', x);
-
-    if (ignoreAUntilUp) {
-      if (!a) ignoreAUntilUp = false;
-      else {
-        a = false;
-        aEdge = false;
-      }
-    }
-    if (ignoreBUntilUp) {
-      if (!b) ignoreBUntilUp = false;
-      else {
-        b = false;
-        bEdge = false;
-      }
-    }
-    if (ignoreXUntilUp) {
-      if (!x) ignoreXUntilUp = false;
-      else {
-        x = false;
-        xEdge = false;
-      }
-    }
-
-    if (hintVisible() && !isGamepadLayout()) {
-      if (aEdge) acceptHint();
-      else if (bEdge) {
-        ignoreBUntilUp = true;
-        hideHint();
-      }
-      return;
-    }
-
-    if (!isGamepadLayout()) return;
-
+  function handlePadConsole(pad, now, a, x, aEdge, bEdge, xEdge, startEdge) {
     var paintDown = swapAX ? x : a;
     var paintEdge = swapAX ? xEdge : aEdge;
     var chatEdge = swapAX ? aEdge : xEdge;
@@ -544,7 +571,6 @@
     var ltEdge = rising('lt', buttonDown(pad, 6));
     var rtEdge = rising('rt', buttonDown(pad, 7));
     var selectEdge = rising('select', buttonDown(pad, 8));
-    var startEdge = rising('start', buttonDown(pad, 9));
     var l3Edge = rising('l3', buttonDown(pad, 10));
     var dir = moveDir(pad);
     var mode = uiMode();
@@ -602,21 +628,137 @@
     if (l3Edge) ensureWorkTileVisible(true);
   }
 
+  function handleStartMenus(mode) {
+    if (mode === 'more') {
+      toggleMore();
+      setGpFocus(null);
+      return;
+    }
+    if (mode === 'chat') {
+      closeOverlay();
+      return;
+    }
+    if (mode === 'desktop') {
+      var desk = overlayFocusables();
+      setGpFocus(desk[0] || null);
+      return;
+    }
+    toggleMore();
+    var first = document.querySelector('#moreSheet.open .more-nav-btn');
+    if (first) setGpFocus(first);
+  }
+
+  function handlePadMenus(pad, now, aEdge, bEdge, xEdge, startEdge) {
+    var yEdge = rising('y', buttonDown(pad, 3));
+    var lbEdge = rising('lb', buttonDown(pad, 4));
+    var rbEdge = rising('rb', buttonDown(pad, 5));
+    var ltEdge = rising('lt', buttonDown(pad, 6));
+    var rtEdge = rising('rt', buttonDown(pad, 7));
+    var selectEdge = rising('select', buttonDown(pad, 8));
+    var dir = moveDir(pad);
+    var mode = uiMode();
+
+    if (!mode && isDesktopLayout() && (startEdge || dir.dx || dir.dy)) {
+      desktopNav = true;
+      mode = uiMode();
+    }
+
+    if (mode) {
+      endPaint();
+      if (bEdge) closeOverlay();
+      else if (aEdge) activateFocus();
+      else if (startEdge) handleStartMenus(mode);
+      else if (xEdge) {
+        toggleChat();
+        if (chatIsOpen()) focusChatControls();
+        else setGpFocus(null);
+      }
+      if (mode === 'dock') {
+        if (yEdge) clickId('tileSettingsBtn');
+        if (lbEdge) stepPalette(-1);
+        if (rbEdge) stepPalette(1);
+        if (ltEdge) zoomBy(-1);
+        if (rtEdge) zoomBy(1);
+        if (selectEdge) nextTool();
+      }
+      repeatStep('ui', dir.dx, dir.dy, now, function (dx, dy) {
+        moveOverlayFocus(dx, dy);
+      });
+      return;
+    }
+
+    setGpFocus(null);
+    if (xEdge) {
+      toggleChat();
+      if (chatIsOpen()) focusChatControls();
+    }
+  }
+
+  function handlePad(pad) {
+    var now = Date.now();
+    var a = buttonDown(pad, 0);
+    var b = buttonDown(pad, 1);
+    var x = buttonDown(pad, 2);
+    var aEdge = rising('a', a);
+    var bEdge = rising('b', b);
+    var xEdge = rising('x', x);
+    var startEdge = rising('start', buttonDown(pad, 9));
+
+    if (ignoreAUntilUp) {
+      if (!a) ignoreAUntilUp = false;
+      else {
+        a = false;
+        aEdge = false;
+      }
+    }
+    if (ignoreBUntilUp) {
+      if (!b) ignoreBUntilUp = false;
+      else {
+        b = false;
+        bEdge = false;
+      }
+    }
+    if (ignoreXUntilUp) {
+      if (!x) ignoreXUntilUp = false;
+      else {
+        x = false;
+        xEdge = false;
+      }
+    }
+
+    if (hintVisible() && !isGamepadLayout()) {
+      if (aEdge) acceptHint();
+      else if (bEdge) {
+        ignoreBUntilUp = true;
+        hideHint();
+      } else if (startEdge) {
+        hideHint();
+        startFromHint();
+      }
+      return;
+    }
+
+    if (isGamepadLayout()) handlePadConsole(pad, now, a, x, aEdge, bEdge, xEdge, startEdge);
+    else handlePadMenus(pad, now, aEdge, bEdge, xEdge, startEdge);
+  }
+
   function tick() {
     raf = 0;
+    syncHasGamepad();
     if (!shouldPoll()) return;
     raf = requestAnimationFrame(tick);
     var pad = firstPad();
     if (pad) handlePad(pad);
-    else if (!hintVisible()) return;
   }
 
   function onConnected() {
+    syncHasGamepad();
     if (!isGamepadLayout()) showHint();
     ensureLoop();
   }
 
   function onLayout() {
+    desktopNav = false;
     if (isGamepadLayout()) {
       hideHint();
       if (global.TagproLoupe && TagproLoupe.setWorkTile) {
@@ -628,6 +770,7 @@
       endPaint();
       setGpFocus(null);
     }
+    syncHasGamepad();
     syncSwapAXVisibility();
     if (shouldPoll()) ensureLoop();
   }
@@ -635,6 +778,8 @@
   global.addEventListener('gamepadconnected', onConnected);
   global.addEventListener('gamepaddisconnected', function () {
     endPaint();
+    desktopNav = false;
+    syncHasGamepad();
     if (shouldPoll()) ensureLoop();
   });
   document.documentElement.addEventListener('tagpro-layout', onLayout);
@@ -679,6 +824,7 @@
     bindSwapAXControl();
     applySwapAX(swapAX, false);
     syncSwapAXVisibility();
+    syncHasGamepad();
     if (hasPad() && !isGamepadLayout()) showHint();
     if (shouldPoll()) ensureLoop();
     if (isGamepadLayout() && global.TagproLoupe && TagproLoupe.setWorkTile) {

@@ -2143,6 +2143,14 @@ html.layout-gamepad #map .tile.gp-work-tile {
   display: none !important;
 }
 
+.gp-hint-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
 .gp-focus {
   outline: 3px solid #4db8ff !important;
   outline-offset: 2px;
