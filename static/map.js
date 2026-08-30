@@ -4,6 +4,7 @@ $(function() {
 
   var maxZoom = 8;
   var zoom = 0;
+  var fitMode = 'cover';
   var tileSize = 8;
   var tileSheetWidth = 16;
   var tileSheetHeight = 11;
@@ -1421,6 +1422,7 @@ $(function() {
     $('#resizeHeight').val(height);
     $('#mapSize').val(width + 'x' + height);
     zoom = 0;
+    fitMode = 'cover';
     showZoom();
     enableZoomButtons();
     requestAnimationFrame(function() {
@@ -3076,19 +3078,40 @@ $(function() {
     return { w: Math.max(1, w), h: Math.max(1, h) };
   }
 
-  function computeFitTileSize() {
+  function computeContainTileSize() {
     if (!width || !height) return 8;
     var vp = mapViewportSize();
-    // Cover: fill #map (overflow/scroll on the long axis). Contain letterboxed and looked like a zoom-out on resize.
+    var ts = Math.floor(Math.min((vp.w - 1) / width, (vp.h - 1) / height));
+    while (ts > 2 && (width * ts > vp.w || height * ts > vp.h)) ts--;
+    return Math.max(2, ts);
+  }
+
+  function computeCoverTileSize() {
+    if (!width || !height) return 8;
+    var vp = mapViewportSize();
     var ts = Math.ceil(Math.max(vp.w / width, vp.h / height));
     while (ts < 4096 && width * ts < vp.w && height * ts < vp.h) ts++;
     return Math.max(2, ts);
   }
 
+  function computeFitTileSize() {
+    return computeCoverTileSize();
+  }
+
+  function syncFitModeFromSize(size) {
+    var contain = computeContainTileSize();
+    var cover = computeCoverTileSize();
+    if (size <= contain + 0.51) fitMode = 'contain';
+    else if (size <= cover + 0.51) fitMode = 'cover';
+    else fitMode = 'zoom';
+  }
+
   function tileSizeForZoom() {
-    var fit = computeFitTileSize();
-    if (zoom <= 0) return fit;
-    return Math.max(fit, Math.round(fit * Math.pow(1.4, zoom)));
+    var contain = computeContainTileSize();
+    var cover = computeCoverTileSize();
+    if (fitMode === 'contain') return contain;
+    if (zoom <= 0 || fitMode === 'cover') return cover;
+    return Math.max(cover, Math.round(cover * Math.pow(1.4, zoom)));
   }
 
   function applyTilePixelSize(size) {
@@ -3189,17 +3212,18 @@ $(function() {
   }
 
   function minMaxTileSize() {
-    var fit = computeFitTileSize();
+    var contain = computeContainTileSize();
+    var cover = computeCoverTileSize();
     return {
-      min: fit,
-      max: Math.max(fit, Math.round(fit * Math.pow(1.4, maxZoom)))
+      min: contain,
+      max: Math.max(cover, Math.round(cover * Math.pow(1.4, maxZoom)))
     };
   }
 
   function zoomLevelFromTileSize(size) {
-    var fit = computeFitTileSize();
-    if (size <= fit + 0.51) return 0;
-    var z = Math.log(size / fit) / Math.log(1.4);
+    var cover = computeCoverTileSize();
+    if (size <= cover + 0.51) return 0;
+    var z = Math.log(size / cover) / Math.log(1.4);
     return Math.max(0, Math.min(maxZoom, Math.round(z)));
   }
 
@@ -3282,6 +3306,7 @@ $(function() {
     viewTy = clientY - layoutY - focal.localY * viewScale;
     applyViewTransform();
     zoom = zoomLevelFromTileSize(tileSize * viewScale);
+    syncFitModeFromSize(tileSize * viewScale);
     enableZoomButtons();
   }
 
@@ -3324,6 +3349,7 @@ $(function() {
     el.scrollLeft += (cr2.left + localX * ratio) - clientX;
     el.scrollTop += (cr2.top + localY * ratio) - clientY;
     zoom = zoomLevelFromTileSize(tileSize);
+    syncFitModeFromSize(tileSize);
     enableZoomButtons();
     if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
@@ -3359,9 +3385,9 @@ $(function() {
     resetViewTransform();
     var prev = mapScrollSnapshot();
     var next = tileSizeForZoom();
-    if (opts.shrinkOnly) next = Math.min(tileSize, computeFitTileSize());
+    if (opts.shrinkOnly) next = Math.min(tileSize, computeContainTileSize());
     applyTilePixelSize(next);
-    restoreMapCenter(zoom <= 0 ? null : prev);
+    restoreMapCenter(fitMode === 'contain' || zoom <= 0 ? null : prev);
   }
 
   function zoomIn() {
@@ -3370,7 +3396,13 @@ $(function() {
       animateFocalZoom(viewScale * 1.4, c.x, c.y);
       return;
     }
-    zoom = Math.min(maxZoom, zoom + 1);
+    if (fitMode === 'contain') {
+      fitMode = 'cover';
+      zoom = 0;
+    } else {
+      fitMode = 'zoom';
+      zoom = Math.min(maxZoom, zoom + 1);
+    }
     showZoom();
     enableZoomButtons();
   }
@@ -3383,9 +3415,12 @@ $(function() {
     }
     if (zoom > 0) {
       zoom = zoom - 1;
+      fitMode = zoom <= 0 ? 'cover' : 'zoom';
       showZoom();
-    } else {
-      showZoom({ shrinkOnly: true });
+    } else if (fitMode !== 'contain') {
+      fitMode = 'contain';
+      zoom = 0;
+      showZoom();
     }
     enableZoomButtons();
   }
@@ -3403,8 +3438,8 @@ $(function() {
       enable($('#zoomOut, #dockZoomOut'), viewScale > lim.min + 0.01);
       return;
     }
-    enable($('#zoomIn, #dockZoomIn'), zoom < maxZoom);
-    enable($('#zoomOut, #dockZoomOut'), zoom > 0 || mapOverflows());
+    enable($('#zoomIn, #dockZoomIn'), zoom < maxZoom || fitMode === 'contain');
+    enable($('#zoomOut, #dockZoomOut'), fitMode !== 'contain' || mapOverflows());
   }
   $('#zoomIn').click(function(e) {
     e.preventDefault();
@@ -3875,7 +3910,7 @@ $(function() {
     enablePersist: function() { persistReady = true; },
     persistNow: persistMapNow,
     getSize: function() { return { width: width, height: height, tileSize: tileSize, zoom: zoom, viewScale: viewScale }; },
-    fitView: function() { zoom = 0; showZoom(); enableZoomButtons(); },
+    fitView: function() { showZoom(); enableZoomButtons(); },
     zoomIn: zoomIn,
     zoomOut: zoomOut,
     beginFocalZoom: beginFocalZoom,
