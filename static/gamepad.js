@@ -123,8 +123,12 @@
     }
   }
 
+  function isAutoLayout() {
+    return !(global.TagproLayout && TagproLayout.getOverride && TagproLayout.getOverride());
+  }
+
   function showHint() {
-    if (isGamepadLayout()) return;
+    if (isGamepadLayout() || isAutoLayout()) return;
     var el = hintEl();
     if (!el) return;
     el.removeAttribute('hidden');
@@ -142,7 +146,8 @@
 
   function shouldPoll() {
     if (hintVisible()) return true;
-    return hasPad() && isGamepadLayout();
+    if (hasPad() && isGamepadLayout()) return true;
+    return isAutoLayout();
   }
 
   function ensureLoop() {
@@ -607,11 +612,15 @@
     if (!shouldPoll()) return;
     raf = requestAnimationFrame(tick);
     var pad = firstPad();
+    if (isAutoLayout() && global.TagproLayout && TagproLayout.apply) {
+      if (!!pad !== isGamepadLayout()) TagproLayout.apply();
+    }
     if (pad) handlePad(pad);
-    else if (!hintVisible()) return;
+    else if (!hintVisible() && !isAutoLayout()) return;
   }
 
   function onConnected() {
+    if (isAutoLayout() && global.TagproLayout && TagproLayout.apply) TagproLayout.apply();
     if (!isGamepadLayout()) showHint();
     ensureLoop();
   }
@@ -635,6 +644,7 @@
   global.addEventListener('gamepadconnected', onConnected);
   global.addEventListener('gamepaddisconnected', function () {
     endPaint();
+    if (isAutoLayout() && global.TagproLayout && TagproLayout.apply) TagproLayout.apply();
     if (shouldPoll()) ensureLoop();
   });
   document.documentElement.addEventListener('tagpro-layout', onLayout);
@@ -679,6 +689,7 @@
     bindSwapAXControl();
     applySwapAX(swapAX, false);
     syncSwapAXVisibility();
+    if (isAutoLayout() && hasPad() && global.TagproLayout && TagproLayout.apply) TagproLayout.apply();
     if (hasPad() && !isGamepadLayout()) showHint();
     if (shouldPoll()) ensureLoop();
     if (isGamepadLayout() && global.TagproLoupe && TagproLoupe.setWorkTile) {

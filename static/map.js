@@ -3079,8 +3079,9 @@ $(function() {
   function computeFitTileSize() {
     if (!width || !height) return 8;
     var vp = mapViewportSize();
-    var ts = Math.floor(Math.min((vp.w - 1) / width, (vp.h - 1) / height));
-    while (ts > 2 && (width * ts > vp.w || height * ts > vp.h)) ts--;
+    // Cover: fill #map (overflow/scroll on the long axis). Contain letterboxed and looked like a zoom-out on resize.
+    var ts = Math.ceil(Math.max(vp.w / width, vp.h / height));
+    while (ts < 4096 && width * ts < vp.w && height * ts < vp.h) ts++;
     return Math.max(2, ts);
   }
 
@@ -3190,7 +3191,7 @@ $(function() {
   function minMaxTileSize() {
     var fit = computeFitTileSize();
     return {
-      min: 2,
+      min: fit,
       max: Math.max(fit, Math.round(fit * Math.pow(1.4, maxZoom)))
     };
   }
@@ -3360,12 +3361,6 @@ $(function() {
     var next = tileSizeForZoom();
     if (opts.shrinkOnly) next = Math.min(tileSize, computeFitTileSize());
     applyTilePixelSize(next);
-    if (zoom <= 0) {
-      var guard = 0;
-      while (guard++ < 12 && tileSize > 2 && mapOverflows()) {
-        applyTilePixelSize(tileSize - 1);
-      }
-    }
     restoreMapCenter(zoom <= 0 ? null : prev);
   }
 
@@ -3436,12 +3431,8 @@ $(function() {
     });
   });
   document.documentElement.addEventListener('tagpro-layout', function() {
-    if (!isMobileLayout()) {
-      resetViewTransform();
-      if (tiles && tiles.length) showZoom();
-    } else {
-      resetViewTransform();
-    }
+    resetViewTransform();
+    if (tiles && tiles.length) showZoom();
     enableZoomButtons();
   });
   
