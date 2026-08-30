@@ -422,6 +422,14 @@
             </div>
             <p class="help-block more-help">Gamepad is for handhelds/Steam Deck; Auto never picks it.</p>
           </div>
+          <div class="form-group" id="gpSwapAXGroup" hidden>
+            <label>Swap A and X</label>
+            <div class="btn-group btn-group-justified">
+              <a href="#" id="gpSwapAXOff" class="btn btn-default active" aria-pressed="true">Default</a>
+              <a href="#" id="gpSwapAXOn" class="btn btn-default" aria-pressed="false">Swapped</a>
+            </div>
+            <p class="help-block more-help">Paint and Chat swap. Default: A paints, X opens chat. Swapped: X paints, A opens chat.</p>
+          </div>
         </div>
 
         <div class="more-panel fm-order-extras-appearance" data-panel="theme" hidden>
@@ -581,8 +589,9 @@
         </div>
       </div>
       <div id="gpLegend" class="gp-legend" aria-hidden="true">
-        <span class="gp-hint-item"><span class="gp-badge">A</span> paint</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-ax="paint">A</span> paint</span>
         <span class="gp-hint-item"><span class="gp-badge">B</span> undo</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-ax="chat">X</span> chat</span>
         <span class="gp-hint-item"><span class="gp-badge">L</span><span class="gp-badge">R</span> tiles</span>
         <span class="gp-hint-item"><span class="gp-badge">Start</span> more</span>
       </div>
@@ -710,7 +719,7 @@
           <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
           <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row. Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
           <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe in from the right edge of the screen for room chat (join/leave lines and messages). Esc, a swipe back, or a tap outside closes it.</p>
-          <p><strong>Gamepad.</strong> Choose Layout → Gamepad on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests, pan, tile settings, + for More, B undo, redo, and clear. Left stick or D-pad steps the yellow work tile; right stick pans the map. A paints (hold A and move for a trail). B undo, X redo, Y tile settings. Shoulders (or on-screen L/R) change palette tiles; triggers zoom. Select cycles tools; Start opens More. L3 scrolls the work tile into view. Connecting a pad never switches layout by itself — press A on the hint, or pick Gamepad in Appearance.</p>
+          <p id="gpInstructions"><strong>Gamepad.</strong> Choose Layout → Gamepad on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests, pan, tile settings, + for More, B undo, on-screen redo, and clear. Left stick or D-pad steps the yellow work tile; right stick pans the map. <span id="gpAxHelp">A paints (hold A and move for a trail). X opens chat.</span> B undo, Y tile settings. Swipe up from the bottom of the map for chat, or tap the handle. Redo is the on-screen Redo button. Shoulders (or on-screen L/R) change palette tiles; triggers zoom. Select cycles tools; Start opens More. L3 scrolls the work tile into view. Connecting a pad never switches layout by itself — press A on the hint, or pick Gamepad in Layout.</p>
           <p>Happy map making.</p>
         </div>
         <div class="modal-footer">
@@ -720,7 +729,11 @@
     </div>
   </div>
 
-  <div id="collabChatEdge" class="collab-chat-edge" aria-hidden="true" title="Swipe in from the right for chat"></div>
+  <div id="collabChatEdge" class="collab-chat-edge" aria-hidden="true" title="Swipe in from the right for chat">
+    <span class="collab-chat-handle" aria-hidden="true">
+      <span class="collab-chat-handle-letter" data-gp-ax="chat">X</span>
+    </span>
+  </div>
   <div id="collabChatBackdrop" class="collab-chat-backdrop" hidden></div>
   <aside id="collabChat" class="collab-chat" aria-hidden="true" aria-label="Collab chat">
     <div class="collab-chat-header">

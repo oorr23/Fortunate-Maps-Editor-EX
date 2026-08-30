@@ -5,14 +5,88 @@
   var HINT_MS = 8000;
   var PAN_SPEED = 18;
 
+  var SWAP_KEY = 'tagpro-gamepad-swap-ax';
+
   var raf = 0;
   var hintTimer = 0;
   var paintHeld = false;
   var ignoreAUntilUp = false;
   var ignoreBUntilUp = false;
+  var ignoreXUntilUp = false;
   var gpFocusEl = null;
   var prev = {};
   var repeats = {};
+  var swapAX = false;
+
+  function readSwapAX() {
+    try {
+      return global.localStorage && global.localStorage.getItem(SWAP_KEY) === '1';
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function writeSwapAX(on) {
+    try {
+      if (global.localStorage) global.localStorage.setItem(SWAP_KEY, on ? '1' : '0');
+    } catch (err) {}
+  }
+
+  function syncSwapLabels() {
+    var paint = swapAX ? 'X' : 'A';
+    var chat = swapAX ? 'A' : 'X';
+    var els = document.querySelectorAll('[data-gp-ax]');
+    for (var i = 0; i < els.length; i++) {
+      var role = els[i].getAttribute('data-gp-ax');
+      els[i].textContent = role === 'paint' ? paint : chat;
+    }
+    var help = document.getElementById('gpAxHelp');
+    if (help) {
+      help.textContent = swapAX
+        ? 'X paints (hold X and move for a trail). A opens chat.'
+        : 'A paints (hold A and move for a trail). X opens chat.';
+    }
+  }
+
+  function syncSwapAXVisibility() {
+    var group = document.getElementById('gpSwapAXGroup');
+    if (!group) return;
+    var override = global.TagproLayout && TagproLayout.getOverride && TagproLayout.getOverride();
+    var show = isGamepadLayout() || override === 'gamepad';
+    if (show) group.removeAttribute('hidden');
+    else group.setAttribute('hidden', '');
+  }
+
+  function syncSwapAXButtons() {
+    var onBtn = document.getElementById('gpSwapAXOn');
+    var offBtn = document.getElementById('gpSwapAXOff');
+    if (onBtn) {
+      onBtn.classList.toggle('active', swapAX);
+      onBtn.setAttribute('aria-pressed', swapAX ? 'true' : 'false');
+    }
+    if (offBtn) {
+      offBtn.classList.toggle('active', !swapAX);
+      offBtn.setAttribute('aria-pressed', swapAX ? 'false' : 'true');
+    }
+  }
+
+  function applySwapAX(on, persist) {
+    swapAX = !!on;
+    document.documentElement.classList.toggle('gp-swap-ax', swapAX);
+    syncSwapLabels();
+    syncSwapAXButtons();
+    if (persist !== false) writeSwapAX(swapAX);
+  }
+
+  function setSwapAX(on) {
+    endPaint();
+    ignoreAUntilUp = true;
+    ignoreXUntilUp = true;
+    applySwapAX(on, true);
+  }
+
+  applySwapAX(readSwapAX(), false);
+  syncSwapAXVisibility();
 
   function isGamepadLayout() {
     return document.documentElement.classList.contains('layout-gamepad');
@@ -61,6 +135,7 @@
 
   function acceptHint() {
     ignoreAUntilUp = true;
+    ignoreXUntilUp = true;
     hideHint();
     if (global.TagproLayout) TagproLayout.setOverride('gamepad');
   }
@@ -93,11 +168,17 @@
     return (v < 0 ? -1 : 1) * mag;
   }
 
+  function chatIsOpen() {
+    if (document.documentElement.classList.contains('collab-chat-open')) return true;
+    return !!(global.TagproCollab && TagproCollab.isOpen && TagproCollab.isOpen());
+  }
+
   function uiMode() {
     if (document.body && document.body.classList.contains('tile-settings-open')) return 'dialog';
     if (document.querySelector('.modal.in')) return 'modal';
     var sheet = document.getElementById('moreSheet');
     if (sheet && sheet.classList.contains('open')) return 'more';
+    if (chatIsOpen()) return 'chat';
     return null;
   }
 
@@ -154,6 +235,9 @@
     }
     if (mode === 'modal') {
       return collectFocusables(document.querySelector('.modal.in'));
+    }
+    if (mode === 'chat') {
+      return collectFocusables(document.getElementById('collabChat'));
     }
     if (mode !== 'more') return list;
     var sheet = document.getElementById('moreSheet');
@@ -234,8 +318,20 @@
     if (uiMode() === 'more') {
       if (global.TagproMore && TagproMore.close) TagproMore.close();
       else clickId('moreClose');
+    } else if (uiMode() === 'chat') {
+      if (global.TagproCollab && TagproCollab.close) TagproCollab.close();
     }
     setGpFocus(null);
+  }
+
+  function toggleChat() {
+    if (global.TagproCollab && TagproCollab.toggle) TagproCollab.toggle();
+  }
+
+  function focusChatControls() {
+    var list = collectFocusables(document.getElementById('collabChat'));
+    var input = document.getElementById('collabChatInput');
+    setGpFocus((input && isShown(input)) ? input : (list[0] || null));
   }
 
   function ensureWorkTileVisible(center) {
@@ -401,8 +497,10 @@
     var now = Date.now();
     var a = buttonDown(pad, 0);
     var b = buttonDown(pad, 1);
+    var x = buttonDown(pad, 2);
     var aEdge = rising('a', a);
     var bEdge = rising('b', b);
+    var xEdge = rising('x', x);
 
     if (ignoreAUntilUp) {
       if (!a) ignoreAUntilUp = false;
@@ -418,6 +516,13 @@
         bEdge = false;
       }
     }
+    if (ignoreXUntilUp) {
+      if (!x) ignoreXUntilUp = false;
+      else {
+        x = false;
+        xEdge = false;
+      }
+    }
 
     if (hintVisible() && !isGamepadLayout()) {
       if (aEdge) acceptHint();
@@ -430,7 +535,9 @@
 
     if (!isGamepadLayout()) return;
 
-    var xEdge = rising('x', buttonDown(pad, 2));
+    var paintDown = swapAX ? x : a;
+    var paintEdge = swapAX ? xEdge : aEdge;
+    var chatEdge = swapAX ? aEdge : xEdge;
     var yEdge = rising('y', buttonDown(pad, 3));
     var lbEdge = rising('lb', buttonDown(pad, 4));
     var rbEdge = rising('rb', buttonDown(pad, 5));
@@ -445,13 +552,17 @@
     if (mode) {
       endPaint();
       if (bEdge) closeOverlay();
-      else if (aEdge) activateFocus();
       else if (startEdge) {
         if (mode === 'more') {
           toggleMore();
           setGpFocus(null);
+        } else if (mode === 'chat') {
+          closeOverlay();
         }
-      }
+      } else if (mode === 'chat' && chatEdge && !(swapAX && aEdge)) {
+        toggleChat();
+        setGpFocus(null);
+      } else if (aEdge) activateFocus();
       repeatStep('ui', dir.dx, dir.dy, now, function (dx, dy) {
         moveOverlayFocus(dx, dy);
       });
@@ -464,15 +575,19 @@
     });
     panMap(pad);
 
-    if (aEdge) {
+    if (paintEdge) {
       paintHeld = true;
       if (global.TagproLoupe && TagproLoupe.paintWorkTile) TagproLoupe.paintWorkTile('start');
-    } else if (!a) {
+    } else if (!paintDown) {
       endPaint();
     }
 
     if (bEdge) clickId('undo');
-    if (xEdge) clickId('redo');
+    if (chatEdge) {
+      toggleChat();
+      if (chatIsOpen()) focusChatControls();
+      else setGpFocus(null);
+    }
     if (yEdge) openWorkTileSettings();
     if (lbEdge) stepPalette(-1);
     if (rbEdge) stepPalette(1);
@@ -513,6 +628,7 @@
       endPaint();
       setGpFocus(null);
     }
+    syncSwapAXVisibility();
     if (shouldPoll()) ensureLoop();
   }
 
@@ -541,8 +657,28 @@
     if (right) right.addEventListener('click', onBumper(1));
   }
 
+  function bindSwapAXControl() {
+    var onBtn = document.getElementById('gpSwapAXOn');
+    var offBtn = document.getElementById('gpSwapAXOff');
+    if (onBtn) {
+      onBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        setSwapAX(true);
+      });
+    }
+    if (offBtn) {
+      offBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        setSwapAX(false);
+      });
+    }
+  }
+
   $(function () {
     bindBumpers();
+    bindSwapAXControl();
+    applySwapAX(swapAX, false);
+    syncSwapAXVisibility();
     if (hasPad() && !isGamepadLayout()) showHint();
     if (shouldPoll()) ensureLoop();
     if (isGamepadLayout() && global.TagproLoupe && TagproLoupe.setWorkTile) {
@@ -552,6 +688,8 @@
   });
 
   global.TagproGamepad = {
-    stepPalette: stepPalette
+    stepPalette: stepPalette,
+    swapAX: function () { return swapAX; },
+    setSwapAX: setSwapAX
   };
 })(window);

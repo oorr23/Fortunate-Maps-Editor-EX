@@ -117,17 +117,32 @@ $(function() {
     return document.getElementById('collabChat');
   }
 
+  function chatVertical() {
+    return document.documentElement.classList.contains('layout-gamepad');
+  }
+
   function chatPanelWidth() {
     var el = chatPanelEl();
     return (el && el.offsetWidth) || Math.min(280, Math.floor(window.innerWidth * 0.7));
   }
 
-  function setChatHiddenPx(px, dragging) {
+  function chatPanelHeight() {
+    var el = chatPanelEl();
+    return (el && el.offsetHeight) || Math.min(380, Math.floor(window.innerHeight * 0.5));
+  }
+
+  function chatPanelSize() {
+    return chatVertical() ? chatPanelHeight() : chatPanelWidth();
+  }
+
+  function setChatHiddenPx(px, dragging, vertical) {
     var el = chatPanelEl();
     if (!el) return;
     if (dragging) el.classList.add('is-dragging');
     else el.classList.remove('is-dragging');
-    el.style.transform = 'translateX(' + Math.max(0, px) + 'px)';
+    var useY = vertical == null ? chatVertical() : !!vertical;
+    var axis = useY ? 'Y' : 'X';
+    el.style.transform = 'translate' + axis + '(' + Math.max(0, px) + 'px)';
   }
 
   function clearChatInlineTransform() {
@@ -202,6 +217,11 @@ $(function() {
     if (input) input.blur();
   }
 
+  function toggleChat() {
+    if (chatOpen) closeChat();
+    else openChat();
+  }
+
   function eventPoint(e) {
     if (e.touches && e.touches[0]) return e.touches[0];
     if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0];
@@ -219,13 +239,19 @@ $(function() {
     if (origin === 'panel' && !chatOpen) return;
     if (origin === 'panel' && swipeIgnoreTarget(e.target)) return;
     if ($('.modal.in:visible').length) return;
+    var vertical = chatVertical();
     var pt = eventPoint(e);
-    if (origin === 'edge' && pt.clientX < window.innerWidth - EDGE_WIDTH - 2) return;
+    if (origin === 'edge' && !vertical && pt.clientX < window.innerWidth - EDGE_WIDTH - 2) return;
+    if (origin === 'panel' && vertical) {
+      var log = document.getElementById('collabChatLog');
+      if (log && e.target && log.contains(e.target) && log.scrollTop > 0) return;
+    }
     chatSwipe = {
       origin: origin,
       startX: pt.clientX,
       startY: pt.clientY,
-      width: chatPanelWidth(),
+      size: chatPanelSize(),
+      vertical: vertical,
       moved: false
     };
   }
@@ -235,39 +261,47 @@ $(function() {
     var pt = eventPoint(e);
     var dx = pt.clientX - chatSwipe.startX;
     var dy = pt.clientY - chatSwipe.startY;
+    var primary = chatSwipe.vertical ? dy : dx;
+    var secondary = chatSwipe.vertical ? dx : dy;
     if (!chatSwipe.moved) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      if (Math.abs(dy) > Math.abs(dx)) {
+      if (Math.abs(secondary) > Math.abs(primary)) {
         chatSwipe = null;
         clearChatInlineTransform();
         return;
       }
-      if (chatSwipe.origin === 'edge' && dx > 6) {
+      if (chatSwipe.origin === 'edge' && primary > 6) {
         chatSwipe = null;
         return;
       }
-      if (chatSwipe.origin === 'panel' && dx < -6) {
+      if (chatSwipe.origin === 'panel' && primary < -6) {
         chatSwipe = null;
         return;
       }
       chatSwipe.moved = true;
     }
     if (e.cancelable) e.preventDefault();
-    var hidden = chatSwipe.origin === 'edge' ? chatSwipe.width + dx : dx;
-    setChatHiddenPx(Math.max(0, Math.min(chatSwipe.width, hidden)), true);
+    var hidden = chatSwipe.origin === 'edge' ? chatSwipe.size + primary : primary;
+    setChatHiddenPx(Math.max(0, Math.min(chatSwipe.size, hidden)), true, chatSwipe.vertical);
   }
 
   function endChatSwipe(e) {
     if (!chatSwipe) return;
     var pt = eventPoint(e);
-    var dx = pt.clientX - chatSwipe.startX;
+    var primary = chatSwipe.vertical
+      ? (pt.clientY - chatSwipe.startY)
+      : (pt.clientX - chatSwipe.startX);
     var origin = chatSwipe.origin;
     var moved = chatSwipe.moved;
-    var threshold = Math.min(48, chatSwipe.width * 0.28);
+    var vertical = chatSwipe.vertical;
+    var threshold = Math.min(48, chatSwipe.size * 0.28);
     chatSwipe = null;
     clearChatInlineTransform();
-    if (!moved) return;
-    var shouldOpen = origin === 'edge' ? (-dx > threshold) : (dx < threshold);
+    if (!moved) {
+      if (origin === 'edge' && vertical) toggleChat();
+      return;
+    }
+    var shouldOpen = origin === 'edge' ? (-primary > threshold) : (primary < threshold);
     if (shouldOpen) openChat();
     else closeChat();
   }
@@ -277,11 +311,23 @@ $(function() {
     var map = document.getElementById('map');
     if (!edge || !map) return;
     var r = map.getBoundingClientRect();
-    edge.style.top = Math.max(0, r.top) + 'px';
-    edge.style.height = Math.max(0, r.height) + 'px';
-    edge.style.bottom = 'auto';
-    edge.style.right = '0px';
-    edge.style.width = EDGE_WIDTH + 'px';
+    if (chatVertical()) {
+      edge.style.left = Math.max(0, r.left) + 'px';
+      edge.style.width = Math.max(0, r.width) + 'px';
+      edge.style.right = 'auto';
+      edge.style.top = 'auto';
+      edge.style.height = EDGE_WIDTH + 'px';
+      edge.style.bottom = Math.max(0, window.innerHeight - r.bottom) + 'px';
+      edge.setAttribute('title', 'Swipe up for chat');
+    } else {
+      edge.style.top = Math.max(0, r.top) + 'px';
+      edge.style.height = Math.max(0, r.height) + 'px';
+      edge.style.bottom = 'auto';
+      edge.style.right = '0px';
+      edge.style.left = 'auto';
+      edge.style.width = EDGE_WIDTH + 'px';
+      edge.setAttribute('title', 'Swipe in from the right for chat');
+    }
   }
 
   function bindChatSwipe() {
@@ -293,6 +339,10 @@ $(function() {
     if (window.visualViewport) {
       visualViewport.addEventListener('resize', layoutChatEdge);
     }
+    document.documentElement.addEventListener('tagpro-layout', function() {
+      layoutChatEdge();
+      clearChatInlineTransform();
+    });
 
     var followKind = null;
     function onDocMove(e) { moveChatSwipe(e); }
@@ -732,7 +782,11 @@ $(function() {
     onPersist: sendCurrentState,
     roomId: function() { return roomId; },
     onTilesRebuilt: reapplyPeerCursors,
-    chatFocused: chatFocused
+    chatFocused: chatFocused,
+    open: openChat,
+    close: closeChat,
+    toggle: toggleChat,
+    isOpen: function() { return chatOpen; }
   };
 
   if (window.TagproMap) {
