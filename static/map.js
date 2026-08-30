@@ -4,7 +4,7 @@ $(function() {
 
   var maxZoom = 8;
   var zoom = 0;
-  var fitMode = 'cover';
+  var fitMode = 'contain';
   var tileSize = 8;
   var tileSheetWidth = 16;
   var tileSheetHeight = 11;
@@ -1422,7 +1422,7 @@ $(function() {
     $('#resizeHeight').val(height);
     $('#mapSize').val(width + 'x' + height);
     zoom = 0;
-    fitMode = 'cover';
+    fitMode = 'contain';
     showZoom();
     enableZoomButtons();
     requestAnimationFrame(function() {
