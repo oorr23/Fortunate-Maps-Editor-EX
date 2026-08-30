@@ -1,0 +1,16 @@
+{
+  "name": "Fortunate Maps Editor EX",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "server",
+      "command": "npm start"
+    }
+  ],
+  "ports": [
+    {
+      "name": "editor",
+      "port": 8060
+    }
+  ]
+}
