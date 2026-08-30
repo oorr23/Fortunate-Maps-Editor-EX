@@ -190,6 +190,7 @@ $(function() {
     this.getState = fns.getState || function() {};
     this.setState = fns.setState || function() {};
     this.previewOnly = !!fns.previewOnly;
+    this.eyedrop = !!fns.eyedrop;
   }
   var pencil = new Tool({
     speculateDrag: function(x,y) {
@@ -197,6 +198,25 @@ $(function() {
         new TileState(tiles[x][y], {type:brushTileType})
       ]);
     },
+  });
+  function tileTypeUnderCursor(x, y) {
+    var tile = tiles[x] && tiles[x][y];
+    if (!tile) return null;
+    if (tile.topType) return tile.topType;
+    return tile.type || null;
+  }
+  var eyedropper = new Tool({
+    previewOnly: true,
+    eyedrop: true,
+    speculateDrag: function(x, y) {
+      var ty = tileTypeUnderCursor(x, y);
+      if (ty) setBrushTileType(ty);
+    },
+    up: function() {
+      setTimeout(function() {
+        $('#toolPencil').trigger('click');
+      }, 0);
+    }
   });
   var brush = new Tool({
     speculateDrag: function(x,y) {
@@ -2226,13 +2246,13 @@ $(function() {
         var x = $(this).data('x');
         var y = $(this).data('y');
         if (!controlDown) {
-          if (e.shiftKey && openTileSettings(x, y)) {
+          if (e.shiftKey && !(selectedTool && selectedTool.eyedrop) && openTileSettings(x, y)) {
             mouseDown = false;
             return;
           }
           // Native click must not paint a settings tile (that kills dblclick).
           // Synthetic loupe/drag paints may still draw over them.
-          if (tileHasSettings(x, y) && !isLoupeSyntheticEvent(e)) {
+          if (tileHasSettings(x, y) && !isLoupeSyntheticEvent(e) && !(selectedTool && selectedTool.eyedrop)) {
             mouseDown = false;
             return;
           }
@@ -2299,6 +2319,10 @@ $(function() {
         if (controlDown) {
           var eyeDropBrushType = tiles[x][y].type;
           setBrushTileType(eyeDropBrushType);
+        } else if (selectedTool && selectedTool.eyedrop) {
+          var pick = tileTypeUnderCursor(x, y);
+          if (pick) setBrushTileType(pick);
+          selectedTool.up(x, y);
         } else if (tileHasSettings(x, y) && !isLoupeSyntheticEvent(e) && !mouseDown) {
           // Mobile hold opens settings; native mouseup must not also stamp.
         } else {
@@ -2328,18 +2352,26 @@ $(function() {
         var y = selectedTool.lastY != null ? selectedTool.lastY : selectedTool.downY;
         if (x == null) x = 0;
         if (y == null) y = 0;
-        if (selectedTool.speculateUp) {
-          var change = selectedTool.speculateUp(x, y);
-          if (change && !selectedTool.previewOnly) {
-            applySymmetry(change);
-            applyStep(change);
-            selectedTool.stateChange();
+        if (selectedTool.eyedrop) {
+          var pick = tileTypeUnderCursor(x, y);
+          if (pick) setBrushTileType(pick);
+          if (selectedTool.up) selectedTool.up(x, y);
+        } else {
+          if (selectedTool.speculateUp) {
+            var change = selectedTool.speculateUp(x, y);
+            if (change && !selectedTool.previewOnly) {
+              applySymmetry(change);
+              applyStep(change);
+              selectedTool.stateChange();
+            }
           }
+          clearPotentialHighlights();
+          if (selectedTool.up) selectedTool.up(x, y);
+          savePoint();
         }
-        clearPotentialHighlights();
-        if (selectedTool.up) selectedTool.up(x, y);
+      } else {
+        savePoint();
       }
-      savePoint();
       cleanDirtyWalls();
     }
   });
@@ -2788,6 +2820,7 @@ $(function() {
   setBrushTileType(floorType);
 
   $('#toolPencil').data('tool', pencil);
+  $('#toolEyedropper').data('tool', eyedropper);
   $('#toolBrush').data('tool', brush);
   $('#toolLine').data('tool', line);
   $('#toolRectFill').data('tool', rectFill);
@@ -2827,7 +2860,7 @@ $(function() {
     else $btn.addClass('active');
     selectedTool = tool;
     selectedTool.select.call(selectedTool);
-    if (toolId && ['toolAddCol', 'toolAddRow', 'toolMirror', 'toolCut', 'toolCopy', 'toolPaste'].indexOf(toolId) === -1) {
+    if (toolId && ['toolAddCol', 'toolAddRow', 'toolMirror', 'toolCut', 'toolCopy', 'toolPaste', 'toolEyedropper'].indexOf(toolId) === -1) {
       lastDrawingToolId = toolId;
     }
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(true);

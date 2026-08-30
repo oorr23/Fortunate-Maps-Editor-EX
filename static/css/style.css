@@ -98,6 +98,11 @@ div.tileTypeSelectionIndicator {
     width: 18px;
     height: 18px;
 }
+.tool-eyedrop-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
 #toolPaste.disabled,
 [data-tool-id="toolPaste"].disabled {
     opacity: 0.45;

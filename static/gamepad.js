@@ -92,7 +92,7 @@
   };
   // Pages with fewer than 8 tools sit at equal angles (thirds, quarters, …).
   var WHEEL_PAGES = [
-    { name: 'Draw', ids: ['toolPencil', 'toolBrush', 'toolLine', 'toolRectFill', 'toolRectOutline', 'toolCircleFill', 'toolCircleOutline', 'toolFill'] },
+    { name: 'Draw', ids: ['toolPencil', 'toolEyedropper', 'toolBrush', 'toolLine', 'toolRectFill', 'toolRectOutline', 'toolCircleFill', 'toolCircleOutline', 'toolFill'] },
     { name: 'Edit', ids: ['toolCut', 'toolCopy', 'toolPaste', 'toolWire', 'toolAddCol', 'toolAddRow', 'rotateCw', 'rotateCcw'] },
     { name: 'Map', ids: ['flipV', 'flipH', 'toolMirror', 'mirrorV'] }
   ];

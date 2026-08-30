@@ -395,7 +395,9 @@ html:not(.layout-desktop) #tools .btn > .glyphicon,
 html.layout-mobile #tools .btn > .tool-clip-icon,
 html:not(.layout-desktop) #tools .btn > .tool-clip-icon,
 html.layout-mobile #tools .btn > .tool-glue-icon,
-html:not(.layout-desktop) #tools .btn > .tool-glue-icon {
+html:not(.layout-desktop) #tools .btn > .tool-glue-icon,
+html.layout-mobile #tools .btn > .tool-eyedrop-icon,
+html:not(.layout-desktop) #tools .btn > .tool-eyedrop-icon {
   display: block;
   position: static;
   top: 0;
@@ -2363,10 +2365,20 @@ html.layout-mobile:not(.layout-gamepad) .collab-chat {
   transform: translateY(100%);
   box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
   border-radius: 12px 12px 0 0;
+  visibility: hidden;
+}
+
+html.layout-mobile:not(.layout-gamepad) .collab-chat.is-open,
+html.layout-mobile:not(.layout-gamepad) .collab-chat.is-dragging {
+  visibility: visible;
 }
 
 html.layout-mobile:not(.layout-gamepad) .collab-chat.is-open {
   transform: translateY(0);
+}
+
+html.layout-mobile:not(.layout-gamepad) .collab-chat-header {
+  display: none;
 }
 
 html.layout-mobile:not(.layout-gamepad) .collab-chat-edge {
@@ -2455,6 +2467,12 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat {
   left: 56px;
   right: 56px;
   bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(calc(100% + 36px + env(safe-area-inset-bottom, 0px)));
+}
+
+html.layout-mobile:not(.layout-gamepad).orient-landscape .collab-chat.is-open,
+html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat.is-open {
+  transform: translateY(0);
 }
 
 html.layout-mobile:not(.layout-gamepad).orient-landscape .collab-chat-edge,
@@ -2551,6 +2569,12 @@ html:not(.layout-desktop):not(.layout-gamepad).orient-landscape .collab-chat-edg
     left: 56px;
     right: 56px;
     bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(calc(100% + 36px + env(safe-area-inset-bottom, 0px)));
+  }
+
+  html.layout-mobile:not(.layout-gamepad) .collab-chat.is-open,
+  html:not(.layout-desktop):not(.layout-gamepad) .collab-chat.is-open {
+    transform: translateY(0);
   }
 
   html.layout-mobile:not(.layout-gamepad) .collab-chat-edge,
