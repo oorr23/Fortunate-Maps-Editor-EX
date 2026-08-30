@@ -808,6 +808,7 @@ $(function() {
     close: closeChat,
     toggle: toggleChat,
     isOpen: function() { return chatOpen; },
+    layoutEdge: layoutChatEdge,
     beginEdgeSwipe: function() { return false; }
   };
 

@@ -236,6 +236,10 @@ html.collab-chat-open .collab-chat-edge {
     background: transparent;
     box-shadow: none;
 }
+html.collab-chat-open .collab-chat-edge::after {
+    content: none;
+    display: none;
+}
 
 .collab-chat-backdrop {
     position: fixed;

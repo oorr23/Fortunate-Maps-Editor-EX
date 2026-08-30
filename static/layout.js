@@ -98,6 +98,12 @@
   clearStoredOverride();
   applyLayout();
 
+  try {
+    if (global.localStorage && global.localStorage.getItem('tagpro-mobile-controls-side') === 'right') {
+      document.documentElement.classList.add('mobile-controls-right');
+    }
+  } catch (err) {}
+
   global.addEventListener('resize', function () { applyLayout(); });
   global.addEventListener('orientationchange', function () { applyLayout(); });
   if (global.matchMedia) {

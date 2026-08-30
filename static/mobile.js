@@ -105,6 +105,40 @@ $(function() {
     chromeChanged();
   });
 
+  var CONTROLS_SIDE_KEY = 'tagpro-mobile-controls-side';
+  function readControlsSide() {
+    try {
+      return (localStorage.getItem(CONTROLS_SIDE_KEY) === 'right') ? 'right' : 'left';
+    } catch (err) {
+      return 'left';
+    }
+  }
+  function pinChatEdge() {
+    if (window.TagproCollab && typeof TagproCollab.layoutEdge === 'function') TagproCollab.layoutEdge();
+  }
+  function applyControlsSide(side, opts) {
+    opts = opts || {};
+    if (side !== 'right') side = 'left';
+    document.documentElement.classList.toggle('mobile-controls-right', side === 'right');
+    $('#mobileControlsLeft').toggleClass('active', side === 'left');
+    $('#mobileControlsRight').toggleClass('active', side === 'right');
+    try { localStorage.setItem(CONTROLS_SIDE_KEY, side); } catch (err) {}
+    if (opts.refit) {
+      chromeChanged();
+      pinChatEdge();
+      if (window.requestAnimationFrame) requestAnimationFrame(pinChatEdge);
+    }
+  }
+  applyControlsSide(readControlsSide());
+  $('#mobileControlsLeft').on('click', function(e) {
+    e.preventDefault();
+    applyControlsSide('left', { refit: true });
+  });
+  $('#mobileControlsRight').on('click', function(e) {
+    e.preventDefault();
+    applyControlsSide('right', { refit: true });
+  });
+
   var THEME_KEY = 'tagpro-theme';
   function readTheme() {
     try {
