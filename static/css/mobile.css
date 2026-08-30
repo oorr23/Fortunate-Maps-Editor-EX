@@ -608,7 +608,9 @@ html:not(.layout-desktop) .more-nav-btn {
 }
 
 html.layout-mobile .more-nav-btn:last-child,
-html:not(.layout-desktop) .more-nav-btn:last-child {
+html:not(.layout-desktop) .more-nav-btn:last-child,
+html.layout-mobile:not(.layout-gamepad) .more-nav-btn[data-panel="theme"],
+html:not(.layout-desktop):not(.layout-gamepad) .more-nav-btn[data-panel="theme"] {
   border-right: 0;
 }
 
@@ -1738,6 +1740,11 @@ html.layout-desktop .more-panel[data-panel="file"][hidden],
 html.layout-desktop .more-panel[data-panel="map"],
 html.layout-desktop .more-panel[data-panel="map"][hidden] {
   display: contents !important;
+}
+
+html.layout-desktop .more-panel[data-panel="controller"],
+html.layout-desktop .more-panel[data-panel="controller"][hidden] {
+  display: none !important;
 }
 
 html.layout-desktop #moreSheet .panel-undo-zoom {

@@ -556,6 +556,10 @@ html.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn.active {
   color: #2a241c;
 }
 
+html.layout-gamepad.layout-mobile .more-nav-btn[data-panel="controller"] {
+  grid-column: 1 / -1;
+}
+
 html.layout-gamepad.layout-mobile .more-panel,
 html.layout-gamepad.layout-mobile.orient-landscape .more-panel {
   padding: 0;

@@ -258,6 +258,7 @@
         <button type="button" class="more-nav-btn" data-panel="map" aria-expanded="false">Map</button>
         <button type="button" class="more-nav-btn" data-panel="layout" aria-expanded="false">Layout</button>
         <button type="button" class="more-nav-btn" data-panel="theme" aria-expanded="false">Appearance</button>
+        <button type="button" class="more-nav-btn gp-frame-only" id="gpControllerNav" data-panel="controller" aria-expanded="false">Controller</button>
       </nav>
 
       <div class="more-panels">
@@ -423,10 +424,13 @@
             </div>
             <p class="help-block more-help">Console is for handhelds/Steam Deck; Auto never picks it.</p>
           </div>
+        </div>
+
+        <div class="more-panel" data-panel="controller" hidden>
           <div class="form-group" id="gpBindsGroup" hidden>
             <label>Controller</label>
             <button type="button" id="gpBindsOpen" class="btn btn-default btn-block">Adjust bindings</button>
-            <p class="help-block more-help">Choose which pad buttons paint, zoom, Play, and the rest. Restore default settings puts every binding back.</p>
+            <p class="help-block more-help">Choose which pad buttons paint, zoom, Play, and the rest. Restore default settings puts every binding back. The connect hint always means the physical A button, even if you remap Paint.</p>
           </div>
           <div class="form-group" id="gpTestServerGroup" hidden>
             <label for="gpTestServer">Test server</label>
@@ -739,7 +743,7 @@
           <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
           <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row (Mirror map vertically copies the map downward and swaps teams). Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
           <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe in from the right edge of the screen for room chat (join/leave lines and messages). Esc, a swipe back, or a tap outside closes it.</p>
-          <p id="gpInstructions"><strong>Console.</strong> Choose Layout → Console on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests (hold Play to pick NA/EU), tile settings, + for More, B undo, Down redo, and clear. D-pad Left and Right focus those side menus so A can click them. Left stick steps the yellow work tile; right stick pans the map. <span id="gpBindsHelp">A paints (hold A and move for a trail). X opens chat. B undo, Down redo, Y tile settings. D-pad Up tests (hold to pick a server). Shoulders change palette tiles; triggers zoom. Select opens the tools wheel. Start opens More. L3 scrolls the work tile into view.</span> Swipe up from the bottom of the map for chat, or tap the handle. Connecting a pad never switches layout by itself — press A on the hint, or pick Console in Layout. Change any of these under Layout → Adjust bindings. Set a preferred test server there too.</p>
+          <p id="gpInstructions"><strong>Console.</strong> Choose Layout → Console on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests (hold Play to pick NA/EU), tile settings, + for More, B undo, Down redo, and clear. D-pad Left and Right focus those side menus so A can click them. Left stick steps the yellow work tile; right stick pans the map. <span id="gpBindsHelp">A paints (hold A and move for a trail). X opens chat. B undo, Down redo, Y tile settings. D-pad Up tests (hold to pick a server). Shoulders change palette tiles; triggers zoom. Select opens the tools wheel. Start opens More. L3 scrolls the work tile into view.</span> Swipe up from the bottom of the map for chat, or tap the handle. Connecting a pad never switches layout by itself — press the physical A button on the hint (even if Paint is remapped), or pick Console in Layout. Change any of these under More → Controller, or hold Start to open that tab. Set a preferred test server there too.</p>
           <p>Happy map making.</p>
         </div>
         <div class="modal-footer">
@@ -789,7 +793,7 @@
   <div id="gpBindsSheet" class="gp-binds-sheet" hidden aria-hidden="true">
     <div class="gp-binds-card">
       <h3>Controller bindings</h3>
-      <p class="help-block">Click a control, then press the new button. Restore default settings returns every action to its original binding.</p>
+      <p class="help-block">Click a control, then press the new button. Restore default settings returns every action to its original binding. The Console connect hint always means the physical A button, even if you remap Paint.</p>
       <div id="gpBindsList" class="gp-binds-list"></div>
       <div class="gp-binds-actions">
         <button type="button" id="gpBindsRestore" class="btn btn-default btn-block">Restore default settings</button>

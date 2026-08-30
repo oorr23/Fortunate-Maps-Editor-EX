@@ -40,7 +40,7 @@
     { id: 'zoomOut', label: 'Zoom out' },
     { id: 'zoomIn', label: 'Zoom in' },
     { id: 'tools', label: 'Tools wheel' },
-    { id: 'more', label: 'More' },
+    { id: 'more', label: 'More (hold: Controller)' },
     { id: 'center', label: 'Center work tile' },
     { id: 'play', label: 'Play / test' },
     { id: 'redo', label: 'Redo' },
@@ -71,8 +71,13 @@
   var railSide = null;
   var testServer = 'na';
   var legendOn = true;
+  var legendAway = false;
+  var legendAtX = null;
+  var legendAtY = null;
   var playHeldAt = 0;
   var playHoldFired = false;
+  var moreHeldAt = 0;
+  var moreHoldFired = false;
   var oskTarget = null;
   var oskPage = 'alpha';
   var oskShift = false;
@@ -244,10 +249,11 @@
         + buttonName(binds.palettePrev) + '/' + buttonName(binds.paletteNext) + ' change palette tiles (hold to repeat); '
         + buttonName(binds.zoomOut) + '/' + buttonName(binds.zoomIn) + ' zoom. '
         + buttonName(binds.tools) + ' opens the tools wheel. '
-        + buttonName(binds.more) + ' opens More. '
+        + buttonName(binds.more) + ' opens More (hold for Controller). '
         + buttonName(binds.center) + ' scrolls the work tile into view. '
         + stickName(sticks.move) + ' steps the work tile; '
-        + stickName(sticks.pan) + ' pans the map.';
+        + stickName(sticks.pan) + ' pans the map. '
+        + 'The connect hint always uses the physical A button, even if Paint is remapped.';
     }
   }
 
@@ -343,6 +349,12 @@
       if (show) legendGroup.removeAttribute('hidden');
       else legendGroup.setAttribute('hidden', '');
     }
+    if (!show) {
+      var sheet = document.getElementById('moreSheet');
+      if (sheet && sheet.getAttribute('data-open') === 'controller' && global.TagproMore && TagproMore.setPanel) {
+        TagproMore.setPanel('file', { keep: true });
+      }
+    }
     syncTestServerSelect();
     syncLegendButtons();
     updateLegend();
@@ -401,7 +413,7 @@
     legendOn = !!on;
     persistLegendPref();
     syncLegendButtons();
-    updateLegend();
+    updateLegend({ force: true });
   }
 
   function syncLegendButtons() {
@@ -418,7 +430,7 @@
   function workTileNearLegend() {
     var legend = legendEl();
     var tile = document.querySelector('#map .tileBackground.gp-work-tile, #map .gp-work-tile');
-    if (!legend || !tile) return false;
+    if (!legend || !tile) return null;
     var lr = legend.getBoundingClientRect();
     var tr = tile.getBoundingClientRect();
     var th = tr.height;
@@ -426,16 +438,33 @@
       var size = global.TagproMap && TagproMap.getSize && TagproMap.getSize();
       th = size && size.tileSize ? size.tileSize * (size.viewScale || 1) : 0;
     }
-    if (!th) return false;
+    if (!th) return null;
     var pad = 4 * th;
     return tr.bottom > lr.top - pad && tr.top < lr.bottom + pad;
   }
 
-  function updateLegend() {
+  function updateLegend(opts) {
     var el = legendEl();
     var handle = document.querySelector('.collab-chat-handle');
     var off = !isGamepadLayout() || !legendOn;
-    var away = !off && workTileNearLegend();
+    var away = false;
+    if (!off) {
+      var c = global.TagproLoupe && TagproLoupe.center && TagproLoupe.center();
+      var moved = c && (c.x !== legendAtX || c.y !== legendAtY);
+      if ((opts && opts.force) || moved || legendAtX == null) {
+        if (c) {
+          legendAtX = c.x;
+          legendAtY = c.y;
+        }
+        var near = workTileNearLegend();
+        if (near != null) legendAway = !!near;
+      }
+      away = legendAway;
+    } else {
+      legendAtX = null;
+      legendAtY = null;
+      legendAway = false;
+    }
     if (el) {
       el.classList.toggle('is-off', off);
       el.classList.toggle('is-away', away);
@@ -1207,6 +1236,53 @@
     playHoldFired = false;
   }
 
+  function openControllerMore() {
+    endPaint();
+    closeRail();
+    closeWheel();
+    if (global.TagproMore) {
+      if (TagproMore.open) TagproMore.open();
+      if (TagproMore.setPanel) TagproMore.setPanel('controller', { keep: true });
+    }
+    var btn = document.querySelector('#moreSheet.open .more-nav-btn[data-panel="controller"]');
+    if (btn) setGpFocus(btn);
+    else {
+      var first = document.querySelector('#moreSheet.open .more-nav-btn');
+      if (first) setGpFocus(first);
+    }
+  }
+
+  function handleMoreButton(pad, now, mode) {
+    var down = bindDown(pad, 'more');
+    if (mode && mode !== 'more') {
+      if (!down) {
+        moreHeldAt = 0;
+        moreHoldFired = false;
+      }
+      return;
+    }
+    if (down) {
+      if (!moreHeldAt) moreHeldAt = now;
+      if (!moreHoldFired && now - moreHeldAt >= PLAY_HOLD_MS) {
+        moreHoldFired = true;
+        openControllerMore();
+      }
+      return;
+    }
+    if (moreHeldAt && !moreHoldFired) {
+      if (mode === 'more') {
+        toggleMore();
+        setGpFocus(null);
+      } else {
+        toggleMore();
+        var first = document.querySelector('#moreSheet.open .more-nav-btn');
+        if (first) setGpFocus(first);
+      }
+    }
+    moreHeldAt = 0;
+    moreHoldFired = false;
+  }
+
   function oskEl() {
     return document.getElementById('gpOsk');
   }
@@ -1806,14 +1882,10 @@
 
     if (mode) {
       endPaint();
+      if (mode === 'more') handleMoreButton(pad, now, mode);
       if (edges.undo) closeOverlay();
-      else if (edges.more) {
-        if (mode === 'more') {
-          toggleMore();
-          setGpFocus(null);
-        } else if (mode === 'chat') {
-          closeOverlay();
-        }
+      else if (edges.more && mode !== 'more') {
+        if (mode === 'chat') closeOverlay();
       } else if (mode === 'chat' && edges.chat) {
         toggleChat();
         closeOsk();
@@ -1858,11 +1930,7 @@
     if (edges.zoomOut) zoomBy(-1);
     if (edges.zoomIn) zoomBy(1);
     if (edges.tools) openWheel();
-    if (edges.more) {
-      toggleMore();
-      var first = document.querySelector('#moreSheet.open .more-nav-btn');
-      if (first) setGpFocus(first);
-    }
+    handleMoreButton(pad, now, mode);
     if (edges.center) ensureWorkTileVisible(true);
     if (edges.railLeft) {
       enterRail('left');
@@ -1914,6 +1982,8 @@
       closeRail();
       endPaint();
       setGpFocus(null);
+      moreHeldAt = 0;
+      moreHoldFired = false;
     }
     syncBindsVisibility();
     if (shouldPoll()) ensureLoop();
