@@ -547,27 +547,6 @@ html.layout-gamepad.layout-mobile.orient-landscape #moreSheet .form-control {
   border-radius: 8px;
 }
 
-html.layout-gamepad.theme-dark #moreSheet .btn,
-html.layout-gamepad.theme-dark #moreSheet .form-control,
-html.layout-gamepad.theme-dark #moreSheet .input-group-addon,
-html.layout-gamepad.theme-dark #moreSheet select {
-  background-color: #fffdf8;
-  border-color: #d2c8b6;
-  color: #2a241c;
-}
-
-html.layout-gamepad.theme-dark #moreSheet .help-block,
-html.layout-gamepad.theme-dark #moreSheet .source-link,
-html.layout-gamepad.theme-dark #moreSheet .source-link a,
-html.layout-gamepad.theme-dark #moreSheet .help-block a {
-  color: #5a5246;
-}
-
-html.layout-gamepad.theme-dark .fm-extras-heading {
-  border-top-color: #d2c8b6;
-  color: #5a5246;
-}
-
 /* Orange L-corner focus instead of the default blue outline. */
 html.layout-gamepad .gp-focus {
   outline: none !important;
@@ -618,4 +597,252 @@ html.layout-gamepad .gp-focus::after {
     grid-template-columns: 44px minmax(0, 1fr) 44px;
     grid-template-rows: 44px minmax(0, 1fr);
   }
+}
+
+/* --- Light: keep the SMM beige/cream/yellow frame --- */
+html.theme-light.layout-gamepad,
+html.theme-light.layout-gamepad body {
+  background: #cfc6b6;
+  color: #2a241c;
+}
+
+html.theme-light.layout-gamepad.layout-mobile #app,
+html.theme-light.layout-gamepad.layout-mobile.orient-landscape #app,
+html.theme-light.layout-gamepad.layout-mobile.orient-portrait #app {
+  background: #cfc6b6;
+}
+
+html.theme-light.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn,
+html.theme-light.layout-gamepad.layout-mobile .more-nav-btn {
+  background: #fffdf8;
+  color: #3a3328;
+}
+
+html.theme-light.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn.active,
+html.theme-light.layout-gamepad.layout-mobile .more-nav-btn.active {
+  background: #ffe08a;
+  color: #2a241c;
+}
+
+html.theme-light.layout-gamepad.layout-mobile #moreSheet,
+html.theme-light.layout-gamepad.layout-mobile.orient-landscape #moreSheet,
+html.theme-light.layout-gamepad.layout-mobile.orient-portrait #moreSheet {
+  background: #f4efe4;
+  color: #2a241c;
+}
+
+/* --- Dark: SMM frame with existing mobile dark tokens --- */
+html.theme-dark.layout-gamepad,
+html.theme-dark.layout-gamepad body {
+  background: #1a1d23;
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #app,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #app,
+html.theme-dark.layout-gamepad.layout-mobile.orient-portrait #app {
+  background: #1a1d23;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #palette,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #palette,
+html.theme-dark.layout-gamepad.layout-mobile.orient-portrait #palette {
+  background: #2a2f38;
+  box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.06);
+}
+
+html.theme-dark.layout-gamepad .gp-bumper {
+  background: #2a2f38;
+  color: #f5a623;
+  box-shadow: 0 2px 0 #11151c, 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+html.theme-dark.layout-gamepad .gp-bumper:active {
+  box-shadow: 0 1px 0 #11151c;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #gpRailLeft,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #gpRailLeft,
+html.theme-dark.layout-gamepad.layout-mobile #gpRailRight,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #gpRailRight {
+  background: #1a1d23;
+  box-shadow: none;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #gpRailLeft {
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.35);
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #gpRailRight {
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.35);
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #gpRailLeft .dock-btn,
+html.theme-dark.layout-gamepad.layout-mobile #gpRailRight .dock-btn,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #gpRailLeft .dock-btn,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #gpRailRight .dock-btn,
+html.theme-dark.layout-gamepad.layout-mobile #panMode,
+html.theme-dark.layout-gamepad.layout-mobile #tileSettingsBtn,
+html.theme-dark.layout-gamepad.layout-mobile #moreToggle,
+html.theme-dark.layout-gamepad.layout-mobile #dockUndo,
+html.theme-dark.layout-gamepad.layout-mobile #dockRedo,
+html.theme-dark.layout-gamepad.layout-mobile #dockTest,
+html.theme-dark.layout-gamepad.layout-mobile #dockClear {
+  background: #2a2f38;
+  color: #f2f2f2;
+  box-shadow: 0 2px 0 #11151c, 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+html.theme-dark.layout-gamepad .gp-letter,
+html.theme-dark.layout-gamepad.layout-mobile #moreToggle .gp-letter-plus {
+  color: #f5a623;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+}
+
+html.theme-dark.layout-gamepad.layout-mobile .dock-btn:active,
+html.theme-dark.layout-gamepad.layout-mobile .dock-btn.active,
+html.theme-dark.layout-gamepad.layout-mobile #panMode.active,
+html.theme-dark.layout-gamepad.pan-mode #panMode,
+html.theme-dark.layout-gamepad.layout-mobile #tileSettingsBtn.has-settings {
+  background: #c9a227;
+  color: #1a1d23;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #map,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #map,
+html.theme-dark.layout-gamepad.layout-mobile.orient-portrait #map {
+  background: #1a1d23;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #gpLegend,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #gpLegend {
+  background: rgba(26, 29, 35, 0.88);
+  color: #eee;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+html.theme-dark.layout-gamepad .gp-badge {
+  background: #ffe08a;
+  color: #c45a12;
+  box-shadow: 0 1px 0 #11151c;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #moreClose,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #moreClose {
+  background: #2a2f38;
+  color: #f2f2f2;
+  box-shadow: 0 2px 0 #11151c;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile .more-backdrop,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape .more-backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+html.theme-dark.layout-gamepad.layout-mobile #moreSheet,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #moreSheet,
+html.theme-dark.layout-gamepad.layout-mobile.orient-portrait #moreSheet {
+  background: #1a1d23;
+  color: #eee;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 2px 0 #11151c;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile .more-sheet-header,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape .more-sheet-header {
+  color: #f2f2f2;
+}
+
+html.theme-dark.layout-gamepad.layout-mobile .more-nav-btn,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn {
+  background: #2a2f38;
+  color: #f2f2f2;
+  box-shadow: 0 2px 0 #11151c, 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+html.theme-dark.layout-gamepad.layout-mobile .more-nav-btn.active,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape .more-nav-btn.active {
+  background: #c9a227;
+  color: #1a1d23;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .btn,
+html.theme-dark.layout-gamepad #moreSheet .form-control,
+html.theme-dark.layout-gamepad #moreSheet .input-group-addon,
+html.theme-dark.layout-gamepad #moreSheet select,
+html.theme-dark.layout-gamepad #moreSheet textarea {
+  background-color: #2a2f38;
+  border-color: #3a3f4a;
+  color: #f2f2f2;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .btn:hover,
+html.theme-dark.layout-gamepad #moreSheet .btn:focus,
+html.theme-dark.layout-gamepad #moreSheet .form-control:focus {
+  background-color: #323844;
+  border-color: #3a3f4a;
+  color: #f2f2f2;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .btn.active,
+html.theme-dark.layout-gamepad #moreSheet .btn:active {
+  background-color: #c9a227;
+  border-color: #c9a227;
+  color: #1a1d23;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .help-block,
+html.theme-dark.layout-gamepad #moreSheet .source-link,
+html.theme-dark.layout-gamepad #moreSheet .source-link a,
+html.theme-dark.layout-gamepad #moreSheet .help-block a,
+html.theme-dark.layout-gamepad #moreSheet label {
+  color: #c8c8c8;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .more-sheet-header,
+html.theme-dark.layout-gamepad #moreSheet h3,
+html.theme-dark.layout-gamepad #moreSheet h4,
+html.theme-dark.layout-gamepad .fm-extras-heading,
+html.theme-dark.layout-gamepad #moreSheet .collab-users,
+html.theme-dark.layout-gamepad #moreSheet .collab-user {
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad .fm-extras-heading {
+  border-top-color: #3a3f4a;
+}
+
+html.theme-dark.layout-gamepad #moreSheet code {
+  background: #2a2f38;
+  color: #ffe08a;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .form-control::placeholder {
+  color: #9aa0a6;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .dropdown-menu {
+  background-color: #2a2f38;
+  border-color: #3a3f4a;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .dropdown-menu > li > a {
+  color: #f2f2f2;
+}
+
+html.theme-dark.layout-gamepad #moreSheet .dropdown-menu > li > a:hover,
+html.theme-dark.layout-gamepad #moreSheet .dropdown-menu > li > a:focus {
+  background-color: #1a1d23;
+  color: #fff;
+}
+
+html.theme-dark.layout-gamepad .collab-chat {
+  background: rgba(26, 29, 35, 0.94);
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad .collab-chat-form .form-control,
+html.theme-dark.layout-gamepad .collab-chat-form .btn {
+  background-color: #2a2f38;
+  border-color: #3a3f4a;
+  color: #f2f2f2;
 }
