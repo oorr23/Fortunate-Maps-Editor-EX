@@ -1,7 +1,7 @@
 {
-  "name": "tagpro-mobile-editor",
+  "name": "fortunate-maps-editor-ex",
   "version": "0.2.0",
-  "description": "Mobile-friendly TagPro map editor (web UI)",
+  "description": "Fortunate Maps Editor EX (web map editor)",
   "license": "AGPL-3.0",
   "scripts": {
     "start": "node main.js"

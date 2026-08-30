@@ -9,7 +9,7 @@
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 		<meta name="theme-color" content="#1a1d23">
 		<meta name="format-detection" content="telephone=no">
-		<title>TagPro Map Editor</title>
+		<title>Fortunate Maps</title>
 		<script>
 			(function () {
 				var KEY = 'tagpro-load-screen';
@@ -140,8 +140,9 @@
 				animation: splash-mark-in 3s ease both;
 			}
 			.splash-tag, .splash-pro {
+				display: block;
 				font-weight: 800;
-				font-size: 34px;
+				font-size: 32px;
 				letter-spacing: 0.01em;
 				line-height: 1.1;
 			}
@@ -172,7 +173,7 @@
 				.splash-stage { width: 240px; margin-left: -120px; }
 				.splash-ring { width: 168px; height: 168px; margin: -84px 0 0 -84px; }
 				.splash-ball { width: 44px; height: 44px; margin-left: -22px; }
-				.splash-tag, .splash-pro { font-size: 28px; }
+				.splash-tag, .splash-pro { font-size: 24px; }
 			}
 			@media (prefers-reduced-motion: reduce) {
 				.splash-ring, .splash-ball, .splash-mark { animation: none !important; }
@@ -198,7 +199,7 @@
 
 <body>
 
-  <div id="splash" role="status" aria-live="polite" aria-label="TagPro Map Editor">
+  <div id="splash" role="status" aria-live="polite" aria-label="Fortunate Maps">
     <div class="splash-floor" aria-hidden="true"></div>
     <div class="splash-stage">
       <div class="splash-arena" aria-hidden="true"></div>
@@ -207,8 +208,8 @@
         <span class="splash-ball splash-ball-blue"></span>
       </div>
       <div class="splash-mark">
-        <span class="splash-tag">Tag</span><span class="splash-pro">Pro</span>
-        <span class="splash-sub">Map Editor</span>
+        <span class="splash-tag">Fortunate</span> <span class="splash-pro">Maps</span>
+        <span class="splash-sub"></span>
       </div>
     </div>
   </div>
