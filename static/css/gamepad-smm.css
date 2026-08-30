@@ -5,7 +5,12 @@ html:not(.layout-gamepad) .gp-frame-only,
 html:not(.layout-gamepad) #gpBumperL,
 html:not(.layout-gamepad) #gpBumperR,
 html:not(.layout-gamepad) .gp-letter,
-html:not(.layout-gamepad) #gpSwapAXGroup {
+html:not(.layout-gamepad) #gpBindsGroup,
+html:not(.layout-gamepad) #gpTestServerGroup,
+html:not(.layout-gamepad) #gpLegendGroup,
+html:not(.layout-gamepad) #gpBindsSheet,
+html:not(.layout-gamepad) #gpTestMenu,
+html:not(.layout-gamepad) #gpOsk {
   display: none !important;
 }
 
@@ -65,8 +70,6 @@ html.layout-gamepad.layout-mobile.orient-landscape #dockBar {
 html.layout-gamepad.layout-mobile .dock-tools-wrap,
 html.layout-gamepad.layout-mobile.orient-landscape .dock-tools-wrap,
 html.layout-gamepad.layout-mobile #tools,
-html.layout-gamepad.layout-mobile #dockZoomOut,
-html.layout-gamepad.layout-mobile #dockZoomIn,
 html.layout-gamepad.layout-mobile #zoom {
   display: none !important;
 }
@@ -215,13 +218,14 @@ html.layout-gamepad.layout-mobile #gpRailLeft .dock-btn,
 html.layout-gamepad.layout-mobile #gpRailRight .dock-btn,
 html.layout-gamepad.layout-mobile.orient-landscape #gpRailLeft .dock-btn,
 html.layout-gamepad.layout-mobile.orient-landscape #gpRailRight .dock-btn,
-html.layout-gamepad.layout-mobile #panMode,
 html.layout-gamepad.layout-mobile #tileSettingsBtn,
 html.layout-gamepad.layout-mobile #moreToggle,
 html.layout-gamepad.layout-mobile #dockUndo,
 html.layout-gamepad.layout-mobile #dockRedo,
 html.layout-gamepad.layout-mobile #dockTest,
-html.layout-gamepad.layout-mobile #dockClear {
+html.layout-gamepad.layout-mobile #dockClear,
+html.layout-gamepad.layout-mobile #dockZoomIn,
+html.layout-gamepad.layout-mobile #dockZoomOut {
   display: flex !important;
   position: relative;
   align-items: center;
@@ -301,8 +305,17 @@ html.layout-gamepad.layout-mobile #tileSettingsBtn.has-settings {
   color: #3a3328;
 }
 
-html.layout-gamepad.layout-mobile #tileSettingsBtn:disabled {
+html.layout-gamepad.layout-mobile #tileSettingsBtn:disabled,
+html.layout-gamepad.layout-mobile #dockZoomIn:disabled,
+html.layout-gamepad.layout-mobile #dockZoomOut:disabled {
   opacity: 0.4;
+}
+
+html.layout-gamepad #panMode,
+html.layout-gamepad.layout-mobile #panMode,
+html.layout-gamepad.layout-mobile.orient-landscape #panMode,
+html.layout-gamepad.layout-mobile #gpRailLeft #panMode {
+  display: none !important;
 }
 
 /* --- Map --- */
@@ -365,40 +378,27 @@ html.layout-gamepad.layout-mobile.orient-landscape #gpLegend {
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.28s ease;
+}
+
+html.layout-gamepad .gp-legend.is-away,
+html.layout-gamepad .gp-legend.is-off,
+html.layout-gamepad.layout-mobile #gpLegend.is-away,
+html.layout-gamepad.layout-mobile #gpLegend.is-off,
+html.layout-gamepad.layout-mobile.orient-landscape #gpLegend.is-away,
+html.layout-gamepad.layout-mobile.orient-landscape #gpLegend.is-off,
+html.theme-dark.layout-gamepad.layout-mobile #gpLegend.is-away,
+html.theme-dark.layout-gamepad.layout-mobile #gpLegend.is-off,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #gpLegend.is-away,
+html.theme-dark.layout-gamepad.layout-mobile.orient-landscape #gpLegend.is-off {
+  opacity: 0 !important;
 }
 
 html.layout-gamepad .gp-hint-item {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-}
-
-html.layout-gamepad .gp-badge[data-gp-ax="paint"],
-html.layout-gamepad .gp-badge[data-gp-ax="chat"] {
-  font-size: 0;
-}
-
-html.layout-gamepad .gp-badge[data-gp-ax="paint"]::before,
-html.layout-gamepad .gp-badge[data-gp-ax="chat"]::before {
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-html.layout-gamepad .gp-badge[data-gp-ax="paint"]::before {
-  content: "A";
-}
-
-html.layout-gamepad .gp-badge[data-gp-ax="chat"]::before {
-  content: "X";
-}
-
-html.gp-swap-ax.layout-gamepad .gp-badge[data-gp-ax="paint"]::before {
-  content: "X";
-}
-
-html.gp-swap-ax.layout-gamepad .gp-badge[data-gp-ax="chat"]::before {
-  content: "A";
 }
 
 html.layout-gamepad .gp-badge {
@@ -668,31 +668,28 @@ html.layout-gamepad .collab-chat-handle {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
   pointer-events: none;
   user-select: none;
+  opacity: 1;
+  transition: opacity 0.28s ease;
+}
+
+html.layout-gamepad .collab-chat-handle.is-away,
+html.layout-gamepad .collab-chat-handle.is-off {
+  opacity: 0 !important;
 }
 
 html.layout-gamepad .collab-chat-handle-letter {
-  font-size: 0;
-  line-height: 1;
-  letter-spacing: 0.02em;
-}
-
-html.layout-gamepad .collab-chat-handle-letter::before {
-  content: "X";
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
+  letter-spacing: 0.02em;
   color: #f4efe4;
-}
-
-html.gp-swap-ax.layout-gamepad .collab-chat-handle-letter::before {
-  content: "A";
 }
 
 html.theme-dark.layout-gamepad .collab-chat-handle {
   background: rgba(26, 29, 35, 0.92);
 }
 
-html.theme-dark.layout-gamepad .collab-chat-handle-letter::before {
+html.theme-dark.layout-gamepad .collab-chat-handle-letter {
   color: #ffe08a;
 }
 
@@ -804,7 +801,9 @@ html.theme-dark.layout-gamepad.layout-mobile #moreToggle,
 html.theme-dark.layout-gamepad.layout-mobile #dockUndo,
 html.theme-dark.layout-gamepad.layout-mobile #dockRedo,
 html.theme-dark.layout-gamepad.layout-mobile #dockTest,
-html.theme-dark.layout-gamepad.layout-mobile #dockClear {
+html.theme-dark.layout-gamepad.layout-mobile #dockClear,
+html.theme-dark.layout-gamepad.layout-mobile #dockZoomIn,
+html.theme-dark.layout-gamepad.layout-mobile #dockZoomOut {
   background: #2a2f38;
   color: #f2f2f2;
   box-shadow: 0 2px 0 #11151c, 0 3px 6px rgba(0, 0, 0, 0.35);
@@ -1093,9 +1092,9 @@ html.layout-gamepad .gp-tool-hub {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 96px;
-  height: 96px;
-  margin: -48px 0 0 -48px;
+  width: 104px;
+  height: 104px;
+  margin: -52px 0 0 -52px;
   border-radius: 50%;
   background: #fffdf8;
   box-shadow: 0 0 0 3px #eadfcf;
@@ -1118,7 +1117,18 @@ html.layout-gamepad .gp-tool-hub-name {
   font-weight: 700;
   line-height: 1.15;
   color: #5a5348;
-  max-width: 88px;
+  max-width: 96px;
+  white-space: normal;
+}
+
+html.layout-gamepad .gp-tool-hub-note {
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #c45a12;
+  max-width: 96px;
+  text-align: center;
   white-space: normal;
 }
 
@@ -1172,4 +1182,247 @@ html.theme-dark.layout-gamepad .gp-tool-hub-icon {
 
 html.theme-dark.layout-gamepad .gp-tool-hub-name {
   color: #c8c8c8;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-hub-note {
+  color: #f5a623;
+}
+
+html:not(.layout-gamepad) .gp-binds-sheet,
+html.layout-gamepad .gp-binds-sheet[hidden] {
+  display: none !important;
+}
+
+html.layout-gamepad .gp-binds-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 16px;
+}
+
+html.layout-gamepad .gp-binds-card {
+  width: min(420px, 100%);
+  height: min(560px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px 14px 12px;
+  border-radius: 14px;
+  background: #fffdf8;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+html.layout-gamepad .gp-binds-card h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #3a3328;
+}
+
+html.layout-gamepad .gp-binds-card .help-block {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+html.layout-gamepad .gp-binds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+html.layout-gamepad .gp-bind-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+html.layout-gamepad .gp-bind-row label {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3a3328;
+}
+
+html.layout-gamepad .gp-bind-row .form-control,
+html.layout-gamepad .gp-bind-listen {
+  flex: 0 0 120px;
+  width: 120px;
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+html.layout-gamepad .gp-bind-row.is-listen label {
+  color: #c45a12;
+}
+
+html.layout-gamepad .gp-binds-actions {
+  flex: 0 0 auto;
+}
+
+html.layout-gamepad .gp-binds-actions .btn {
+  margin-top: 6px;
+}
+
+html.theme-dark.layout-gamepad .gp-binds-card {
+  background: #1a1d23;
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad .gp-binds-card h3,
+html.theme-dark.layout-gamepad .gp-bind-row label {
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad .gp-binds-card .help-block {
+  color: #c8c8c8;
+}
+
+html.theme-dark.layout-gamepad .gp-bind-row .form-control {
+  background-color: #2a2f38;
+  border-color: #3a3f4a;
+  color: #f2f2f2;
+}
+
+html:not(.layout-gamepad) .gp-test-menu,
+html.layout-gamepad .gp-test-menu[hidden],
+html:not(.layout-gamepad) .gp-osk,
+html.layout-gamepad .gp-osk[hidden] {
+  display: none !important;
+}
+
+html.layout-gamepad .gp-test-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 12100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 16px;
+}
+
+html.layout-gamepad .gp-test-menu-card {
+  width: min(320px, 100%);
+  padding: 16px 14px 12px;
+  border-radius: 14px;
+  background: #fffdf8;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+html.layout-gamepad .gp-test-menu-card h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: #3a3328;
+}
+
+html.layout-gamepad .gp-test-menu-card .btn {
+  margin-bottom: 8px;
+}
+
+html.layout-gamepad .gp-osk {
+  position: fixed;
+  left: 44px;
+  right: 44px;
+  bottom: 0;
+  z-index: 12500;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+html.layout-gamepad .gp-osk-card {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 640px;
+  padding: 8px 8px 10px;
+  border-radius: 12px 12px 0 0;
+  background: #fffdf8;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.28);
+}
+
+html.layout-gamepad .gp-osk-preview {
+  min-height: 22px;
+  margin: 0 4px 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #eadfcf;
+  color: #3a3328;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.layout-gamepad .gp-osk-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+html.layout-gamepad .gp-osk-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+html.layout-gamepad .gp-osk-key {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 34px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: #f4efe4;
+  color: #3a3328;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 0 #b9ae9a;
+}
+
+html.layout-gamepad .gp-osk-key.is-wide {
+  flex: 2.2 1 0;
+}
+
+html.layout-gamepad .gp-osk-key.is-on {
+  background: #8ec8e8;
+  box-shadow: 0 2px 0 #6aa3c2;
+}
+
+html.theme-dark.layout-gamepad .gp-test-menu-card,
+html.theme-dark.layout-gamepad .gp-osk-card {
+  background: #1a1d23;
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad .gp-test-menu-card h3 {
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad .gp-osk-preview {
+  background: #2a2f38;
+  color: #f2f2f2;
+}
+
+html.theme-dark.layout-gamepad .gp-osk-key {
+  background: #2a2f38;
+  color: #f2f2f2;
+  box-shadow: 0 2px 0 #11151c;
+}
+
+html.theme-dark.layout-gamepad .gp-osk-key.is-on {
+  background: #3d6f8c;
+  box-shadow: 0 2px 0 #2a5066;
 }

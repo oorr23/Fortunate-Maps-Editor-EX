@@ -2564,22 +2564,24 @@ $(function() {
     return "Valid";
   }
 
-  $('#test, #testeu').click(function(e) {
+  function launchTest(eu) {
     var validStr = isValidMapStr();
     if (validStr != "Valid") {
       alert(validStr);
       return false;
     }
-    var eu = e.target.id == 'testeu' ? true : false;
-    $.post('test', {logic: JSON.stringify(makeLogic()), layout: getPngBase64(), eu: eu}, function(data) {
+    $.post('test', {logic: JSON.stringify(makeLogic()), layout: getPngBase64(), eu: !!eu}, function(data) {
       if (data && data.location) {
         window.open(data.location);
       } else {
         alert("Test couldn't get started.")
       }
-      //console.log('back from test', data)
     });
     return false;
+  }
+
+  $('#test, #testeu').click(function(e) {
+    return launchTest(e.target.id == 'testeu');
   });
   
   function setBrushTileType(type) {
@@ -3954,6 +3956,7 @@ $(function() {
     clearPeerHighlights: clearPeerHighlights,
     onSpeculativeHover: function(fn) { speculativeListener = fn; },
     pinConsoleCursor: pinConsoleCursor,
+    launchTest: launchTest,
     onTilesRebuilt: function(fn) { tilesRebuiltListener = fn; },
     rotateCw: function() { rotateMap(90); },
     rotateCcw: function() { rotateMap(-90); },

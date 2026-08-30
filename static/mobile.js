@@ -532,7 +532,11 @@ $(function() {
 
   $('#dockUndo').on('click', function() { $('#undo').trigger('click'); });
   $('#dockRedo').on('click', function() { $('#redo').trigger('click'); });
-  $('#dockTest').on('click', function() { $('#test').trigger('click'); });
+  $('#dockTest').on('click', function() {
+    var eu = window.TagproGamepad && TagproGamepad.preferredTestIsEu && TagproGamepad.preferredTestIsEu();
+    if (window.TagproMap && TagproMap.launchTest) TagproMap.launchTest(!!eu);
+    else $(eu ? '#testeu' : '#test').trigger('click');
+  });
   $('#dockClear').on('click', function() { $('#clear').trigger('click'); });
   $('#dockZoomIn').on('click', function() {
     if (this.disabled) return;
@@ -1246,6 +1250,7 @@ $(function() {
     if (window.TagproMap && TagproMap.pinConsoleCursor) {
       TagproMap.pinConsoleCursor({ keepOthers: !!(painting || loupePainting), notify: true });
     }
+    if (window.TagproGamepad && TagproGamepad.updateLegend) TagproGamepad.updateLegend();
   }
 
   function setLoupeWorkTile(x, y) {

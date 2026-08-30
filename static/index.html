@@ -423,13 +423,26 @@
             </div>
             <p class="help-block more-help">Console is for handhelds/Steam Deck; Auto never picks it.</p>
           </div>
-          <div class="form-group" id="gpSwapAXGroup" hidden>
-            <label>Swap A and X</label>
+          <div class="form-group" id="gpBindsGroup" hidden>
+            <label>Controller</label>
+            <button type="button" id="gpBindsOpen" class="btn btn-default btn-block">Adjust bindings</button>
+            <p class="help-block more-help">Choose which pad buttons paint, zoom, Play, and the rest. Restore default settings puts every binding back.</p>
+          </div>
+          <div class="form-group" id="gpTestServerGroup" hidden>
+            <label for="gpTestServer">Test server</label>
+            <select id="gpTestServer" class="form-control">
+              <option value="na">North America (Dallas)</option>
+              <option value="eu">Europe (Paris)</option>
+            </select>
+            <p class="help-block more-help">Play uses this server. Hold Play to pick a different server this time.</p>
+          </div>
+          <div class="form-group" id="gpLegendGroup" hidden>
+            <label>Button legend</label>
             <div class="btn-group btn-group-justified">
-              <a href="#" id="gpSwapAXOff" class="btn btn-default active" aria-pressed="true">Default</a>
-              <a href="#" id="gpSwapAXOn" class="btn btn-default" aria-pressed="false">Swapped</a>
+              <a href="#" id="gpLegendOn" class="btn btn-default">Show</a>
+              <a href="#" id="gpLegendOff" class="btn btn-default">Hide</a>
             </div>
-            <p class="help-block more-help">Paint and Chat swap. Default: A paints, X opens chat. Swapped: X paints, A opens chat.</p>
+            <p class="help-block more-help">The A/B/X hints at the bottom of the map. They also fade away when the green tile is within four tiles.</p>
           </div>
         </div>
 
@@ -578,26 +591,29 @@
 
       <div id="dockBar" class="dock-bar">
         <div id="gpRailLeft" class="gp-rail gp-rail-left">
-          <button type="button" class="dock-btn gp-frame-only" id="dockTest" title="Test map"><span class="glyphicon glyphicon-play"></span></button>
+          <button type="button" class="dock-btn gp-frame-only" id="dockTest" title="Test map. Hold Play to pick a server."><span class="glyphicon glyphicon-play"></span><span class="gp-letter" data-gp-bind="play" aria-hidden="true">Up</span></button>
+          <button type="button" class="dock-btn" id="dockZoomOut" title="Zoom out"><span class="glyphicon glyphicon-zoom-out"></span><span class="gp-letter" data-gp-bind="zoomOut" aria-hidden="true">LT</span></button>
+          <button type="button" class="dock-btn" id="dockZoomIn" title="Zoom in"><span class="glyphicon glyphicon-zoom-in"></span><span class="gp-letter" data-gp-bind="zoomIn" aria-hidden="true">RT</span></button>
           <button type="button" class="dock-btn" id="panMode" title="Pan: drag to move the map. Tap again to place tiles." aria-pressed="false"><span class="glyphicon glyphicon-move"></span></button>
-          <button type="button" class="dock-btn" id="tileSettingsBtn" title="Tile settings for the yellow-crosshair or focused tile" disabled aria-disabled="true"><span class="glyphicon glyphicon-cog"></span> <span class="dock-btn-label">Tile</span><span class="gp-letter" aria-hidden="true">Y</span></button>
+          <button type="button" class="dock-btn" id="tileSettingsBtn" title="Tile settings for the yellow-crosshair or focused tile" disabled aria-disabled="true"><span class="glyphicon glyphicon-cog"></span> <span class="dock-btn-label">Tile</span><span class="gp-letter" data-gp-bind="tile" aria-hidden="true">Y</span></button>
         </div>
-        <button type="button" class="dock-btn" id="dockZoomOut" title="Zoom out"><span class="glyphicon glyphicon-zoom-out"></span></button>
-        <button type="button" class="dock-btn" id="dockZoomIn" title="Zoom in"><span class="glyphicon glyphicon-zoom-in"></span></button>
         <div id="gpRailRight" class="gp-rail gp-rail-right">
           <button type="button" class="dock-btn" id="moreToggle" title="More options"><span class="glyphicon glyphicon-option-horizontal"></span> <span class="dock-btn-label">More</span><span class="gp-letter gp-letter-plus" aria-hidden="true">+</span></button>
-          <button type="button" class="dock-btn" id="dockUndo" title="Undo"><span class="glyphicon glyphicon-share-alt dock-flip"></span><span class="gp-letter" aria-hidden="true">B</span></button>
-          <button type="button" class="dock-btn" id="dockRedo" title="Redo"><span class="glyphicon glyphicon-share-alt"></span></button>
+          <button type="button" class="dock-btn" id="dockUndo" title="Undo"><span class="glyphicon glyphicon-share-alt dock-flip"></span><span class="gp-letter" data-gp-bind="undo" aria-hidden="true">B</span></button>
+          <button type="button" class="dock-btn" id="dockRedo" title="Redo"><span class="glyphicon glyphicon-share-alt"></span><span class="gp-letter" data-gp-bind="redo" aria-hidden="true">Down</span></button>
           <button type="button" class="dock-btn gp-frame-only" id="dockClear" title="Clear map"><span class="glyphicon glyphicon-remove"></span></button>
         </div>
       </div>
       <div id="gpLegend" class="gp-legend" aria-hidden="true">
-        <span class="gp-hint-item"><span class="gp-badge" data-gp-ax="paint">A</span> paint</span>
-        <span class="gp-hint-item"><span class="gp-badge">B</span> undo</span>
-        <span class="gp-hint-item"><span class="gp-badge" data-gp-ax="chat">X</span> chat</span>
-        <span class="gp-hint-item"><span class="gp-badge">L</span><span class="gp-badge">R</span> tiles</span>
-        <span class="gp-hint-item"><span class="gp-badge">Select</span> tools</span>
-        <span class="gp-hint-item"><span class="gp-badge">Start</span> more</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="paint">A</span> paint</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="undo">B</span> undo</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="redo">Down</span> redo</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="chat">X</span> chat</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="palettePrev">LB</span><span class="gp-badge" data-gp-bind="paletteNext">RB</span> tiles</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="zoomOut">LT</span><span class="gp-badge" data-gp-bind="zoomIn">RT</span> zoom</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="play">Up</span> play</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="tools">Select</span> tools</span>
+        <span class="gp-hint-item"><span class="gp-badge" data-gp-bind="more">Start</span> more</span>
       </div>
     </div>
   </aside>
@@ -723,7 +739,7 @@
           <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
           <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row (Mirror map vertically copies the map downward and swaps teams). Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
           <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe in from the right edge of the screen for room chat (join/leave lines and messages). Esc, a swipe back, or a tap outside closes it.</p>
-          <p id="gpInstructions"><strong>Console.</strong> Choose Layout → Console on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests, pan, tile settings, + for More, B undo, on-screen redo, and clear. Left stick or D-pad steps the yellow work tile; right stick pans the map. <span id="gpAxHelp">A paints (hold A and move for a trail). X opens chat.</span> B undo, Y tile settings. Swipe up from the bottom of the map for chat, or tap the handle. Redo is the on-screen Redo button. Shoulders (or on-screen L/R) change palette tiles; triggers zoom. Select opens the tools wheel (L/R change pages, A picks, B closes). Start opens More. L3 scrolls the work tile into view. Connecting a pad never switches layout by itself — press A on the hint, or pick Console in Layout.</p>
+          <p id="gpInstructions"><strong>Console.</strong> Choose Layout → Console on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests (hold Play to pick NA/EU), tile settings, + for More, B undo, Down redo, and clear. D-pad Left and Right focus those side menus so A can click them. Left stick steps the yellow work tile; right stick pans the map. <span id="gpBindsHelp">A paints (hold A and move for a trail). X opens chat. B undo, Down redo, Y tile settings. D-pad Up tests (hold to pick a server). Shoulders change palette tiles; triggers zoom. Select opens the tools wheel. Start opens More. L3 scrolls the work tile into view.</span> Swipe up from the bottom of the map for chat, or tap the handle. Connecting a pad never switches layout by itself — press A on the hint, or pick Console in Layout. Change any of these under Layout → Adjust bindings. Set a preferred test server there too.</p>
           <p>Happy map making.</p>
         </div>
         <div class="modal-footer">
@@ -735,7 +751,7 @@
 
   <div id="collabChatEdge" class="collab-chat-edge" aria-hidden="true" title="Swipe in from the right for chat">
     <span class="collab-chat-handle" aria-hidden="true">
-      <span class="collab-chat-handle-letter" data-gp-ax="chat">X</span>
+      <span class="collab-chat-handle-letter" data-gp-bind="chat">X</span>
     </span>
   </div>
   <div id="collabChatBackdrop" class="collab-chat-backdrop" hidden></div>
@@ -761,11 +777,40 @@
           <div class="gp-tool-hub">
             <div class="gp-tool-hub-icon" id="gpToolHubIcon"></div>
             <div class="gp-tool-hub-name" id="gpToolHubName"></div>
+            <div class="gp-tool-hub-note" id="gpToolHubNote"></div>
           </div>
         </div>
         <button type="button" class="gp-tool-lr" id="gpToolR" title="Next tools" aria-label="Next tools">R</button>
       </div>
       <div class="gp-tool-caption">Tools</div>
+    </div>
+  </div>
+
+  <div id="gpBindsSheet" class="gp-binds-sheet" hidden aria-hidden="true">
+    <div class="gp-binds-card">
+      <h3>Controller bindings</h3>
+      <p class="help-block">Click a control, then press the new button. Restore default settings returns every action to its original binding.</p>
+      <div id="gpBindsList" class="gp-binds-list"></div>
+      <div class="gp-binds-actions">
+        <button type="button" id="gpBindsRestore" class="btn btn-default btn-block">Restore default settings</button>
+        <button type="button" id="gpBindsDone" class="btn btn-primary btn-block">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gpTestMenu" class="gp-test-menu" hidden aria-hidden="true">
+    <div class="gp-test-menu-card">
+      <h3>Test server</h3>
+      <button type="button" class="btn btn-default btn-block" id="gpTestNa" data-test-server="na">North America (Dallas)</button>
+      <button type="button" class="btn btn-default btn-block" id="gpTestEu" data-test-server="eu">Europe (Paris)</button>
+      <button type="button" class="btn btn-default btn-block" id="gpTestMenuClose">Cancel</button>
+    </div>
+  </div>
+
+  <div id="gpOsk" class="gp-osk" hidden aria-hidden="true">
+    <div class="gp-osk-card">
+      <div class="gp-osk-preview" id="gpOskPreview"></div>
+      <div class="gp-osk-keys" id="gpOskKeys"></div>
     </div>
   </div>
 
