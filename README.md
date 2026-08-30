@@ -16,7 +16,7 @@ The editor **detects the screen** and applies `layout-mobile` or `layout-desktop
 
 Ambiguous, unknown, small, coarse-pointer, or portrait-tablet screens stay on the mobile UI.
 
-Testers can force **Auto / Mobile / Desktop** in More (or the sidebar on desktop). That choice is saved in `localStorage` as `tagpro-layout-override`.
+Testers can force **Auto / Desktop / Mobile / Console** in More (or the sidebar on desktop). Console is for handhelds/Steam Deck; Auto never picks it. A layout pick lasts for this session only — every page load starts in Auto.
 
 ## Run locally
 
@@ -47,7 +47,7 @@ The original README said `npm main`; the start command is `node main.js` (also a
 1. Turn the device toolbar **off**
 2. Make the window at least 1024px wide (1280+ if the window is tall/portrait)
 3. Reload — you should get the left sidebar (`layout-desktop`) if you have a mouse
-4. In More / the sidebar, click Mobile to force the phone UI, Desktop to force the sidebar, Auto to restore detection
+4. In More / the sidebar, click Mobile to force the phone UI, Desktop to force the sidebar, Console for the handheld frame, Auto to restore detection. Reload always returns to Auto.
 
 **Real phone on your LAN:**
 

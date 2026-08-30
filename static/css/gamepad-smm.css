@@ -4,7 +4,8 @@
 html:not(.layout-gamepad) .gp-frame-only,
 html:not(.layout-gamepad) #gpBumperL,
 html:not(.layout-gamepad) #gpBumperR,
-html:not(.layout-gamepad) .gp-letter {
+html:not(.layout-gamepad) .gp-letter,
+html:not(.layout-gamepad) #gpSwapAXGroup {
   display: none !important;
 }
 
@@ -349,8 +350,8 @@ html.layout-gamepad.layout-mobile.orient-landscape #gpLegend {
   justify-self: center;
   z-index: 5;
   pointer-events: none;
-  gap: 8px;
-  margin: 0 0 6px;
+  gap: 6px;
+  margin: 0 0 26px;
   padding: 3px 8px;
   max-width: calc(100% - 8px);
   background: rgba(40, 34, 28, 0.72);
@@ -370,6 +371,34 @@ html.layout-gamepad .gp-hint-item {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+}
+
+html.layout-gamepad .gp-badge[data-gp-ax="paint"],
+html.layout-gamepad .gp-badge[data-gp-ax="chat"] {
+  font-size: 0;
+}
+
+html.layout-gamepad .gp-badge[data-gp-ax="paint"]::before,
+html.layout-gamepad .gp-badge[data-gp-ax="chat"]::before {
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+html.layout-gamepad .gp-badge[data-gp-ax="paint"]::before {
+  content: "A";
+}
+
+html.layout-gamepad .gp-badge[data-gp-ax="chat"]::before {
+  content: "X";
+}
+
+html.gp-swap-ax.layout-gamepad .gp-badge[data-gp-ax="paint"]::before {
+  content: "X";
+}
+
+html.gp-swap-ax.layout-gamepad .gp-badge[data-gp-ax="chat"]::before {
+  content: "A";
 }
 
 html.layout-gamepad .gp-badge {
@@ -579,12 +608,100 @@ html.layout-gamepad.layout-mobile.orient-landscape .gp-focus::before {
     linear-gradient(#f5a623, #f5a623) 100% 100% / 3px 12px no-repeat;
 }
 
-html.layout-gamepad .collab-chat-edge {
-  top: 44px;
+html.layout-gamepad .collab-chat {
+  top: auto;
+  left: 44px;
   right: 44px;
-  height: auto;
   bottom: 0;
-  z-index: 3;
+  width: auto;
+  height: min(50vh, 380px);
+  max-height: min(50vh, 380px);
+  transform: translateY(100%);
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+html.layout-gamepad .collab-chat.is-open {
+  transform: translateY(0);
+}
+
+html.layout-gamepad .collab-chat-edge {
+  left: 44px;
+  right: 44px;
+  top: auto;
+  bottom: 0;
+  width: auto;
+  height: 22px;
+  z-index: 6;
+  cursor: pointer;
+  background: linear-gradient(to top, rgba(153, 255, 153, 0.1), transparent 70%);
+}
+
+html.layout-gamepad .collab-chat-edge.has-unread {
+  background: linear-gradient(to top, rgba(153, 255, 153, 0.55), transparent 85%);
+  box-shadow: 0 -3px 14px rgba(153, 255, 153, 0.55);
+}
+
+html.layout-gamepad.collab-chat-open .collab-chat-edge {
+  background: transparent;
+  box-shadow: none;
+}
+
+html:not(.layout-gamepad) .collab-chat-handle {
+  display: none !important;
+}
+
+html.layout-gamepad .collab-chat-handle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: rgba(40, 34, 28, 0.82);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  user-select: none;
+}
+
+html.layout-gamepad .collab-chat-handle-letter {
+  font-size: 0;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+html.layout-gamepad .collab-chat-handle-letter::before {
+  content: "X";
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  color: #f4efe4;
+}
+
+html.gp-swap-ax.layout-gamepad .collab-chat-handle-letter::before {
+  content: "A";
+}
+
+html.theme-dark.layout-gamepad .collab-chat-handle {
+  background: rgba(26, 29, 35, 0.92);
+}
+
+html.theme-dark.layout-gamepad .collab-chat-handle-letter::before {
+  color: #ffe08a;
+}
+
+html.theme-light.layout-gamepad .collab-chat-handle {
+  background: rgba(40, 34, 28, 0.82);
+}
+
+html.theme-light.layout-gamepad .collab-chat-handle-letter::before {
+  color: #f4efe4;
 }
 
 html.layout-gamepad .gp-focus::after {
