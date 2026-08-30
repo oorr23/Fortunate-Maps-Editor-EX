@@ -759,7 +759,8 @@ $(function() {
 
   function focusedSettingsCell() {
     forgetSettingsCellIfStale();
-    if (loupeVisible && mapHasSettings(loupeCenterX, loupeCenterY)) {
+    var consoleWork = document.documentElement.classList.contains('layout-gamepad');
+    if ((loupeVisible || consoleWork) && mapHasSettings(loupeCenterX, loupeCenterY)) {
       return { x: loupeCenterX, y: loupeCenterY };
     }
     if (loupeFocusTile && mapHasSettings(loupeFocusTile.x, loupeFocusTile.y)) {
@@ -1241,6 +1242,9 @@ $(function() {
     var bg = $tile[0].parentNode;
     if (bg && bg.classList && bg.classList.contains('tileBackground')) {
       bg.classList.add('gp-work-tile');
+    }
+    if (window.TagproMap && TagproMap.pinConsoleCursor) {
+      TagproMap.pinConsoleCursor({ keepOthers: !!(painting || loupePainting), notify: true });
     }
   }
 

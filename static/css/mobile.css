@@ -25,6 +25,11 @@ html, body {
   transform: rotate(90deg);
 }
 
+.icon-mirror-v {
+  display: inline-block;
+  transform: rotate(90deg);
+}
+
 .loupe {
   display: none;
   position: fixed;
@@ -402,8 +407,10 @@ html:not(.layout-desktop) #tools .btn > .tool-glue-icon {
 
 html.layout-mobile #tools .btn > .glyphicon.icon-ccw,
 html.layout-mobile #tools .btn > .glyphicon.icon-flip-h,
+html.layout-mobile #tools .btn > .glyphicon.icon-mirror-v,
 html:not(.layout-desktop) #tools .btn > .glyphicon.icon-ccw,
-html:not(.layout-desktop) #tools .btn > .glyphicon.icon-flip-h {
+html:not(.layout-desktop) #tools .btn > .glyphicon.icon-flip-h,
+html:not(.layout-desktop) #tools .btn > .glyphicon.icon-mirror-v {
   display: inline-block;
 }
 

@@ -570,6 +570,8 @@
             <a class="btn btn-default btn-sm" data-action="flipH" data-tool-id="flipH" title="Flip horizontally"><span class="glyphicon glyphicon-sort icon-flip-h"></span></a>
 
             <a id="toolMirror" data-tool-id="toolMirror" class="btn btn-default btn-sm" title="Mirror map - tap near an edge to copy the map across that edge, swapping teams."><span class="glyphicon glyphicon-transfer"></span></a>
+
+            <a class="btn btn-default btn-sm" data-action="mirrorV" data-tool-id="mirrorV" title="Mirror map vertically - copy the map downward, swapping teams."><span class="glyphicon glyphicon-transfer icon-mirror-v"></span></a>
           </div>
         </div>
       </div>
@@ -594,6 +596,7 @@
         <span class="gp-hint-item"><span class="gp-badge">B</span> undo</span>
         <span class="gp-hint-item"><span class="gp-badge" data-gp-ax="chat">X</span> chat</span>
         <span class="gp-hint-item"><span class="gp-badge">L</span><span class="gp-badge">R</span> tiles</span>
+        <span class="gp-hint-item"><span class="gp-badge">Select</span> tools</span>
         <span class="gp-hint-item"><span class="gp-badge">Start</span> more</span>
       </div>
     </div>
@@ -718,9 +721,9 @@
             <li>Spawn: radius in tiles and weight (how often it is chosen).</li>
           </ul>
           <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
-          <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row. Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
+          <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row (Mirror map vertically copies the map downward and swaps teams). Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
           <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe in from the right edge of the screen for room chat (join/leave lines and messages). Esc, a swipe back, or a tap outside closes it.</p>
-          <p id="gpInstructions"><strong>Console.</strong> Choose Layout → Console on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests, pan, tile settings, + for More, B undo, on-screen redo, and clear. Left stick or D-pad steps the yellow work tile; right stick pans the map. <span id="gpAxHelp">A paints (hold A and move for a trail). X opens chat.</span> B undo, Y tile settings. Swipe up from the bottom of the map for chat, or tap the handle. Redo is the on-screen Redo button. Shoulders (or on-screen L/R) change palette tiles; triggers zoom. Select cycles tools; Start opens More. L3 scrolls the work tile into view. Connecting a pad never switches layout by itself — press A on the hint, or pick Console in Layout.</p>
+          <p id="gpInstructions"><strong>Console.</strong> Choose Layout → Console on a Steam Deck or other handheld. The frame is tap squares: L/R cycle palette tiles, play tests, pan, tile settings, + for More, B undo, on-screen redo, and clear. Left stick or D-pad steps the yellow work tile; right stick pans the map. <span id="gpAxHelp">A paints (hold A and move for a trail). X opens chat.</span> B undo, Y tile settings. Swipe up from the bottom of the map for chat, or tap the handle. Redo is the on-screen Redo button. Shoulders (or on-screen L/R) change palette tiles; triggers zoom. Select opens the tools wheel (L/R change pages, A picks, B closes). Start opens More. L3 scrolls the work tile into view. Connecting a pad never switches layout by itself — press A on the hint, or pick Console in Layout.</p>
           <p>Happy map making.</p>
         </div>
         <div class="modal-footer">
@@ -748,6 +751,24 @@
     </form>
   </aside>
   
+  <div id="gpToolWheel" class="gp-tool-wheel" hidden aria-hidden="true">
+    <div class="gp-tool-wheel-card">
+      <div class="gp-tool-cats" id="gpToolCats"></div>
+      <div class="gp-tool-stage">
+        <button type="button" class="gp-tool-lr" id="gpToolL" title="Previous tools" aria-label="Previous tools">L</button>
+        <div class="gp-tool-ring" id="gpToolRing">
+          <div class="gp-tool-wedges" id="gpToolWedges"></div>
+          <div class="gp-tool-hub">
+            <div class="gp-tool-hub-icon" id="gpToolHubIcon"></div>
+            <div class="gp-tool-hub-name" id="gpToolHubName"></div>
+          </div>
+        </div>
+        <button type="button" class="gp-tool-lr" id="gpToolR" title="Next tools" aria-label="Next tools">R</button>
+      </div>
+      <div class="gp-tool-caption">Tools</div>
+    </div>
+  </div>
+
   <div id="gpHint" class="gp-hint" hidden role="status">Press A to use Console layout</div>
 
   <script type="text/javascript" src="textures.js"></script>

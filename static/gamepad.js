@@ -9,6 +9,8 @@
 
   var raf = 0;
   var hintTimer = 0;
+  var lastEventPad = null;
+  var hintDismissed = false;
   var paintHeld = false;
   var ignoreAUntilUp = false;
   var ignoreBUntilUp = false;
@@ -17,6 +19,14 @@
   var prev = {};
   var repeats = {};
   var swapAX = false;
+  var wheelPageIdx = 0;
+  var wheelSlot = 0;
+  // Pages with fewer than 8 tools sit at equal angles (thirds, quarters, …).
+  var WHEEL_PAGES = [
+    { name: 'Draw', ids: ['toolPencil', 'toolBrush', 'toolLine', 'toolRectFill', 'toolRectOutline', 'toolCircleFill', 'toolCircleOutline', 'toolFill'] },
+    { name: 'Edit', ids: ['toolCut', 'toolCopy', 'toolPaste', 'toolWire', 'toolAddCol', 'toolAddRow', 'rotateCw', 'rotateCcw'] },
+    { name: 'Map', ids: ['flipV', 'flipH', 'toolMirror', 'mirrorV'] }
+  ];
 
   function readSwapAX() {
     try {
@@ -93,12 +103,13 @@
   }
 
   function firstPad() {
-    if (!navigator.getGamepads) return null;
-    var pads = navigator.getGamepads();
-    for (var i = 0; i < pads.length; i++) {
-      if (pads[i]) return pads[i];
+    if (navigator.getGamepads) {
+      var pads = navigator.getGamepads();
+      for (var i = 0; i < pads.length; i++) {
+        if (pads[i]) return pads[i];
+      }
     }
-    return null;
+    return lastEventPad;
   }
 
   function hasPad() {
@@ -123,17 +134,23 @@
     }
   }
 
+  function dismissHint() {
+    hintDismissed = true;
+    hideHint();
+  }
+
   function isAutoLayout() {
     return !(global.TagproLayout && TagproLayout.getOverride && TagproLayout.getOverride());
   }
 
   function showHint() {
-    if (isGamepadLayout() || isAutoLayout()) return;
+    if (isGamepadLayout() || hintDismissed) return;
     var el = hintEl();
     if (!el) return;
+    if (hintVisible()) return;
     el.removeAttribute('hidden');
     if (hintTimer) clearTimeout(hintTimer);
-    hintTimer = setTimeout(hideHint, HINT_MS);
+    hintTimer = setTimeout(dismissHint, HINT_MS);
     ensureLoop();
   }
 
@@ -178,7 +195,17 @@
     return !!(global.TagproCollab && TagproCollab.isOpen && TagproCollab.isOpen());
   }
 
+  function wheelEl() {
+    return document.getElementById('gpToolWheel');
+  }
+
+  function wheelIsOpen() {
+    var el = wheelEl();
+    return !!(el && !el.hasAttribute('hidden'));
+  }
+
   function uiMode() {
+    if (wheelIsOpen()) return 'wheel';
     if (document.body && document.body.classList.contains('tile-settings-open')) return 'dialog';
     if (document.querySelector('.modal.in')) return 'modal';
     var sheet = document.getElementById('moreSheet');
@@ -310,6 +337,10 @@
   }
 
   function closeOverlay() {
+    if (uiMode() === 'wheel') {
+      closeWheel();
+      return;
+    }
     if (uiMode() === 'dialog') {
       var dismiss = document.querySelector('.tile-settings-dialog.in [data-dismiss="tile-settings"], .tile-settings-dialog.is-open [data-dismiss="tile-settings"]');
       clickEl(dismiss);
@@ -431,29 +462,253 @@
     if (global.TagproPalette && TagproPalette.centerOnSelected) TagproPalette.centerOnSelected(true);
   }
 
-  function nextTool() {
-    var group = document.querySelector('#tools .btn-group-justified');
-    if (!group) return;
-    var all = group.querySelectorAll('.btn');
-    var btns = [];
-    for (var i = 0; i < all.length; i++) {
-      if (!all[i].hasAttribute('data-tool-clone')) btns.push(all[i]);
+  function toolButton(id) {
+    if (!id) return null;
+    var all = document.querySelectorAll('#tools [data-tool-id="' + id + '"]');
+    var i;
+    for (i = 0; i < all.length; i++) {
+      if (!all[i].hasAttribute('data-tool-clone')) return all[i];
     }
-    if (!btns.length) return;
-    var idx = 0;
-    for (i = 0; i < btns.length; i++) {
-      if (btns[i].classList.contains('active')) {
-        idx = i;
-        break;
+    return all[0] || null;
+  }
+
+  function toolIsDisabled(el) {
+    if (!el) return true;
+    if (el.classList.contains('disabled')) return true;
+    return el.getAttribute('aria-disabled') === 'true';
+  }
+
+  function toolLabel(el) {
+    if (!el) return '';
+    var t = el.getAttribute('title') || '';
+    var cut = t.split(' - ')[0].split(' — ')[0];
+    return cut || el.getAttribute('data-tool-id') || 'Tool';
+  }
+
+  function copyToolIcon(src, dest) {
+    if (!dest) return;
+    dest.innerHTML = src ? src.innerHTML : '';
+    var svg = dest.querySelector('svg');
+    if (svg) {
+      svg.setAttribute('width', '1em');
+      svg.setAttribute('height', '1em');
+      svg.style.width = '1em';
+      svg.style.height = '1em';
+    }
+  }
+
+  function activeToolId() {
+    var el = document.querySelector('#tools .btn.active');
+    return (el && el.getAttribute('data-tool-id')) || 'toolPencil';
+  }
+
+  function pageToolCount(page) {
+    var ids = WHEEL_PAGES[page] && WHEEL_PAGES[page].ids;
+    return ids ? ids.length : 0;
+  }
+
+  function toolAngleFromTop(count, index) {
+    if (!count) return 0;
+    return (index * 360 / count) % 360;
+  }
+
+  function angleToToolIndex(page, degFromTop) {
+    var n = pageToolCount(page);
+    if (n <= 0) return 0;
+    var step = 360 / n;
+    while (degFromTop < 0) degFromTop += 360;
+    degFromTop = degFromTop % 360;
+    var idx = Math.round(degFromTop / step) % n;
+    return idx;
+  }
+
+  function clampWheelSlot(page, slot) {
+    var n = pageToolCount(page);
+    if (n <= 0) return 0;
+    if (slot == null || isNaN(slot)) return 0;
+    return ((slot % n) + n) % n;
+  }
+
+  function findToolLocation(id) {
+    var p;
+    var s;
+    for (p = 0; p < WHEEL_PAGES.length; p++) {
+      var ids = WHEEL_PAGES[p].ids;
+      for (s = 0; s < ids.length; s++) {
+        if (ids[s] === id) return { page: p, slot: s };
       }
     }
-    for (var n = 1; n <= btns.length; n++) {
-      var el = btns[(idx + n) % btns.length];
-      if (el.classList.contains('disabled')) continue;
-      if (el.getAttribute('aria-disabled') === 'true') continue;
-      clickEl(el);
+    return { page: 0, slot: 0 };
+  }
+
+  function wheelToolAt(page, slot) {
+    var ids = WHEEL_PAGES[page] && WHEEL_PAGES[page].ids;
+    if (!ids) return null;
+    return ids[slot] || null;
+  }
+
+  function renderWheel() {
+    var cats = document.getElementById('gpToolCats');
+    var wedges = document.getElementById('gpToolWedges');
+    var hubIcon = document.getElementById('gpToolHubIcon');
+    var hubName = document.getElementById('gpToolHubName');
+    if (!cats || !wedges) return;
+    var page = WHEEL_PAGES[wheelPageIdx] || WHEEL_PAGES[0];
+    var n = page.ids.length;
+    var html = '';
+    var i;
+    for (i = 0; i < WHEEL_PAGES.length; i++) {
+      html += '<button type="button" class="gp-tool-cat' + (i === wheelPageIdx ? ' active' : '') + '" data-wheel-page="' + i + '">' + WHEEL_PAGES[i].name + '</button>';
+    }
+    cats.innerHTML = html;
+    html = '';
+    wheelSlot = clampWheelSlot(wheelPageIdx, wheelSlot);
+    for (i = 0; i < n; i++) {
+      var id = page.ids[i];
+      var el = toolButton(id);
+      var angle = (toolAngleFromTop(n, i) - 90) * Math.PI / 180;
+      var x = Math.cos(angle) * 84;
+      var y = Math.sin(angle) * 84;
+      var cls = 'gp-tool-wedge' + (i === wheelSlot ? ' is-on' : '');
+      if (el && toolIsDisabled(el)) cls += ' is-disabled';
+      html += '<button type="button" class="' + cls + '" data-wheel-slot="' + i + '" style="transform:translate(' + x + 'px,' + y + 'px)"' + (id ? ' title="' + toolLabel(el) + '"' : '') + '></button>';
+    }
+    wedges.innerHTML = html;
+    for (i = 0; i < n; i++) {
+      var btn = wedges.children[i];
+      var src = toolButton(page.ids[i]);
+      if (btn && src) copyToolIcon(src, btn);
+    }
+    var cur = toolButton(wheelToolAt(wheelPageIdx, wheelSlot));
+    copyToolIcon(cur, hubIcon);
+    if (hubName) hubName.textContent = cur ? toolLabel(cur) : '';
+    if (hubIcon && cur && toolIsDisabled(cur)) hubIcon.style.opacity = '0.35';
+    else if (hubIcon) hubIcon.style.opacity = '';
+  }
+
+  function setWheelSlot(slot) {
+    if (slot == null || isNaN(slot)) return;
+    slot = clampWheelSlot(wheelPageIdx, slot);
+    if (slot === wheelSlot) return;
+    wheelSlot = slot;
+    renderWheel();
+  }
+
+  function setWheelPage(page) {
+    var fromAngle = toolAngleFromTop(pageToolCount(wheelPageIdx), wheelSlot);
+    page = ((page % WHEEL_PAGES.length) + WHEEL_PAGES.length) % WHEEL_PAGES.length;
+    wheelPageIdx = page;
+    wheelSlot = angleToToolIndex(page, fromAngle);
+    renderWheel();
+  }
+
+  function wheelPage(dir) {
+    setWheelPage(wheelPageIdx + dir);
+  }
+
+  function openWheel() {
+    var el = wheelEl();
+    if (!el) return;
+    endPaint();
+    var loc = findToolLocation(activeToolId());
+    wheelPageIdx = loc.page;
+    wheelSlot = loc.slot;
+    el.removeAttribute('hidden');
+    el.setAttribute('aria-hidden', 'false');
+    renderWheel();
+  }
+
+  function closeWheel() {
+    var el = wheelEl();
+    if (!el) return;
+    el.setAttribute('hidden', '');
+    el.setAttribute('aria-hidden', 'true');
+  }
+
+  function confirmWheel() {
+    var id = wheelToolAt(wheelPageIdx, wheelSlot);
+    var el = toolButton(id);
+    if (!el || toolIsDisabled(el)) return;
+    clickEl(el);
+    closeWheel();
+  }
+
+  function wheelAimIndex(ax, ay) {
+    if (!ax && !ay) return null;
+    var deg = Math.atan2(ay, ax) * 180 / Math.PI + 90;
+    return angleToToolIndex(wheelPageIdx, deg);
+  }
+
+  function wheelStickIndex(pad) {
+    var ax = axisValue(pad, 0);
+    var ay = axisValue(pad, 1);
+    if (Math.sqrt(ax * ax + ay * ay) < 0.45) return null;
+    return wheelAimIndex(ax, ay);
+  }
+
+  function wheelDpadIndex(pad) {
+    var dx = (buttonDown(pad, 15) ? 1 : 0) - (buttonDown(pad, 14) ? 1 : 0);
+    var dy = (buttonDown(pad, 13) ? 1 : 0) - (buttonDown(pad, 12) ? 1 : 0);
+    if (!dx && !dy) return null;
+    return wheelAimIndex(dx, dy);
+  }
+
+  function handleWheelPad(pad, aEdge, bEdge, selectEdge, lbEdge, rbEdge) {
+    if (bEdge || selectEdge) {
+      closeWheel();
       return;
     }
+    if (aEdge) confirmWheel();
+    if (lbEdge) wheelPage(-1);
+    if (rbEdge) wheelPage(1);
+    var stick = wheelStickIndex(pad);
+    if (stick != null) {
+      setWheelSlot(stick);
+      return;
+    }
+    var dpad = wheelDpadIndex(pad);
+    if (dpad != null) setWheelSlot(dpad);
+  }
+
+  function bindWheel() {
+    var el = wheelEl();
+    if (!el) return;
+    el.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) {
+        if (t === el) closeWheel();
+        return;
+      }
+      if (t.closest('#gpToolL')) {
+        e.preventDefault();
+        wheelPage(-1);
+        return;
+      }
+      if (t.closest('#gpToolR')) {
+        e.preventDefault();
+        wheelPage(1);
+        return;
+      }
+      var cat = t.closest('[data-wheel-page]');
+      if (cat) {
+        e.preventDefault();
+        setWheelPage(Number(cat.getAttribute('data-wheel-page')));
+        return;
+      }
+      var wedge = t.closest('[data-wheel-slot]');
+      if (wedge) {
+        e.preventDefault();
+        setWheelSlot(Number(wedge.getAttribute('data-wheel-slot')));
+        confirmWheel();
+        return;
+      }
+      if (t.closest('.gp-tool-hub')) {
+        e.preventDefault();
+        confirmWheel();
+        return;
+      }
+      if (t === el) closeWheel();
+    });
   }
 
   function zoomBy(dir) {
@@ -533,7 +788,7 @@
       if (aEdge) acceptHint();
       else if (bEdge) {
         ignoreBUntilUp = true;
-        hideHint();
+        dismissHint();
       }
       return;
     }
@@ -553,6 +808,12 @@
     var l3Edge = rising('l3', buttonDown(pad, 10));
     var dir = moveDir(pad);
     var mode = uiMode();
+
+    if (mode === 'wheel') {
+      endPaint();
+      handleWheelPad(pad, aEdge, bEdge, selectEdge, lbEdge, rbEdge);
+      return;
+    }
 
     if (mode) {
       endPaint();
@@ -598,7 +859,7 @@
     if (rbEdge) stepPalette(1);
     if (ltEdge) zoomBy(-1);
     if (rtEdge) zoomBy(1);
-    if (selectEdge) nextTool();
+    if (selectEdge) openWheel();
     if (startEdge) {
       toggleMore();
       var first = document.querySelector('#moreSheet.open .more-nav-btn');
@@ -619,7 +880,9 @@
     else if (!hintVisible() && !isAutoLayout()) return;
   }
 
-  function onConnected() {
+  function onConnected(e) {
+    if (e && e.gamepad) lastEventPad = e.gamepad;
+    hintDismissed = false;
     if (isAutoLayout() && global.TagproLayout && TagproLayout.apply) TagproLayout.apply();
     if (!isGamepadLayout()) showHint();
     ensureLoop();
@@ -634,6 +897,7 @@
         ensureWorkTileVisible(false);
       }
     } else {
+      closeWheel();
       endPaint();
       setGpFocus(null);
     }
@@ -642,8 +906,11 @@
   }
 
   global.addEventListener('gamepadconnected', onConnected);
-  global.addEventListener('gamepaddisconnected', function () {
+  global.addEventListener('gamepaddisconnected', function (e) {
     endPaint();
+    if (e && e.gamepad && lastEventPad && e.gamepad.index === lastEventPad.index) {
+      lastEventPad = null;
+    }
     if (isAutoLayout() && global.TagproLayout && TagproLayout.apply) TagproLayout.apply();
     if (shouldPoll()) ensureLoop();
   });
@@ -656,6 +923,10 @@
         if (e) {
           e.preventDefault();
           e.stopPropagation();
+        }
+        if (uiMode() === 'wheel') {
+          wheelPage(dir);
+          return;
         }
         if (uiMode()) return;
         stepPalette(dir);
@@ -686,6 +957,7 @@
 
   $(function () {
     bindBumpers();
+    bindWheel();
     bindSwapAXControl();
     applySwapAX(swapAX, false);
     syncSwapAXVisibility();
@@ -700,6 +972,8 @@
 
   global.TagproGamepad = {
     stepPalette: stepPalette,
+    openTools: openWheel,
+    closeTools: closeWheel,
     swapAX: function () { return swapAX; },
     setSwapAX: setSwapAX
   };

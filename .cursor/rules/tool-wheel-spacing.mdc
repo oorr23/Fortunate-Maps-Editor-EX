@@ -1,0 +1,11 @@
+---
+description: Space tools evenly around a Console tools-wheel page until it is full
+globs: static/gamepad.js
+alwaysApply: false
+---
+
+# Tools wheel spacing
+
+A tools-wheel page with fewer than 8 items must sit at **equal angles** around the ring, starting at the top and going clockwise: 3 tools at thirds (0° / 120° / 240°), 4 at quarters, 5 at fifths, and so on. Do not pack leftovers into the first wedges.
+
+When adding a tool to a page that is not yet full, keep that even spacing. Start a new page instead of putting a 9th item on a full ring.

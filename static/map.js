@@ -1324,8 +1324,22 @@ $(function() {
   Tile.prototype.highlightWithPotential = function(highlighted) {
     this.elem.find('.potentialHighlight').css('display', highlighted ? 'inline-block' : 'none');
   }
+  function pinConsoleCursor(opts) {
+    if (!document.documentElement.classList.contains('layout-gamepad')) return;
+    var loupe = window.TagproLoupe;
+    if (!loupe || !loupe.center || !tiles) return;
+    var keep = !!(opts && opts.keepOthers);
+    if (!keep) $map.find('.potentialHighlight').css('display', 'none');
+    var c = loupe.center();
+    var tile = tiles[c.x] && tiles[c.x][c.y];
+    if (!tile) return;
+    tile.elem.find('.potentialHighlight').css('background-color', ownHighlightHex);
+    tile.highlightWithPotential(true);
+    if (opts && opts.notify) notifySpeculativeTiles([{ x: c.x, y: c.y }]);
+  }
   function clearPotentialHighlights() {
     $map.find('.potentialHighlight').css('display', 'none');
+    pinConsoleCursor({ keepOthers: true });
     if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
@@ -1796,6 +1810,7 @@ $(function() {
   function setSpeculativeStep(step) {
     if (!step || !step.states) return;
     applySymmetry(step);
+    $map.find('.potentialHighlight').css('display', 'none');
     var coords = [];
     $.each(step.states, function(idx, state) {
       if (!tiles[state.x] || !tiles[state.x][state.y]) return;
@@ -1804,6 +1819,7 @@ $(function() {
       coords.push({ x: state.x, y: state.y });
     });
     notifySpeculativeTiles(coords);
+    pinConsoleCursor({ keepOthers: true });
     if (window.TagproLoupe && TagproLoupe.refresh) TagproLoupe.refresh();
   }
 
@@ -2145,8 +2161,13 @@ $(function() {
     return !!(window.TagproLoupe && TagproLoupe.tracking && TagproLoupe.tracking());
   }
 
+  function ignoreConsolePointerHover(e) {
+    if (!document.documentElement.classList.contains('layout-gamepad')) return false;
+    return !isLoupeSyntheticEvent(e);
+  }
+
   $map.on('mouseenter', '.tile', function(e) {
-    if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
+    if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e) || ignoreConsolePointerHover(e)) return;
 
     var x = $(this).data('x');
     var y = $(this).data('y');
@@ -2166,7 +2187,7 @@ $(function() {
     }
     })
     .on('mouseleave', '.tile', function(e) {
-      if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e)) return;
+      if (isGhostMouseEvent(e) || ignoreNativeWhileLoupeTracking(e) || ignoreConsolePointerHover(e)) return;
       clearPotentialHighlights();
 //      console.log('mouse left ', $(this).data('x'), $(this).data('y'));
     })
@@ -2756,6 +2777,7 @@ $(function() {
       else if (action === 'rotateCcw') rotateMap(-90);
       else if (action === 'flipH') flipMap('h');
       else if (action === 'flipV') flipMap('v');
+      else if (action === 'mirrorV') mirrorMap('down');
       return;
     }
     var tool = $btn.data('tool');
@@ -3931,11 +3953,13 @@ $(function() {
     showPeerHighlights: showPeerHighlights,
     clearPeerHighlights: clearPeerHighlights,
     onSpeculativeHover: function(fn) { speculativeListener = fn; },
+    pinConsoleCursor: pinConsoleCursor,
     onTilesRebuilt: function(fn) { tilesRebuiltListener = fn; },
     rotateCw: function() { rotateMap(90); },
     rotateCcw: function() { rotateMap(-90); },
     flipH: function() { flipMap('h'); },
     flipV: function() { flipMap('v'); },
+    mirrorV: function() { mirrorMap('down'); },
     paletteNames: function() {
       return paletteOrder.map(function(t) { return t.name; });
     },

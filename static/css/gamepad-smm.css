@@ -963,3 +963,213 @@ html.theme-dark.layout-gamepad .collab-chat-form .btn {
   border-color: #3a3f4a;
   color: #f2f2f2;
 }
+
+html:not(.layout-gamepad) #gpToolWheel {
+  display: none !important;
+}
+
+html.layout-gamepad .gp-tool-wheel[hidden] {
+  display: none !important;
+}
+
+html.layout-gamepad .gp-tool-wheel {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+}
+
+html.layout-gamepad .gp-tool-wheel-card {
+  width: min(420px, calc(100vw - 96px));
+  padding: 12px 12px 10px;
+  border-radius: 16px;
+  background: #fffdf8;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+
+html.layout-gamepad .gp-tool-cats {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+html.layout-gamepad .gp-tool-cat {
+  min-width: 56px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 18px;
+  background: #efe8dc;
+  color: #5a5348;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+html.layout-gamepad .gp-tool-cat.active {
+  background: #8ec8e8;
+  color: #1a3344;
+}
+
+html.layout-gamepad .gp-tool-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+html.layout-gamepad .gp-tool-lr {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #e24b4b;
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+html.layout-gamepad .gp-tool-ring {
+  position: relative;
+  width: 248px;
+  height: 248px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset 0 0 0 3px #eadfcf;
+}
+
+html.layout-gamepad .gp-tool-ring::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  background:
+    linear-gradient(#e24b4b, #e24b4b) 0 0 / 18px 4px no-repeat,
+    linear-gradient(#e24b4b, #e24b4b) 0 0 / 4px 18px no-repeat,
+    linear-gradient(#e24b4b, #e24b4b) 100% 0 / 18px 4px no-repeat,
+    linear-gradient(#e24b4b, #e24b4b) 100% 0 / 4px 18px no-repeat,
+    linear-gradient(#e24b4b, #e24b4b) 0 100% / 18px 4px no-repeat,
+    linear-gradient(#e24b4b, #e24b4b) 0 100% / 4px 18px no-repeat,
+    linear-gradient(#e24b4b, #e24b4b) 100% 100% / 18px 4px no-repeat,
+    linear-gradient(#e24b4b, #e24b4b) 100% 100% / 4px 18px no-repeat;
+}
+
+html.layout-gamepad .gp-tool-wedge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #3a3328;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+html.layout-gamepad .gp-tool-wedge.is-on {
+  background: #8ec8e8;
+}
+
+html.layout-gamepad .gp-tool-wedge.is-empty {
+  visibility: hidden;
+}
+
+html.layout-gamepad .gp-tool-wedge.is-disabled {
+  opacity: 0.35;
+}
+
+html.layout-gamepad .gp-tool-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  border-radius: 50%;
+  background: #fffdf8;
+  box-shadow: 0 0 0 3px #eadfcf;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+html.layout-gamepad .gp-tool-hub-icon {
+  font-size: 28px;
+  line-height: 1;
+  color: #3a3328;
+}
+
+html.layout-gamepad .gp-tool-hub-name {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #5a5348;
+  max-width: 88px;
+  white-space: normal;
+}
+
+html.layout-gamepad .gp-tool-caption {
+  margin-top: 10px;
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 12px;
+  background: #e24b4b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-wheel-card {
+  background: #1a1d23;
+  color: #eee;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-cat {
+  background: #2a2f38;
+  color: #c8c8c8;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-cat.active {
+  background: #4a7a9a;
+  color: #fff;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-ring {
+  background: #2a2f38;
+  box-shadow: inset 0 0 0 3px #3a3f4a;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-wedge {
+  color: #f2f2f2;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-wedge.is-on {
+  background: #3d6f8c;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-hub {
+  background: #1a1d23;
+  box-shadow: 0 0 0 3px #3a3f4a;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-hub-icon {
+  color: #f2f2f2;
+}
+
+html.theme-dark.layout-gamepad .gp-tool-hub-name {
+  color: #c8c8c8;
+}
