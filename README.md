@@ -1,8 +1,8 @@
-# TagPro Mobile Editor
+# Fortunate Maps Editor EX
 
-A portrait-first, one-handed **web** UI for editing TagPro maps on a phone, plus an iOS-style magnifying glass. This is a first draft of mobile support — not an Android/iOS app wrap.
+**Fortunate Maps Editor EX** is a web map editor with phone, desktop, and console layouts, plus an iOS-style magnifying glass.
 
-Based on the current public TagPro editor in [raikutro/fortunatemaps](https://github.com/raikutro/fortunatemaps) (`editor/public`, including its texture-pack menu). That editor descends from [PeterReid/tagpro-map-editor](https://github.com/PeterReid/tagpro-map-editor) (AGPL-3.0). This repo keeps the FortunateMaps editing model and adds a portrait mobile UI; it is not the FortunateMaps website (accounts, MongoDB, map hosting).
+Based on the current public TagPro editor in [raikutro/fortunatemaps](https://github.com/raikutro/fortunatemaps) (`editor/public`, including its texture-pack menu). That editor descends from [PeterReid/tagpro-map-editor](https://github.com/PeterReid/tagpro-map-editor) (AGPL-3.0). This repo keeps the FortunateMaps editing model; it is not the FortunateMaps website (accounts, MongoDB, map hosting).
 
 ## Layout: mobile by default
 

@@ -489,6 +489,6 @@ wss.on('connection', function(ws) {
 });
 
 server.listen(PORT, '0.0.0.0', function() {
-  console.log('TagPro Map Editor running at http://localhost:' + PORT);
+  console.log('Fortunate Maps Editor EX running at http://localhost:' + PORT);
   console.log('On your phone, use this computer LAN IP on port ' + PORT);
 });
