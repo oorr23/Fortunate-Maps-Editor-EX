@@ -2686,13 +2686,12 @@ $(function() {
   }
 
   var paletteOrder = [
-    bombType, emptyType,
-    wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType, floorType,
-    spikeType, powerupType, gravityWellType, marsBallType,
-    portalType, exitPortalType, redPortalType, bluePortalType,
-    redFlagType, blueFlagType, redSpawnType, blueSpawnType, redEndzoneType, blueEndzoneType, yellowFlagType,
-    speedpadType, redSpeedPadType, blueSpeedpadType, redFloorType, blueFloorType, yellowFloorType,
-    switchType, offFieldType, onFieldType, redFieldType, blueFieldType
+    wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType, floorType, emptyType,
+    yellowFlagType, redFlagType, blueFlagType, redSpawnType, blueSpawnType, spikeType, gravityWellType,
+    redEndzoneType, blueEndzoneType, portalType, exitPortalType,
+    speedpadType, redSpeedPadType, blueSpeedpadType, redFloorType, blueFloorType, yellowFloorType, powerupType,
+    onFieldType, redFieldType, blueFieldType, offFieldType, switchType, bombType, marsBallType,
+    redPortalType, bluePortalType
   ];
 
   var brushTileType = floorType;
