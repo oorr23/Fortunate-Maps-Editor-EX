@@ -1210,7 +1210,8 @@ $(function() {
     redFieldType, blueFieldType, portalType, exitPortalType, redPortalType, bluePortalType,
     redSpawnType, blueSpawnType, redSpeedPadType, blueSpeedpadType, yellowFloorType, redFloorType, blueFloorType,
     spikeType, powerupType, speedpadType,
-    yellowFlagType, redEndzoneType, blueEndzoneType, gravityWellType, marsBallType;
+    yellowFlagType, redEndzoneType, blueEndzoneType, gravityWellType, marsBallType,
+    potatoType, redPotatoType, bluePotatoType;
   
   var tileTypes = [
     emptyType = new TileType('empty', 13,5, 0,0,0, "Background"),
@@ -1245,6 +1246,9 @@ $(function() {
     yellowFlagType = new TileType('yellowFlag', 13,1, 128,128,0, "Yellow Flag - Bring this neutral flag to your zone to score."),
     redEndzoneType = new TileType('redEndzone', 14,5, 185,0,0, "Red Endzone - Bring a neutral (yellow) flag to this zone to score."),
     blueEndzoneType = new TileType('blueEndzone', 15,5, 25,0,148, "Blue Endzone - Bring a neutral (yellow) flag to this zone to score."),
+    potatoType = new TileType('potato', 14,6, 101,101,0, "Potato - Neutral flag with hold time limit."),
+    redPotatoType = new TileType('redPotato', 14,7, 255,128,128, "Red Potato - Red flag with hold time limit."),
+    bluePotatoType = new TileType('bluePotato', 14,8, 128,128,255, "Blue Potato - Blue flag with hold time limit."),
     gravityWellType = new TileType('gravityWell', 0, 0, 32, 32, 32, "Gravity Well - Pulls nearby balls to their splat.", {image: 'gravitywell', imageTileWidth: 1, imageTileHeight: 1}),
     marsBallType = new TileType('marsBall', 12,9, 256,256,256, "Mars Ball - Push into own endzone or opponent flag to win.", {logicFn: exportMarsBall, multiplier: 0.5}), // 2×2 sheet sprite; no centering shift (see sheetBackgroundPosition)
   ];
@@ -1292,6 +1296,7 @@ $(function() {
   areOpposites(redFlagType, blueFlagType);
   areOpposites(redSpawnType, blueSpawnType);
   areOpposites(redEndzoneType, blueEndzoneType);
+  areOpposites(redPotatoType, bluePotatoType);
   areOpposites(redPortalType, bluePortalType);
   areHorizontalMirrors(wallBottomLeftType, wallBottomRightType);
   areHorizontalMirrors(wallTopLeftType, wallTopRightType);
@@ -1690,6 +1695,8 @@ $(function() {
     clearHistory();
     $('#mapName').val('Untitled');
     $('#author').val('Anonymous');
+    var potatoTimerEl = document.getElementById('potatoTimer');
+    if (potatoTimerEl) potatoTimerEl.value = '';
   };
   redrawTextures();
   clearMap();
@@ -2404,6 +2411,8 @@ $(function() {
       marsballs: [],
       spawnPoints: { red: [], blue: [] }
     };
+    if (+document.getElementById('potatoTimer').value)
+      logic.info.potatoTimer = +document.getElementById('potatoTimer').value;
 
     for (var x=0; x<width; x++) {
       for (var y=0; y<height; y++) {
@@ -2467,6 +2476,8 @@ $(function() {
     var info = json.info || {};
     $('#mapName').val(info.name || '');
     $('#author').val(info.author || '');
+    var potatoTimerEl = document.getElementById('potatoTimer');
+    if (potatoTimerEl) potatoTimerEl.value = info.potatoTimer || '';
 
     var portals = json.portals || {};
     for (var key in portals) {
@@ -2611,16 +2622,16 @@ $(function() {
     var hasBlueSpawn = false;
     $.each(tiles, function(rowIdx, row) {
       $.each(row, function(tileIdx, tile) {
-        if (tile.type.name == "redFlag") hasRedFlag = true;
-        if (tile.type.name == "blueFlag") hasBlueFlag = true;
+        if (tile.type.name == "redFlag" || tile.type.name == "redPotato") hasRedFlag = true;
+        if (tile.type.name == "blueFlag" || tile.type.name == "bluePotato") hasBlueFlag = true;
         if (tile.type.name == "redSpawn") hasRedSpawn = true;
         if (tile.type.name == "blueSpawn") hasBlueSpawn = true;
       });
     });
     if (!(hasRedSpawn || hasRedFlag))
-      return "A map requires a red flag or a red spawn tile to test.";
+      return "A map requires a red flag/potato or a red spawn tile to test.";
     if (!(hasBlueSpawn || hasBlueFlag))
-      return "A map requires a blue flag or a blue spawn tile to test.";
+      return "A map requires a blue flag/potato or a blue spawn tile to test.";
     return "Valid";
   }
 
@@ -2688,7 +2699,7 @@ $(function() {
   var paletteOrder = [
     wallType, wallTopLeftType, wallTopRightType, wallBottomLeftType, wallBottomRightType, floorType, emptyType,
     yellowFlagType, redFlagType, blueFlagType, redSpawnType, blueSpawnType, spikeType, gravityWellType,
-    redEndzoneType, blueEndzoneType, portalType, exitPortalType,
+    potatoType, redPotatoType, bluePotatoType, redEndzoneType, blueEndzoneType, portalType, exitPortalType,
     speedpadType, redSpeedPadType, blueSpeedpadType, redFloorType, blueFloorType, yellowFloorType, powerupType,
     onFieldType, redFieldType, blueFieldType, offFieldType, switchType, bombType, marsBallType,
     redPortalType, bluePortalType
@@ -2981,6 +2992,7 @@ $(function() {
 
       var fields = json.fields || {};
       var portals = json.portals || {};
+      var info = json.info || {};
       if (!json.spawnPoints) json.spawnPoints = { red: [], blue: [] };
       if (!json.spawnPoints.red) json.spawnPoints.red = [];
       if (!json.spawnPoints.blue) json.spawnPoints.blue = [];
@@ -3007,6 +3019,10 @@ $(function() {
             } else if (type == onFieldType || type==offFieldType || type==redFieldType || type==blueFieldType) {
               type = {on: onFieldType, off: offFieldType, red: redFieldType, blue: blueFieldType
               }[(fields[sourceX+','+sourceY]||{}).defaultState] || offFieldType;
+            } else if (info.flagsArePotatoes) {
+              if (type == yellowFlagType) type = potatoType;
+              if (type == redFlagType) type = redPotatoType;
+              if (type == blueFlagType) type = bluePotatoType;
             }
           } else {
             type = emptyType;
@@ -3017,9 +3033,10 @@ $(function() {
       }
       buildTilesWith(cols);
 
-      var info = json.info || {};
       $('#mapName').val(info.name || '');
       $('#author').val(info.author || '');
+      var potatoTimerEl = document.getElementById('potatoTimer');
+      if (potatoTimerEl) potatoTimerEl.value = info.potatoTimer || '';
 
       for (var key in portals) {
         var xy = key.split(',');
@@ -4030,6 +4047,12 @@ $(function() {
     paletteNames: function() {
       return paletteOrder.map(function(t) { return t.name; });
     },
+    tileSpecs: function() {
+      return tileTypes.map(function(t) {
+        return { name: t.name, sheetX: t.sheetX, sheetY: t.sheetY, rgb: t.rgb };
+      });
+    },
+    mapValidity: isValidMapStr,
     inspectTile: function(x, y) {
       var t = tiles[x] && tiles[x][y];
       if (!t) return null;
