@@ -566,10 +566,34 @@ $(function() {
   }
 
   var mapClipboard = null;
+  var oddSnapToastTimer = 0;
 
   function isMobileLayout() {
     if (window.TagproLayout && window.TagproLayout.isMobile) return window.TagproLayout.isMobile();
     return !document.documentElement.classList.contains('layout-desktop');
+  }
+
+  function showMapToast(msg) {
+    var el = document.getElementById('fmToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.removeAttribute('hidden');
+    el.classList.add('is-on');
+    if (oddSnapToastTimer) clearTimeout(oddSnapToastTimer);
+    oddSnapToastTimer = setTimeout(function() {
+      oddSnapToastTimer = 0;
+      el.classList.remove('is-on');
+      el.setAttribute('hidden', '');
+    }, 2000);
+  }
+
+  function maybeToastOddSnap(x0, y0, x1, y1, tool) {
+    if (!isMobileLayout() || !tool || tool.oddSnapToasted) return;
+    var r = clipSelectRect(x0, y0, x1, y1);
+    if (r.x1 !== x1 || r.y1 !== y1) {
+      tool.oddSnapToasted = true;
+      showMapToast('Selection snapped to an odd size so paste can center.');
+    }
   }
 
   function oddSpanEnd(start, end) {
@@ -725,18 +749,21 @@ $(function() {
         clearHighlights();
         this.downX = undefined;
         this.downY = undefined;
+        this.oddSnapToasted = false;
       },
       down: function(x, y) {
         this.downX = x;
         this.downY = y;
         this.lastX = x;
         this.lastY = y;
+        this.oddSnapToasted = false;
       },
       speculateDrag: function(x, y) {
         var x0 = this.downX === undefined ? x : this.downX;
         var y0 = this.downY === undefined ? y : this.downY;
         this.lastX = x;
         this.lastY = y;
+        maybeToastOddSnap(x0, y0, x, y, this);
         return selectionPreview(x0, y0, x, y);
       },
       speculateUp: function(x, y) {
@@ -744,6 +771,7 @@ $(function() {
         var y0 = this.downY === undefined ? y : this.downY;
         this.lastX = x;
         this.lastY = y;
+        maybeToastOddSnap(x0, y0, x, y, this);
         var clip = snapshotClipboardRect(x0, y0, x, y);
         if (clip) mapClipboard = clip;
         if (!isCut) return selectionPreview(x0, y0, x, y);
@@ -2581,7 +2609,11 @@ $(function() {
   }
 
   $('#test, #testeu').click(function(e) {
-    return launchTest(e.target.id == 'testeu');
+    var eu = e.target.id === 'testeu' || !!(e.target.closest && e.target.closest('#testeu'));
+    if (window.TagproGamepad && TagproGamepad.setTestServer) {
+      TagproGamepad.setTestServer(eu ? 'eu' : 'na');
+    }
+    return launchTest(!!eu);
   });
   
   function setBrushTileType(type) {
@@ -2799,6 +2831,7 @@ $(function() {
       lastDrawingToolId = toolId;
     }
     if (window.TagproTools && TagproTools.centerOnActive) TagproTools.centerOnActive(true);
+    if (window.TagproTools && TagproTools.syncGroupFromActive) TagproTools.syncGroupFromActive();
   });
 
   var selectedTool = pencil;

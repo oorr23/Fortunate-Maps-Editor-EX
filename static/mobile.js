@@ -149,6 +149,9 @@ $(function() {
   $('.fm-proxy-test').on('click', function(e) {
     e.preventDefault();
     var id = this.getAttribute('data-test');
+    if (window.TagproGamepad && TagproGamepad.setTestServer) {
+      TagproGamepad.setTestServer(id === 'testeu' ? 'eu' : 'na');
+    }
     if (id) $('#' + id).trigger('click');
   });
 
@@ -217,6 +220,7 @@ $(function() {
   }
 
   function openMore() {
+    setPanMode(false);
     $moreSheet.addClass('open').removeClass('more-dragging');
     $moreBackdrop.addClass('open').removeAttr('hidden');
     syncLandscapeBackdrop();
@@ -239,6 +243,11 @@ $(function() {
   $('#moreToggle').on('click', function() {
     if ($moreSheet.hasClass('open')) closeMore();
     else openMore();
+  });
+  $('#moreGrabber').on('click', function(e) {
+    e.preventDefault();
+    openMore();
+    setMorePanel('file', { keep: true });
   });
   $('#moreClose, #moreBackdrop').on('click', closeMore);
   $('.more-nav-btn').on('click', function(e) {
@@ -526,28 +535,111 @@ $(function() {
     }
   }
 
+  function clearPanMode() {
+    if (panMode) setPanMode(false);
+  }
+
   $panMode.on('click', function() {
     setPanMode(!panMode);
   });
 
   $('#dockUndo').on('click', function() { $('#undo').trigger('click'); });
   $('#dockRedo').on('click', function() { $('#redo').trigger('click'); });
-  $('#dockTest').on('click', function() {
-    var eu = window.TagproGamepad && TagproGamepad.preferredTestIsEu && TagproGamepad.preferredTestIsEu();
-    if (window.TagproMap && TagproMap.launchTest) TagproMap.launchTest(!!eu);
-    else $(eu ? '#testeu' : '#test').trigger('click');
-  });
+  (function bindDockTestHold() {
+    var btn = document.getElementById('dockTest');
+    if (!btn) return;
+    var HOLD_MS = 400;
+    var timer = 0;
+    var tracking = false;
+    var held = false;
+
+    function clearTimer() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = 0;
+      }
+    }
+
+    function launchPreferred() {
+      if (window.TagproGamepad && TagproGamepad.launchPreferredTest) {
+        TagproGamepad.launchPreferredTest();
+        return;
+      }
+      var eu = window.TagproGamepad && TagproGamepad.preferredTestIsEu && TagproGamepad.preferredTestIsEu();
+      if (window.TagproMap && TagproMap.launchTest) TagproMap.launchTest(!!eu);
+      else $(eu ? '#testeu' : '#test').trigger('click');
+    }
+
+    function onDown(e) {
+      if (e.button != null && e.button !== 0) return;
+      tracking = true;
+      held = false;
+      clearTimer();
+      if (e.pointerId != null && btn.setPointerCapture) {
+        try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      timer = setTimeout(function() {
+        timer = 0;
+        held = true;
+        if (window.TagproGamepad && TagproGamepad.openTestMenu) TagproGamepad.openTestMenu();
+      }, HOLD_MS);
+    }
+
+    function onUp(e) {
+      if (!tracking) return;
+      tracking = false;
+      var wasHeld = held;
+      clearTimer();
+      held = false;
+      if (e.type === 'pointercancel' || e.type === 'touchcancel') return;
+      if (!wasHeld) launchPreferred();
+    }
+
+    function onCancel() {
+      tracking = false;
+      held = false;
+      clearTimer();
+    }
+
+    if (HAS_POINTER) {
+      btn.addEventListener('pointerdown', onDown);
+      btn.addEventListener('pointerup', onUp);
+      btn.addEventListener('pointercancel', onCancel);
+    } else {
+      btn.addEventListener('mousedown', onDown);
+      btn.addEventListener('touchstart', onDown, { passive: true });
+      btn.addEventListener('mouseup', onUp);
+      btn.addEventListener('touchend', onUp);
+      btn.addEventListener('touchcancel', onCancel);
+    }
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    btn.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+  })();
   $('#dockClear').on('click', function() { $('#clear').trigger('click'); });
   $('#dockZoomIn').on('click', function() {
     if (this.disabled) return;
+    clearPanMode();
     if (window.TagproMap && TagproMap.zoomIn) TagproMap.zoomIn();
   });
   $('#dockZoomOut').on('click', function() {
     if (this.disabled) return;
+    clearPanMode();
     if (window.TagproMap && TagproMap.zoomOut) TagproMap.zoomOut();
   });
   $('#tileSettingsBtn').on('click', function(e) {
+    clearPanMode();
     openFocusedTileSettings(e);
+  });
+  $('#tools').on('click', '.btn', function() {
+    clearPanMode();
+  });
+  $('#palette').on('click', '.tilePaletteOption', function() {
+    clearPanMode();
   });
   $('#tileSettingsBtn').on('pointerdown mousedown touchstart', function(e) {
     e.stopPropagation();
@@ -687,6 +779,7 @@ $(function() {
   }
 
   function commitOpenSettings(x, y, fromNativeDblclick) {
+    clearPanMode();
     if (pendingOpenSettingsTimer) {
       clearTimeout(pendingOpenSettingsTimer);
       pendingOpenSettingsTimer = 0;
@@ -2578,12 +2671,22 @@ $(function() {
     var looping = false;
     var animating = false;
     var scrollAnimFrame = null;
+    var chips = document.getElementById('toolGroupChips');
+    var currentGroup = 'draw';
 
     function isDesktopLayout() {
       return document.documentElement.classList.contains('layout-desktop');
     }
 
-    function canonicalButtons() {
+    function isGamepadLayout() {
+      return document.documentElement.classList.contains('layout-gamepad');
+    }
+
+    function useGroupFilter() {
+      return !isDesktopLayout() && !isGamepadLayout();
+    }
+
+    function allOriginalButtons() {
       var all = group.querySelectorAll('.btn');
       var out = [];
       for (var i = 0; i < all.length; i++) {
@@ -2592,8 +2695,54 @@ $(function() {
       return out;
     }
 
+    function applyGroupFilter() {
+      var filter = useGroupFilter() ? currentGroup : '';
+      var buttons = group.querySelectorAll('.btn');
+      for (var i = 0; i < buttons.length; i++) {
+        var g = buttons[i].getAttribute('data-tool-group') || '';
+        var hide = !!(filter && g && g !== filter);
+        buttons[i].classList.toggle('tool-group-hidden', hide);
+      }
+    }
+
+    function setChipState(name) {
+      if (!chips) return;
+      var list = chips.querySelectorAll('.tool-group-chip');
+      for (var i = 0; i < list.length; i++) {
+        var on = list[i].getAttribute('data-tool-group') === name;
+        list[i].classList.toggle('active', on);
+        list[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+    }
+
+    function setToolGroup(name, opts) {
+      opts = opts || {};
+      if (name !== 'draw' && name !== 'edit' && name !== 'map') name = 'draw';
+      currentGroup = name;
+      setChipState(name);
+      applyGroupFilter();
+      if (!opts.skipSync) centerOnActive(false);
+    }
+
+    function syncGroupFromActive() {
+      if (!useGroupFilter()) return;
+      var src = el.querySelector('.btn.active:not(.tool-group-hidden)') || el.querySelector('.btn.active');
+      if (!src) return;
+      var g = src.getAttribute('data-tool-group');
+      if (g && g !== currentGroup) setToolGroup(g);
+    }
+
+    function canonicalButtons() {
+      var all = allOriginalButtons();
+      var out = [];
+      for (var i = 0; i < all.length; i++) {
+        if (!all[i].classList.contains('tool-group-hidden')) out.push(all[i]);
+      }
+      return out;
+    }
+
     function ensureToolIds() {
-      var buttons = canonicalButtons();
+      var buttons = allOriginalButtons();
       for (var i = 0; i < buttons.length; i++) {
         var btn = buttons[i];
         if (!btn.getAttribute('data-tool-id')) {
@@ -2639,6 +2788,7 @@ $(function() {
 
     function syncLoopMode() {
       ensureToolIds();
+      applyGroupFilter();
       removeClones();
       looping = false;
       setWidth = 0;
@@ -2675,9 +2825,10 @@ $(function() {
       var selected = el.querySelectorAll('.btn.active');
       if (!selected.length) return null;
       var viewCenter = el.scrollLeft + el.clientWidth / 2;
-      var target = selected[0];
+      var target = null;
       var best = Infinity;
       for (var i = 0; i < selected.length; i++) {
+        if (selected[i].classList.contains('tool-group-hidden')) continue;
         var d = Math.abs(itemCenter(selected[i]) - viewCenter);
         if (d < best) {
           best = d;
@@ -2757,8 +2908,28 @@ $(function() {
     window.addEventListener('orientationchange', function() {
       setTimeout(function() { centerOnActive(false); }, 250);
     });
-    requestAnimationFrame(function() { centerOnActive(false); });
+    document.documentElement.addEventListener('tagpro-layout', function() {
+      if (!useGroupFilter()) applyGroupFilter();
+      centerOnActive(false);
+    });
+    if (chips) {
+      chips.addEventListener('click', function(e) {
+        var btn = e.target.closest ? e.target.closest('.tool-group-chip') : null;
+        if (!btn) return;
+        e.preventDefault();
+        setToolGroup(btn.getAttribute('data-tool-group') || 'draw');
+      });
+    }
+    requestAnimationFrame(function() {
+      setToolGroup('draw', { skipSync: true });
+      centerOnActive(false);
+    });
 
-    window.TagproTools = { centerOnActive: centerOnActive };
+    window.TagproTools = {
+      centerOnActive: centerOnActive,
+      setGroup: setToolGroup,
+      syncGroupFromActive: syncGroupFromActive,
+      refresh: function() { centerOnActive(false); }
+    };
   })();
 });

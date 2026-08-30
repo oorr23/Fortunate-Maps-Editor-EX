@@ -9,9 +9,21 @@ html:not(.layout-gamepad) #gpBindsGroup,
 html:not(.layout-gamepad) #gpTestServerGroup,
 html:not(.layout-gamepad) #gpLegendGroup,
 html:not(.layout-gamepad) #gpBindsSheet,
-html:not(.layout-gamepad) #gpTestMenu,
 html:not(.layout-gamepad) #gpOsk {
   display: none !important;
+}
+
+html.layout-desktop #gpTestMenu {
+  display: none !important;
+}
+
+/* Mobile dock Test: keep the Console frame button, show it on phone too. */
+html.layout-mobile:not(.layout-gamepad) #dockTest,
+html:not(.layout-desktop):not(.layout-gamepad) #dockTest {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
 }
 
 html:not(.layout-gamepad) #gpRailLeft,
@@ -22,11 +34,12 @@ html:not(.layout-gamepad) #gpRailRight {
 /* Restore the original dock order after rail wrappers regroup nodes. */
 html.layout-mobile:not(.layout-gamepad) #dockBar #dockUndo { order: 1; }
 html.layout-mobile:not(.layout-gamepad) #dockBar #dockRedo { order: 2; }
-html.layout-mobile:not(.layout-gamepad) #dockBar #dockZoomOut { order: 3; }
-html.layout-mobile:not(.layout-gamepad) #dockBar #dockZoomIn { order: 4; }
-html.layout-mobile:not(.layout-gamepad) #dockBar #panMode { order: 5; }
-html.layout-mobile:not(.layout-gamepad) #dockBar #tileSettingsBtn { order: 6; }
-html.layout-mobile:not(.layout-gamepad) #dockBar #moreToggle { order: 7; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #dockTest { order: 3; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #dockZoomOut { order: 4; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #dockZoomIn { order: 5; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #panMode { order: 6; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #tileSettingsBtn { order: 7; }
+html.layout-mobile:not(.layout-gamepad) #dockBar #moreToggle { order: 8; }
 
 html.layout-gamepad,
 html.layout-gamepad body {
@@ -70,7 +83,9 @@ html.layout-gamepad.layout-mobile.orient-landscape #dockBar {
 html.layout-gamepad.layout-mobile .dock-tools-wrap,
 html.layout-gamepad.layout-mobile.orient-landscape .dock-tools-wrap,
 html.layout-gamepad.layout-mobile #tools,
-html.layout-gamepad.layout-mobile #zoom {
+html.layout-gamepad.layout-mobile #zoom,
+html.layout-gamepad .more-grabber,
+html.layout-gamepad .tool-group-chips {
   display: none !important;
 }
 
@@ -1298,14 +1313,15 @@ html.theme-dark.layout-gamepad .gp-bind-row .form-control {
   color: #f2f2f2;
 }
 
-html:not(.layout-gamepad) .gp-test-menu,
-html.layout-gamepad .gp-test-menu[hidden],
+.gp-test-menu[hidden],
 html:not(.layout-gamepad) .gp-osk,
 html.layout-gamepad .gp-osk[hidden] {
   display: none !important;
 }
 
-html.layout-gamepad .gp-test-menu {
+html.layout-gamepad .gp-test-menu,
+html.layout-mobile:not(.layout-gamepad) .gp-test-menu:not([hidden]),
+html:not(.layout-desktop):not(.layout-gamepad) .gp-test-menu:not([hidden]) {
   position: fixed;
   inset: 0;
   z-index: 12100;
@@ -1324,13 +1340,38 @@ html.layout-gamepad .gp-test-menu-card {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
+html.layout-mobile:not(.layout-gamepad) .gp-test-menu-card,
+html:not(.layout-desktop):not(.layout-gamepad) .gp-test-menu-card {
+  width: min(320px, 100%);
+  padding: 16px 14px 12px;
+  border-radius: 14px;
+  background: #1e2229;
+  color: #f2f2f2;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+html.theme-light.layout-mobile:not(.layout-gamepad) .gp-test-menu-card,
+html.theme-light:not(.layout-desktop):not(.layout-gamepad) .gp-test-menu-card {
+  background: #fff;
+  color: #222;
+}
+
 html.layout-gamepad .gp-test-menu-card h3 {
   margin: 0 0 12px;
   font-size: 18px;
   color: #3a3328;
 }
 
-html.layout-gamepad .gp-test-menu-card .btn {
+html.layout-mobile:not(.layout-gamepad) .gp-test-menu-card h3,
+html:not(.layout-desktop):not(.layout-gamepad) .gp-test-menu-card h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: inherit;
+}
+
+html.layout-gamepad .gp-test-menu-card .btn,
+html.layout-mobile:not(.layout-gamepad) .gp-test-menu-card .btn,
+html:not(.layout-desktop):not(.layout-gamepad) .gp-test-menu-card .btn {
   margin-bottom: 8px;
 }
 
