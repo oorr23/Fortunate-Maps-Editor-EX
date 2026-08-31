@@ -1693,10 +1693,11 @@ $(function() {
     buildTilesWith(emptyTypes);
     savePoint();
     clearHistory();
-    $('#mapName').val('Untitled');
-    $('#author').val('Anonymous');
-    var potatoTimerEl = document.getElementById('potatoTimer');
-    if (potatoTimerEl) potatoTimerEl.value = '';
+    applyInfoFields({
+      name: 'Untitled',
+      author: 'Anonymous',
+      gameMode: 'normal'
+    });
   };
   redrawTextures();
   clearMap();
@@ -2400,10 +2401,12 @@ $(function() {
   }
 
   function makeLogic() {
+    var gameModeEl = document.querySelector('input[name="gameMode"]:checked');
     var logic = {
       info: {
         name: $('#mapName').val(),
-        author: $('#author').val()
+        author: $('#author').val(),
+        gameMode: (gameModeEl && gameModeEl.value) || 'normal'
       },
       switches: {},
       fields: {},
@@ -2411,8 +2414,12 @@ $(function() {
       marsballs: [],
       spawnPoints: { red: [], blue: [] }
     };
-    if (+document.getElementById('potatoTimer').value)
-      logic.info.potatoTimer = +document.getElementById('potatoTimer').value;
+    var potatoTimerEl = document.getElementById('potatoTimer');
+    if (potatoTimerEl && +potatoTimerEl.value)
+      logic.info.potatoTimer = +potatoTimerEl.value;
+    var throwbackEl = document.getElementById('throwback');
+    if (throwbackEl && throwbackEl.checked)
+      logic.info.throwback = true;
 
     for (var x=0; x<width; x++) {
       for (var y=0; y<height; y++) {
@@ -2471,13 +2478,33 @@ $(function() {
     return byName;
   }
 
-  function applyJsonMetadata(json) {
-    if (!json) return;
-    var info = json.info || {};
+  function syncGameModeButtons() {
+    $('input[name="gameMode"]').each(function() {
+      $(this).closest('.btn').toggleClass('active', this.checked);
+    });
+  }
+
+  function applyInfoFields(info) {
+    info = info || {};
     $('#mapName').val(info.name || '');
     $('#author').val(info.author || '');
     var potatoTimerEl = document.getElementById('potatoTimer');
     if (potatoTimerEl) potatoTimerEl.value = info.potatoTimer || '';
+    var throwbackEl = document.getElementById('throwback');
+    if (throwbackEl) throwbackEl.checked = !!info.throwback;
+    var modeId = 'normalMode';
+    if (info.gameMode === 'gravity') modeId = 'gravityMode';
+    else if (info.gameMode === 'gravityCTF') modeId = 'gravityCTFMode';
+    var radio = document.getElementById(modeId);
+    if (radio) radio.checked = true;
+    syncGameModeButtons();
+  }
+
+  $(document).on('change', 'input[name="gameMode"]', syncGameModeButtons);
+
+  function applyJsonMetadata(json) {
+    if (!json) return;
+    applyInfoFields(json.info || {});
 
     var portals = json.portals || {};
     for (var key in portals) {
@@ -3033,10 +3060,7 @@ $(function() {
       }
       buildTilesWith(cols);
 
-      $('#mapName').val(info.name || '');
-      $('#author').val(info.author || '');
-      var potatoTimerEl = document.getElementById('potatoTimer');
-      if (potatoTimerEl) potatoTimerEl.value = info.potatoTimer || '';
+      applyInfoFields(info);
 
       for (var key in portals) {
         var xy = key.split(',');

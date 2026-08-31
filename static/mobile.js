@@ -100,7 +100,6 @@ $(function() {
   document.documentElement.addEventListener('tagpro-layout', function() {
     finishLivePinch();
     if (!isPhoneLayout()) hideLoupe();
-    placeMapMetaFields();
     syncLayoutSwitcher();
     chromeChanged();
   });
@@ -164,21 +163,6 @@ $(function() {
     e.preventDefault();
     applyTheme('light');
   });
-
-  function isDesktopLayout() {
-    return document.documentElement.classList.contains('layout-desktop');
-  }
-
-  function placeMapMetaFields() {
-    var fields = document.getElementById('mapMetaFields');
-    var desktopHost = document.getElementById('mapMetaHost');
-    var modalHost = document.getElementById('mapMetaModalHost');
-    if (!fields || !desktopHost || !modalHost) return;
-    var host = isDesktopLayout() ? desktopHost : modalHost;
-    if (fields.parentNode !== host) host.appendChild(fields);
-  }
-
-  placeMapMetaFields();
 
   $('.fm-proxy-save').on('click', function(e) {
     e.preventDefault();
@@ -291,7 +275,7 @@ $(function() {
     ignoreClicks: ignoreMoreClicks
   };
 
-  $('#instructionsModal, #importExport').on('show.bs.modal', function() {
+  $('#instructionsModal, #importExport, #mapMetadata').on('show.bs.modal', function() {
     closeMore();
   });
 
