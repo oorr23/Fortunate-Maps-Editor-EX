@@ -749,18 +749,36 @@
           <h4 class="modal-title" id="instructionsLabel">Instructions</h4>
         </div>
         <div class="modal-body instructions-body">
-          <p><strong>Draw.</strong> Pick a tile from the palette carousel, then tap or drag on the map. Eyedropper copies a tile from the map into the brush so the next stamps use it until you pick another. Dock tools (brush, line, fill, and the rest) paint many tiles at once.</p>
-          <p><strong>Tile settings.</strong> Portals, buttons, and team spawns have extra options. While zoomed in, or while the magnifier is open, hold the tile for 0.75 seconds to open the dialog (centered). A tap paints. If you are not zoomed in, hold opens the magnifier instead. Painting with a portal, button, or spawn selected does not open the dialog. Tile in the dock also opens settings.</p>
+          <div class="instr-desktop">
+            <p><strong>Draw.</strong> Click a tile in the sidebar palette, then click or drag on the map. Eyedropper copies a map tile into the brush until you pick another. Brush, line, fill, and the other drawing tools paint many tiles at once.</p>
+            <p><strong>Tile settings.</strong> Shift-click a portal, button, or spawn on the map to edit it. Ctrl-click samples a tile.</p>
+          </div>
+          <div class="instr-mobile">
+            <p><strong>Draw.</strong> Pick a tile from the palette carousel, then tap or drag on the map. Eyedropper copies a tile from the map into the brush until you pick another. Dock tools (brush, line, fill, and the rest) paint many tiles at once.</p>
+            <p><strong>Tile settings.</strong> While zoomed in, or while the magnifier is open, hold the tile for 0.75 seconds to open the dialog. A tap paints. If you are not zoomed in, hold opens the magnifier instead. Painting with a portal, button, or spawn selected does not open the dialog. Tile in the dock also opens settings.</p>
+          </div>
+          <div id="gpInstructions" class="instr-pad">
+            <p class="instr-gamepad"><strong>GamePad.</strong> This layout uses the SMM frame around the map. Connecting a pad never switches layout by itself — press the physical A button on the hint (even if Paint is remapped), or pick GamePad in Layout.</p>
+            <p class="instr-steamdeck"><strong>Steam Deck.</strong> Same chrome as GamePad (SMM frame, rails, tools wheel, Controller tab), chosen from the handheld icon in Layout.</p>
+            <p>The frame is tap squares: L/R cycle palette tiles, play tests (hold Play to pick NA/EU), tile settings, + for More, B undo, Down redo, and clear. D-pad Left and Right focus those side menus so A can click them. Left stick steps the yellow work tile; right stick pans the map. <span id="gpBindsHelp">A paints (hold A and move for a trail). X opens chat. B undo, Down redo, Y tile settings. D-pad Up tests (hold to pick a server). Shoulders change palette tiles; triggers zoom. Select opens the tools wheel. Start opens More. L3 scrolls the work tile into view.</span> Swipe up from the bottom of the map for chat, or tap the handle. Change binds under More → Controller, or hold Start to open that tab. Set a preferred test server there too.</p>
+            <p><strong>Map edits.</strong> Resize from Map in More. Rotate, flip, and mirror from the tools wheel (Mirror map vertically copies the map downward and swaps teams). Cut or copy, then paste onto the yellow work tile.</p>
+            <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. Collab copies a live share link. Put your name on the left and cursor color on the right of that row.</p>
+          </div>
           <ul>
             <li>Portal: cooldown in milliseconds (0 = none).</li>
             <li>Button: timer in seconds (0 = off when you leave; negative = stays on).</li>
             <li>Spawn: radius in tiles and weight (how often it is chosen).</li>
           </ul>
           <p><strong>Spawns &amp; Mars Balls.</strong> Mars Balls sit on the floor; a map can have at most two. Place team spawns, then set radius and weight in tile settings.</p>
-          <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row (Mirror map vertically copies the map downward and swaps teams). Cut or copy a rectangle, then use Paste and tap where it should go. On a phone, the selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons or Z / Y.</p>
-          <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. On a phone, swipe up from the bottom of the map for room chat. On desktop, swipe in from the right edge. Esc, a swipe back, or a tap outside closes it.</p>
-          <p><strong>Phone.</strong> Tools and the dock sit on one side; tiles sit on the other. Choose Left or Right under Layout so they match your dominant hand (Left is the default: tools on the left). Swipe the rails if they overflow. Tap File, Map, Layout, or Appearance to open that tab; swipe up on that strip for chat. Pan: one-finger drag moves the map; tap Pan again to paint. Pinch with two fingers to zoom; two-finger drag pans. Dock Test uses the last server; hold Test to pick NA or EU this time.</p>
-          <p id="gpInstructions"><strong>GamePad.</strong> Choose Layout → GamePad for a generic pad layout. Steam Deck in Layout is the same chrome (SMM frame, rails, tools wheel, Controller tab) chosen from the handheld icon. The frame is tap squares: L/R cycle palette tiles, play tests (hold Play to pick NA/EU), tile settings, + for More, B undo, Down redo, and clear. D-pad Left and Right focus those side menus so A can click them. Left stick steps the yellow work tile; right stick pans the map. <span id="gpBindsHelp">A paints (hold A and move for a trail). X opens chat. B undo, Down redo, Y tile settings. D-pad Up tests (hold to pick a server). Shoulders change palette tiles; triggers zoom. Select opens the tools wheel. Start opens More. L3 scrolls the work tile into view.</span> Swipe up from the bottom of the map for chat, or tap the handle. Connecting a pad never switches layout by itself — press the physical A button on the hint (even if Paint is remapped), or pick GamePad in Layout. Change any of these under More → Controller, or hold Start to open that tab. Set a preferred test server there too.</p>
+          <div class="instr-desktop">
+            <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools (Mirror map vertically copies the map downward and swaps teams). Cut or copy a rectangle, then Paste and click where it should go. Undo/redo with Z / Y or the undo/redo buttons.</p>
+            <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe in from the right edge for room chat. Esc, a swipe back, or a click outside closes it.</p>
+          </div>
+          <div class="instr-mobile">
+            <p><strong>Map edits.</strong> Resize from Map. Rotate, flip, and mirror from the tools row (Mirror map vertically copies the map downward and swaps teams). Cut or copy a rectangle, then use Paste and tap where it should go. The selection must be an odd number of tiles wide and tall (1, 3, 5…) so paste can sit on the center tile. Undo/redo with the dock buttons.</p>
+            <p><strong>Phone.</strong> Tools and the dock sit on one side; tiles sit on the other. Choose Left or Right under Layout so they match your dominant hand (Left is the default: tools on the left). Swipe the rails if they overflow. Tap File, Map, Layout, or Appearance to open that tab; swipe up on that strip for chat. Pan: one-finger drag moves the map; tap Pan again to paint. Pinch with two fingers to zoom; two-finger drag pans. Dock Test uses the last server; hold Test to pick NA or EU this time.</p>
+            <p><strong>Save &amp; collab.</strong> Maps auto-save to this device’s cache. File → Collab copies a live share link. Put your name on the left and cursor color on the right of that row. Swipe up from the bottom of the map for room chat. Esc, a swipe down, or a tap outside closes it.</p>
+          </div>
           <p>Happy map making.</p>
         </div>
         <div class="modal-footer">

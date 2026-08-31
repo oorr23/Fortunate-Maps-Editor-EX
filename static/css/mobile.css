@@ -750,8 +750,9 @@ html:not(.layout-desktop) #moreSheet .input-group-btn .btn {
 }
 
 html.layout-mobile .modal,
-html:not(.layout-desktop) .modal {
-  z-index: 11000;
+html:not(.layout-desktop) .modal,
+html.layout-desktop .modal {
+  z-index: 11200;
 }
 
 /* Host stays in the dock DOM but takes no layout. The open card is
@@ -857,6 +858,13 @@ html.layout-mobile .modal-backdrop,
 html:not(.layout-desktop) .modal-backdrop,
 .modal-backdrop {
   z-index: 10900;
+}
+
+/* Bootstrap dismisses on clicks to `.modal`, not the backdrop. Keep the
+   dialog above the dim overlay on every layout (including desktop), and
+   above GamePad More (z-index 11000). */
+.modal {
+  z-index: 11200;
 }
 
 html.layout-mobile .modal-dialog,

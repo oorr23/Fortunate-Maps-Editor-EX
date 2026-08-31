@@ -291,6 +291,10 @@ $(function() {
     ignoreClicks: ignoreMoreClicks
   };
 
+  $('#instructionsModal, #importExport').on('show.bs.modal', function() {
+    closeMore();
+  });
+
   $('#moreToggle').on('click', function() {
     if ($moreSheet.hasClass('open')) closeMore();
     else openMore();

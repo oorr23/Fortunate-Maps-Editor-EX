@@ -221,6 +221,29 @@ a.selectedTool {
     padding-left: 18px;
 }
 
+html.layout-desktop .instr-mobile,
+html.layout-desktop .instr-pad,
+html.layout-desktop .instr-gamepad,
+html.layout-desktop .instr-steamdeck {
+    display: none;
+}
+html.layout-mobile:not(.layout-gamepad) .instr-desktop,
+html.layout-mobile:not(.layout-gamepad) .instr-pad,
+html.layout-mobile:not(.layout-gamepad) .instr-gamepad,
+html.layout-mobile:not(.layout-gamepad) .instr-steamdeck {
+    display: none;
+}
+html.layout-gamepad .instr-desktop,
+html.layout-gamepad .instr-mobile {
+    display: none;
+}
+html.layout-gamepad:not(.layout-steamdeck) .instr-steamdeck {
+    display: none;
+}
+html.layout-steamdeck .instr-gamepad {
+    display: none;
+}
+
 .collab-chat-edge {
     position: fixed;
     top: 0;
